@@ -1,45 +1,84 @@
-import { useState } from "react";
-import { Card } from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { DataTable } from "./data-table/data-table";
+import { departmentColumns } from "./data-table/department-columns";
+import { departments } from "../models";
+import { Button } from "./ui/button";
+import { UserPlus, Building2, BookOpen } from "lucide-react";
 
+// Stat cards (top row) — hard-coded for now, computed from data later
 interface CardsInfo {
   num: number;
   title: string;
 }
 
-let cards: CardsInfo[] = [
-  { num: 10, title: "Total Students" },
+const cards: CardsInfo[] = [
   { num: 5, title: "Total Teachers" },
   { num: 3, title: "Total Courses" },
+  { num: 10, title: "Total Students" },
 ];
 
+// Page, greeting → cards → departments table
 function Dashboard({ name }: { name: string }) {
-  const [count, setCount] = useState(0);
   return (
-    <div className="p-10 gap-1">
-      <div className="flex gap-2">
-        <h1 className="text-2xl font-bold font-serif">Hello {name}</h1>
-        <span className=" text-white bg-blue-400 rounded-2xl content-center px-3 p text-sm font-semibold">
-          {count}
-        </span>
+    <div className="mx-auto max-w-6xl px-6 py-8">
+      {/* --- Greeting --- */}
+      <div className="flex flex-row items-baseline justify-between">
+        <h1 className="text-2xl font-bold">
+          Hello <span className="text-blue-500">{name}</span>
+        </h1>
+        <span className="text-sm text-muted-foreground">Fall 2022</span>
       </div>
-      <br />
-      <button
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        onClick={() => setCount((count) => count + 1)}
-      >
-        Click me
-      </button>
+      <p className="text-sm text-muted-foreground">Welcome to the Dashboard</p>
 
-      {
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map((card) => (
-            <Card key={card.title + card.num} className="mt-4 p-4">
-              <h2 className="text-lg font-bold">{card.num}</h2>
-              <p>{card.title}</p>
-            </Card>
-          ))}
+      {/* --- Stat cards --- */}
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {cards.map((card) => (
+          <Card
+            key={card.title + card.num}
+            className="p-6 transition-shadow hover:shadow-md"
+          >
+            <p className="text-3xl font-bold tabular-nums text-blue-500">
+              {card.num}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{card.title}</p>
+          </Card>
+        ))}
+      </div>
+
+      {/* --- Departments table (reusable DataTable) --- */}
+      <div className="mt-10 flex flex-col gap-4 lg:flex-row">
+        <div className="min-w-0 lg:basis-3/4">
+          <h2 className="text-xl font-bold">Departments</h2>
+
+          <DataTable
+            columns={departmentColumns}
+            data={departments}
+            searchColumn="name"
+            searchPlaceholder="Filter departments..."
+          />
         </div>
-      }
+
+        {/*Quick Options*/}
+        <Card className="w-72">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">
+              Quick Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <Button variant="outline">
+              <UserPlus size={16} /> Add Account
+            </Button>
+
+            <Button variant="outline">
+              <Building2 size={16} /> New Department
+            </Button>
+            <Button variant="outline">
+              <BookOpen size={16} /> New Course
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
