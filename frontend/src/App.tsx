@@ -1,6 +1,6 @@
 import Navbar from "./components/Navbar";
 import { users } from "./models";
-import Dashboard from "./components/Dashboard";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import { BrowserRouter } from "react-router-dom";
 
 function App() {
@@ -8,7 +8,7 @@ function App() {
     <BrowserRouter>
       <div>
         <Navbar user={users[0]} />
-        <Dashboard name={users[0].name} />
+        <AdminDashboard />
       </div>
     </BrowserRouter>
   );
