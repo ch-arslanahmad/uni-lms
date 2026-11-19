@@ -1,4 +1,16 @@
 import { useState } from "react";
+import { Card } from "./ui/card";
+
+interface CardsInfo {
+  num: number;
+  title: string;
+}
+
+let cards: CardsInfo[] = [
+  { num: 10, title: "Total Students" },
+  { num: 5, title: "Total Teachers" },
+  { num: 3, title: "Total Courses" },
+];
 
 function Dashboard({ name }: { name: string }) {
   const [count, setCount] = useState(0);
@@ -17,6 +29,17 @@ function Dashboard({ name }: { name: string }) {
       >
         Click me
       </button>
+
+      {
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((card) => (
+            <Card key={card.title + card.num} className="mt-4 p-4">
+              <h2 className="text-lg font-bold">{card.num}</h2>
+              <p>{card.title}</p>
+            </Card>
+          ))}
+        </div>
+      }
     </div>
   );
 }

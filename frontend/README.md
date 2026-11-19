@@ -9,7 +9,23 @@ React + TypeScript app for uni-lms. It talks to `../backend/` and never to the d
 - **Routing:** React Router v7 (install react-router)
 - **State:** React Context for `auth` and the current user; mock data behind a small `src/api/` layer
 
-## Phase 1 — local data
+### ShadCN
+
+We chose [shadcn/ui](https://ui.shadcn.com/) for its beautiful components, accessibility, and TypeScript support.
+
+For setup we chose,
+
+- Lucide icons
+- Base UI Library
+- Luma Preset
+
+Installed the following components:
+
+```bash
+npx shadcn@latest add button card input label textarea table select
+```
+
+## Phase 1, local data
 
 Runs on mock data from `src/mock/`, so the UI can be built before the API exists.
 
@@ -19,7 +35,7 @@ Runs on mock data from `src/mock/`, so the UI can be built before the API exists
 - a form with validation and visible errors,
 - one piece of shared state (current user and role) through context.
 
-## Phase 2 — API
+## Phase 2, API
 
 Replaces the mock layer with the API in `../backend/`. Every request gets loading, error and empty states; the base URL comes from an env file.
 
