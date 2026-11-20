@@ -5,8 +5,6 @@ import type { LucideIcon } from "lucide-react";
 
 export type Role = "student" | "teacher" | "admin";
 
-// ── Dashboard shared types ────────────────────────────────────────────────────
-
 export interface StatCardInfo {
   value: number;
   label: string;
@@ -19,51 +17,16 @@ export interface QuickAction {
   href: string;
 }
 
-// Domain classes (map to DB entities later)
-
-export class User {
+// View-only shapes (computed, not a DB entity)
+export interface UserRow {
   id: number;
   name: string;
   role: Role;
   department: string;
-
-  constructor(id: number, name: string, role: Role, department: string) {
-    this.id = id;
-    this.name = name;
-    this.role = role;
-    // Admins see every department, so their own is "all"
-    this.department = role === "admin" ? "all" : department;
-  }
 }
 
-export class Section {
-  id: string;
-  code: string; // e.g. "CS-301-A"
-  courseName: string;
-  term: string; // e.g. "Fall 2026"
-  teacher: string;
-  studentIds: string[];
+export type User = UserRow; // For now, User is userflow for ease & compatibility
 
-  constructor(
-    id: string,
-    code: string,
-    courseName: string,
-    term: string,
-    teacher: string,
-    studentIds: string[],
-  ) {
-    this.id = id;
-    this.code = code;
-    this.courseName = courseName;
-    this.term = term;
-    this.teacher = teacher;
-    this.studentIds = studentIds;
-  }
-}
-
-// View-only shape (computed, not a DB entity)
-
-// Dashboard departments table (computed view shape, not a DB entity)
 export interface DepartmentRow {
   code: string;
   name: string;
@@ -71,25 +34,30 @@ export interface DepartmentRow {
   accounts: number;
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-
-export const users: User[] = [new User(1, "Arslan", "admin", "admin")];
-export const sections: Section[] = [/* ~5 sections */];
-
-export const departments: DepartmentRow[] = [
-  { code: "CS", name: "Computer Science",        courses: 12, accounts: 34 },
-  { code: "EE", name: "Electrical Engineering",  courses: 9,  accounts: 21 },
-  { code: "ME", name: "Mechanical Engineering",  courses: 7,  accounts: 18 },
+// Mock data for Users
+export const users: UserRow[] = [
+  { id: 1, name: "Arslan", role: "admin", department: "all" },
+  { id: 2, name: "Bob", role: "teacher", department: "EE" },
+  { id: 3, name: "Carol", role: "teacher", department: "CS" },
+  { id: 4, name: "David", role: "student", department: "ME" },
+  { id: 5, name: "Eve", role: "student", department: "CS" },
+  { id: 6, name: "Frank", role: "student", department: "CS" },
+  { id: 7, name: "Grace", role: "student", department: "EE" },
+  { id: 8, name: "Henry", role: "student", department: "ME" },
 ];
 
-// ── Admin dashboard data ──────────────────────────────────────────────────────
-// Import icons at the page level; icons are listed here as placeholder strings
-// and resolved in AdminDashboard.tsx to keep models.ts icon-free.
+// Mock data for Departments
+export const departments: DepartmentRow[] = [
+  { code: "CS", name: "Computer Science", courses: 12, accounts: 34 },
+  { code: "EE", name: "Electrical Engineering", courses: 9, accounts: 21 },
+  { code: "ME", name: "Mechanical Engineering", courses: 7, accounts: 18 },
+];
 
+// Admin dashboard computed stats
 export const adminStats: StatCardInfo[] = [
   { value: departments.length, label: "Departments", href: "/admin/departments" },
-  { value: 3,                  label: "Courses",     href: "/admin/courses"     },
-  { value: 5,                  label: "Teachers",    href: "/admin/teachers"    },
-  { value: 10,                 label: "Students",    href: "/admin/students"    },
-  { value: 8,                  label: "Sections",    href: "/admin/sections"    },
+  { value: 3, label: "Courses", href: "/admin/courses" },
+  { value: 2, label: "Teachers", href: "/admin/teachers" },
+  { value: 4, label: "Students", href: "/admin/students" },
+  { value: 5, label: "Sections", href: "/admin/sections" },
 ];

@@ -5,7 +5,7 @@ import type { User } from "../models";
 const navlinks = [
   { label: "Dashboard", href: "/" },
   { label: "Users", href: "/users" },
-  { label: "Sections", href: "/sections" },
+  { label: "Academics", href: "/academics" },
 ];
 
 function Navbar({ user }: { user: User }) {
