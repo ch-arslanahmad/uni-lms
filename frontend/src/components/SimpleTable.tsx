@@ -38,13 +38,23 @@ export function SimpleTable<T>({
   pageSizeOptions?: number[];
   initialPageSize?: number;
 }) {
+  // Sort + de-dupe so the options always read 10, 20, 50 regardless of caller order.
+  const sizeOptions = React.useMemo(
+    () => [...new Set(pageSizeOptions)].sort((a, b) => a - b),
+    [pageSizeOptions],
+  );
+
   // The 3 states, sorting, page sizes, and the current page
   const [sort, setSort] = React.useState<{
     key: string;
     dir: "asc" | "desc";
   } | null>(null);
   const [page, setPage] = React.useState(0);
-  const [pageSize, setPageSize] = React.useState(initialPageSize);
+  const [pageSize, setPageSize] = React.useState(() =>
+    sizeOptions.includes(initialPageSize)
+      ? initialPageSize
+      : (sizeOptions[0] ?? 10),
+  );
 
   // changing page size sends us back to page 1
   React.useEffect(() => {
@@ -147,7 +157,7 @@ export function SimpleTable<T>({
               value={pageSize}
               onChange={(event) => setPageSize(Number(event.target.value))}
             >
-              {pageSizeOptions.map((option) => (
+              {sizeOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
