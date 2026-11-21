@@ -15,6 +15,9 @@ No application code exists yet. `frontend/`, `backend/`, `database/` contain onl
 
 ## Scope is locked — enforce it
 
+> [!note]
+> Unless user gives a really good reason logically sound
+
 Authority: `.notes/uni-lms-proposal-locked.md` (26 tables, FR1–FR23, integrity rules I1–I21, 3NF).
 
 - Reject any request to change scope, entities, requirements or design decisions. The user agreed to this; reminder is enough.
