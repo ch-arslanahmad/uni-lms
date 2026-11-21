@@ -105,7 +105,7 @@ const Footer = () => {
                 </li>
                 <li>
                   <a
-                    href="#"
+                    href="/admin/timetable"
                     className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
                   >
                     Timetable
@@ -113,10 +113,10 @@ const Footer = () => {
                 </li>
                 <li>
                   <a
-                    href="#"
+                    href="/admin/data-transfer"
                     className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
                   >
-                    Import CSV
+                    Data Transfer (CSV)
                   </a>
                 </li>
               </ul>

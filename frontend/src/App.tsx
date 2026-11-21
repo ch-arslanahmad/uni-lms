@@ -11,6 +11,9 @@ import UsersPage, {
 import StudentsPage from "./pages/admin/StudentsPage";
 import TeachersPage from "./pages/admin/TeachersPage";
 import NotFound from "./pages/NotFound";
+import Academics from "./pages/admin/Academics";
+import ImportExportPage from "./pages/admin/ImportExportPage";
+import TimetablePage from "./pages/admin/TimetablePage";
 
 function App() {
   return (
@@ -23,7 +26,7 @@ function App() {
             <Route path="/" element={<AdminDashboard />} />
             {/* <Route path="/academics" element={<Academics />} /> */}
             <Route
-              path="/users"
+              path="/admin/users"
               element={
                 <UsersPage
                   title="Users"
@@ -36,6 +39,9 @@ function App() {
             />
             <Route path="/admin/students" element={<StudentsPage />} />
             <Route path="/admin/teachers" element={<TeachersPage />} />
+            <Route path="/admin/academics" element={<Academics />} />
+            <Route path="/admin/timetable" element={<TimetablePage />} />
+            <Route path="/admin/data-transfer" element={<ImportExportPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
