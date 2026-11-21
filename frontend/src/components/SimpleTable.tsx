@@ -13,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { SearchInput } from "./SearchInput";
 
 // What one column is: its field key, its header, whether it can sort,
 export interface Column<T> {
@@ -25,25 +24,21 @@ export interface Column<T> {
 export function SimpleTable<T>({
   columns,
   data,
-  searchKeys,
-  searchPlaceholder = "Search...",
-  searchable = true,
+
   paginated = false,
   pageSizeOptions = [10, 20, 50],
   initialPageSize = 10,
 }: {
   columns: Column<T>[];
   data: T[];
-  searchKeys?: (keyof T & string)[]; // which things for the search to include, default: 
+  searchKeys?: (keyof T & string)[]; // which things for the search to include, default:
   searchPlaceholder?: string;
   searchable?: boolean; // false = hide the search box entirely
   paginated?: boolean; // opt-in: pass paginated to show footer + page slicing
   pageSizeOptions?: number[];
   initialPageSize?: number;
 }) {
-
-  // The 4 states — one object for sort so only ONE column sorts at a time
-  const [search, setSearch] = React.useState("");
+  // The 3 states, sorting, page sizes, and the current page
   const [sort, setSort] = React.useState<{
     key: string;
     dir: "asc" | "desc";
@@ -51,37 +46,24 @@ export function SimpleTable<T>({
   const [page, setPage] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(initialPageSize);
 
-  // Searching or changing page size sends us back to page 1
+  // changing page size sends us back to page 1
   React.useEffect(() => {
     setPage(0);
-  }, [search, pageSize]);
-
-
-
-  // FILTER, search matches the given fields
-  const filtered = React.useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return data;
-    const keys = searchKeys ?? columns.map((column) => column.key);
-    return data.filter((row) =>
-      keys.some((key) =>
-        String(row[key] ?? "").toLowerCase().includes(query),
-      ),
-    );
-  }, [data, search, searchKeys, columns]);
+  }, [pageSize]);
 
   // 2) SORT
   const sorted = React.useMemo(() => {
-    if (!sort) return filtered;
+    if (!sort) return data;
     const dir = sort.dir === "asc" ? 1 : -1;
-    return [...filtered].sort((a, b) => { // creates a copy to avoid mutation of the original array
+    return [...data].sort((a, b) => {
+      // creates a copy to avoid mutation of the original array
       const av = a[sort.key as keyof T]; // fetch the values for the sort key from both objects
       const bv = b[sort.key as keyof T];
       if (typeof av === "number" && typeof bv === "number")
         return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
-  }, [filtered, sort]);
+  }, [data, sort]);
 
   // 3) PAGINATE, clamp the page so filtering can
   const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize)); // at least 1 page even if no results
@@ -93,24 +75,15 @@ export function SimpleTable<T>({
   // Click: none → asc → desc → none
   function toggleSort(key: string) {
     setSort((prev) => {
-      if (prev?.key !== key) // if not sorted by this key, then asc, 
+      if (prev?.key !== key)
+        // if not sorted by this key, then asc,
         return { key, dir: "asc" };
       return prev.dir === "asc" ? { key, dir: "desc" } : null; // if sorted by this key, then toggle asc/desc/none
     });
-
   }
 
   return (
     <div className="space-y-3">
-      {/* search — hidden when searchable={false} */}
-      {searchable && (
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder={searchPlaceholder}
-        />
-      )}
-
       {/* the table itself */}
       <div className="overflow-hidden rounded-md border bg-card">
         <Table>
@@ -118,8 +91,10 @@ export function SimpleTable<T>({
             <TableRow>
               {columns.map((column) => (
                 <TableHead key={column.key}>
-
-                  <Button variant="ghost" onClick={() => toggleSort(column.key)}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => toggleSort(column.key)}
+                  >
                     {column.label}
                     {sort?.key === column.key ? (
                       sort.dir === "asc" ? (
@@ -131,7 +106,6 @@ export function SimpleTable<T>({
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     )}
                   </Button>
-                  )
                 </TableHead>
               ))}
             </TableRow>

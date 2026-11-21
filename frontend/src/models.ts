@@ -3,7 +3,11 @@
 
 import type { LucideIcon } from "lucide-react";
 
-export type Role = "student" | "teacher" | "admin";
+export enum Role {
+  student = "student",
+  teacher = "teacher",
+  admin = "admin",
+}
 
 export interface StatCardInfo {
   value: number;
@@ -36,14 +40,14 @@ export interface DepartmentRow {
 
 // Mock data for Users
 export const users: UserRow[] = [
-  { id: 1, name: "Arslan", role: "admin", department: "all" },
-  { id: 2, name: "Bob", role: "teacher", department: "EE" },
-  { id: 3, name: "Carol", role: "teacher", department: "CS" },
-  { id: 4, name: "David", role: "student", department: "ME" },
-  { id: 5, name: "Eve", role: "student", department: "CS" },
-  { id: 6, name: "Frank", role: "student", department: "CS" },
-  { id: 7, name: "Grace", role: "student", department: "EE" },
-  { id: 8, name: "Henry", role: "student", department: "ME" },
+  { id: 1, name: "Arslan", role: Role.admin, department: "all" },
+  { id: 2, name: "Bob", role: Role.teacher, department: "EE" },
+  { id: 3, name: "Carol", role: Role.teacher, department: "CS" },
+  { id: 4, name: "David", role: Role.student, department: "ME" },
+  { id: 5, name: "Eve", role: Role.student, department: "CS" },
+  { id: 6, name: "Frank", role: Role.student, department: "CS" },
+  { id: 7, name: "Grace", role: Role.student, department: "EE" },
+  { id: 8, name: "Henry", role: Role.student, department: "ME" },
 ];
 
 // Mock data for Departments
@@ -55,7 +59,11 @@ export const departments: DepartmentRow[] = [
 
 // Admin dashboard computed stats
 export const adminStats: StatCardInfo[] = [
-  { value: departments.length, label: "Departments", href: "/admin/departments" },
+  {
+    value: departments.length,
+    label: "Departments",
+    href: "/admin/departments",
+  },
   { value: 3, label: "Courses", href: "/admin/courses" },
   { value: 2, label: "Teachers", href: "/admin/teachers" },
   { value: 4, label: "Students", href: "/admin/students" },

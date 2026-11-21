@@ -13,11 +13,13 @@ export function SearchInput({
   placeholder?: string;
 }) {
   return (
-    <Input
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder}
-      className="max-w-sm"
-    />
+    <>
+      <Input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="max-w-sm"
+      />
+    </>
   );
 }
