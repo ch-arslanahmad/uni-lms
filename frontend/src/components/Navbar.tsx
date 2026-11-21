@@ -5,8 +5,9 @@ import { NavLink } from "react-router-dom";
 
 const navlinks = [
   { label: "Dashboard", href: "/" },
-  { label: "Users", href: "/users" },
-  { label: "Academics", href: "/academics" },
+  { label: "Users", href: "/admin/users" },
+  { label: "Academics", href: "/admin/academics" },
+  { label: "Import/Export", href: "/admin/data-transfer" },
 ];
 
 function Navbar({ user }: { user: User }) {

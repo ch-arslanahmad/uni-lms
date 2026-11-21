@@ -2,24 +2,21 @@
 
 import Dashboard from "../../components/Dashboard";
 import type { QuickAction } from "../../models";
-import { adminStats, users, departments, type DepartmentRow } from "../../models";
-import { SimpleTable, type Column } from "../../components/SimpleTable";
 import {
-  GraduationCap,
-  Building2,
-  BookOpen,
-  Upload,
-  Users,
-} from "lucide-react";
+  adminStats,
+  users,
+  departments,
+  type DepartmentRow,
+} from "../../models";
+import { SimpleTable, type Column } from "../../components/SimpleTable";
+import { Building2, BookOpen, Upload, Users } from "lucide-react";
 
 // Icons live here, not in models.ts (models stays icon-free)
 const quickActions: QuickAction[] = [
-  { label: "Courses", icon: BookOpen, href: "" },
-  // { label: "Sections",           icon: Layers,        href: "" }, // as sections are of students users of course you know.
-  { label: "Departments", icon: Building2, href: "" },
-  { label: "Semester", icon: GraduationCap, href: "" }, // holds academic calender (fall, spring, summer) as there are defined start/end dates for each semester.
-  { label: "All Users", icon: Users, href: "" }, // holds all users (students, instructors, admins) and their roles.
-  { label: "Import CSV", icon: Upload, href: "" }, // able to import users, courses, sections, etc. from CSV files.
+  { label: "Courses", icon: BookOpen, href: "/admin/academics" },
+  { label: "Departments", icon: Building2, href: "/admin/academics" },
+  { label: "All Users", icon: Users, href: "/admin/users" },
+  { label: "Import & Export", icon: Upload, href: "/admin/data-transfer" },
 ];
 
 const admin = users.find((u) => u.role === "admin") ?? users[0];
@@ -29,7 +26,8 @@ const departmentColumns: Column<DepartmentRow>[] = [
   { key: "code", label: "Department Code" },
   { key: "name", label: "Department" },
   { key: "courses", label: "Total Courses" },
-  { key: "accounts", label: "Total Accounts" },
+  { key: "teachers", label: "Teachers" },
+  { key: "students", label: "Students" },
 ];
 
 function AdminDashboard() {

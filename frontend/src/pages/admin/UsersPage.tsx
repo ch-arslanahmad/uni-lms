@@ -6,6 +6,7 @@ import { Button } from "../../components/ui/button";
 import type { User } from "../../models";
 import { Upload } from "lucide-react";
 import { useMemo, useState } from "react";
+import { NavLink, Link } from "react-router-dom";
 
 export const UserColumns: Column<User>[] = [
   { key: "id", label: "ID" },
@@ -99,7 +100,47 @@ function UsersPage<T extends object>({
 
   return (
     <div className="flex flex-col min-h-screen p-4">
-      <h1 className="text-2xl font-bold">{title}</h1>
+      <div className="flex items-center justify-between pb-2 mb-4 border-b">
+        <h1 className="text-2xl font-bold">{title}</h1>
+        <div className="flex gap-2">
+          <NavLink
+            to="/admin/users"
+            className={({ isActive }) =>
+              `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+              }`
+            }
+          >
+            All Users
+          </NavLink>
+          <NavLink
+            to="/admin/students"
+            className={({ isActive }) =>
+              `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+              }`
+            }
+          >
+            Students
+          </NavLink>
+          <NavLink
+            to="/admin/teachers"
+            className={({ isActive }) =>
+              `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+              }`
+            }
+          >
+            Teachers
+          </NavLink>
+        </div>
+      </div>
       <div className="flex flex-wrap items-center align-middle gap-4 py-4">
         <SearchInput value={search} onChange={setSearch} />
         {filters.map((filter) => (
@@ -113,9 +154,11 @@ function UsersPage<T extends object>({
             }
           />
         ))}
-        <Button variant="outline" size="sm" className="ml-auto gap-2">
-          <Upload size={15} /> Import CSV
-        </Button>
+        <Link to="/admin/data-transfer" className="ml-auto">
+          <Button variant="outline" size="sm" className="gap-2">
+            <Upload size={15} /> Import / Export CSV
+          </Button>
+        </Link>
       </div>
       <SimpleTable columns={columns} data={rows} paginated={true} />
     </div>
