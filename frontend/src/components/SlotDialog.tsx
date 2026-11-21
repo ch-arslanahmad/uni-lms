@@ -7,7 +7,6 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
   DAYS_OF_WEEK,
@@ -43,7 +42,7 @@ export function SlotDialog({
             {isEditing ? "Edit Class Slot" : "Schedule Class Slot"}
           </DialogTitle>
           <DialogDescription>
-            Assign a curriculum subject, faculty member, and room for cohort{" "}
+            Assign a curriculum subject and faculty member for class{" "}
             <span className="font-semibold text-foreground">{sectionCode}</span>.
           </DialogDescription>
         </DialogHeader>
@@ -116,18 +115,6 @@ export function SlotDialog({
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-3">
-            <Label htmlFor="room" className="text-right text-xs">
-              Room / Lab
-            </Label>
-            <Input
-              id="room"
-              defaultValue={editSlot?.room ?? "CS-Lab-1"}
-              placeholder="e.g. CS-Lab-2 or Room-301"
-              className="col-span-3 h-8 text-xs"
-            />
           </div>
         </div>
 

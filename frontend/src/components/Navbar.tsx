@@ -7,7 +7,7 @@ const navlinks = [
   { label: "Dashboard", href: "/" },
   { label: "Users", href: "/admin/users" },
   { label: "Academics", href: "/admin/academics" },
-  { label: "Timetable", href: "/admin/timetable" },
+  { label: "Timetable & Datesheet", href: "/admin/timetable" },
   { label: "Import/Export", href: "/admin/data-transfer" },
 ];
 

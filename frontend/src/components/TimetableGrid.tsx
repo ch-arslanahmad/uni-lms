@@ -1,4 +1,4 @@
-import { Plus, MapPin, User as UserIcon } from "lucide-react";
+import { Plus, User as UserIcon } from "lucide-react";
 import {
   DAYS_OF_WEEK,
   TIME_SLOTS,
@@ -59,15 +59,9 @@ export function TimetableGrid({
                         className="h-full w-full p-2 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/60 transition-all cursor-pointer flex flex-col justify-between shadow-2xs"
                       >
                         <div>
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-primary text-[11px]">
-                              {slot.subjectCode}
-                            </span>
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-background border font-mono flex items-center gap-0.5 text-muted-foreground">
-                              <MapPin size={9} />
-                              {slot.room}
-                            </span>
-                          </div>
+                          <span className="font-bold text-primary text-[11px]">
+                            {slot.subjectCode}
+                          </span>
                           <p className="text-[11px] font-medium text-foreground line-clamp-1 mt-0.5">
                             {subjectObj?.title ?? slot.subjectCode}
                           </p>
