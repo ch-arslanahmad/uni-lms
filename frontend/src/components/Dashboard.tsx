@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import type { StatCardInfo, QuickAction } from "../models";
+import { Link } from "react-router-dom";
 
 export interface DashboardProps {
   name: string;
@@ -46,9 +47,9 @@ function Dashboard({
             </Card>
           );
           return s.href ? (
-            <a key={s.label} href={s.href}>
+            <Link key={s.label} to={s.href}>
               {card}
-            </a>
+            </Link>
           ) : (
             <div key={s.label}>{card}</div>
           );
@@ -70,14 +71,14 @@ function Dashboard({
           <CardContent className="flex flex-col gap-2">
             {quickActions.map(({ label, icon: Icon, href }) =>
               href ? (
-                <a key={label} href={href} className="w-full">
+                <Link key={label} to={href} className="w-full">
                   <Button
                     variant="outline"
                     className="justify-start gap-2 w-full"
                   >
                     <Icon size={15} /> {label}
                   </Button>
-                </a>
+                </Link>
               ) : (
                 <Button
                   key={label}

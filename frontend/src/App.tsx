@@ -3,7 +3,14 @@ import Navbar from "./components/Navbar";
 import { users } from "./models";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import UsersPage from "./pages/admin/UsersPage";
+import UsersPage, {
+  UserColumns,
+  UserFilters,
+  UserSearchKeys,
+} from "./pages/admin/UsersPage";
+import StudentsPage from "./pages/admin/StudentsPage";
+import TeachersPage from "./pages/admin/TeachersPage";
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
@@ -15,7 +22,21 @@ function App() {
           <Routes>
             <Route path="/" element={<AdminDashboard />} />
             {/* <Route path="/academics" element={<Academics />} /> */}
-            <Route path="/users" element={<UsersPage />} />
+            <Route
+              path="/users"
+              element={
+                <UsersPage
+                  title="Users"
+                  data={users}
+                  columns={UserColumns}
+                  searchKeys={UserSearchKeys}
+                  filters={UserFilters}
+                />
+              }
+            />
+            <Route path="/admin/students" element={<StudentsPage />} />
+            <Route path="/admin/teachers" element={<TeachersPage />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
 
