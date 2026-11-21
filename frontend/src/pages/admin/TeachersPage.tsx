@@ -1,4 +1,5 @@
-import UsersPage, { type TableFilter } from "./UsersPage";
+import UsersPage from "./UsersPage";
+import { type TableFilter } from "../../components/userTableConfig";
 import { type Column } from "../../components/SimpleTable";
 import { type Teacher, teachers } from "../../models";
 

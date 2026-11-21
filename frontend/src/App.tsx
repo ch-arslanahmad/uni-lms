@@ -3,11 +3,12 @@ import Navbar from "./components/Navbar";
 import { users } from "./models";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import UsersPage, {
+import UsersPage from "./pages/admin/UsersPage";
+import {
   UserColumns,
   UserFilters,
   UserSearchKeys,
-} from "./pages/admin/UsersPage";
+} from "./components/userTableConfig";
 import StudentsPage from "./pages/admin/StudentsPage";
 import TeachersPage from "./pages/admin/TeachersPage";
 import NotFound from "./pages/NotFound";

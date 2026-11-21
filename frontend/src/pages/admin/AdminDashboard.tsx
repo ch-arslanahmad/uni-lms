@@ -13,8 +13,8 @@ import { Building2, BookOpen, Upload, Users } from "lucide-react";
 
 // Icons live here, not in models.ts (models stays icon-free)
 const quickActions: QuickAction[] = [
-  { label: "Courses", icon: BookOpen, href: "/admin/academics" },
-  { label: "Departments", icon: Building2, href: "/admin/academics" },
+  { label: "Courses", icon: BookOpen, href: "/admin/academics?tab=courses" },
+  { label: "Departments", icon: Building2, href: "/admin/academics?tab=departments" },
   { label: "All Users", icon: Users, href: "/admin/users" },
   { label: "Import & Export", icon: Upload, href: "/admin/data-transfer" },
 ];

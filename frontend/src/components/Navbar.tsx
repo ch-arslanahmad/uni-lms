@@ -7,6 +7,7 @@ const navlinks = [
   { label: "Dashboard", href: "/" },
   { label: "Users", href: "/admin/users" },
   { label: "Academics", href: "/admin/academics" },
+  { label: "Timetable", href: "/admin/timetable" },
   { label: "Import/Export", href: "/admin/data-transfer" },
 ];
 
@@ -35,7 +36,14 @@ function Navbar({ user }: { user: User }) {
             <li key={link.href}>
               <NavLink
                 to={link.href}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                end={link.href === "/"}
+                className={({ isActive }) =>
+                  `rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`
+                }
               >
                 {link.label}
               </NavLink>
@@ -67,16 +75,23 @@ function Navbar({ user }: { user: User }) {
       {/* Mobile menu */}
       {open && (
         <div className="flex flex-col items-center border-t border-slate-200 bg-white px-4 py-3 md:hidden">
-          <ul className="flex flex-col gap-1">
+          <ul className="flex flex-col gap-1 w-full">
             {navlinks.map((link) => (
               <li key={link.href}>
-                <a
-                  href={link.href}
-                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 text-center"
+                <NavLink
+                  to={link.href}
+                  end={link.href === "/"}
+                  className={({ isActive }) =>
+                    `block rounded-lg px-3 py-2 text-sm font-medium transition-colors text-center ${
+                      isActive
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`
+                  }
                   onClick={() => setOpen(false)}
                 >
                   {link.label}
-                </a>
+                </NavLink>
               </li>
             ))}
           </ul>

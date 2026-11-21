@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   departments,
   subjects,
@@ -28,9 +29,27 @@ const catalogCols: Column<SubjectRow>[] = [
 ];
 
 export default function Academics() {
-  const [tab, setTab] = useState<"roadmap" | "departments" | "courses">("roadmap");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab =
+    tabParam === "departments" || tabParam === "courses" ? tabParam : "roadmap";
+
+  const [tab, setTab] = useState<"roadmap" | "departments" | "courses">(initialTab);
   const [search, setSearch] = useState("");
   const [courseDeptFilter, setCourseDeptFilter] = useState<string>("ALL");
+
+  // Sync tab state when URL search param changes
+  useEffect(() => {
+    if (tabParam === "departments" || tabParam === "courses" || tabParam === "roadmap") {
+      setTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (next: "roadmap" | "departments" | "courses") => {
+    setTab(next);
+    setSearchParams({ tab: next });
+    setSearch("");
+  };
 
   // Filtered Master Course Catalog
   const catalogData = useMemo(() => {
@@ -71,10 +90,7 @@ export default function Academics() {
       {/* Tabs with Encapsulated Content */}
       <Tabs
         activeTab={tab}
-        onChange={(next) => {
-          setTab(next);
-          setSearch("");
-        }}
+        onChange={handleTabChange}
         tabs={[
           {
             id: "roadmap",

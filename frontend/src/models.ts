@@ -279,9 +279,9 @@ export const adminStats: StatCardInfo[] = [
   {
     value: departments.length,
     label: "Departments",
-    href: "/admin/departments",
+    href: "/admin/academics?tab=departments",
   },
-  { value: 3, label: "Courses", href: "/admin/courses" },
+  { value: subjects.length, label: "Courses", href: "/admin/academics?tab=courses" },
   { value: teachers.length, label: "Teachers", href: "/admin/teachers" },
   { value: students.length, label: "Students", href: "/admin/students" },
 ];

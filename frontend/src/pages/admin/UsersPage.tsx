@@ -3,28 +3,17 @@ import FilterSelect from "../../components/FilterSelect";
 import { SearchInput } from "../../components/SearchInput";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import { Button } from "../../components/ui/button";
-import type { User } from "../../models";
 import { Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { NavLink, Link } from "react-router-dom";
+import {
+  type TableFilter,
+  UserColumns,
+  UserFilters,
+  UserSearchKeys,
+} from "../../components/userTableConfig";
 
-export const UserColumns: Column<User>[] = [
-  { key: "id", label: "ID" },
-  { key: "name", label: "Name" },
-  { key: "role", label: "Role" },
-  { key: "email", label: "Email" },
-  { key: "department", label: "Department" },
-];
-
-export const UserSearchKeys: (keyof User & string)[] = ["name"];
-
-// One filter: which field to filter on, and how to render it.
-export interface TableFilter<T> {
-  field: keyof T & string;
-  variant?: "pills" | "dropdown";
-}
-
-export const UserFilters: TableFilter<User>[] = [{ field: "role" }];
+export { type TableFilter, UserColumns, UserFilters, UserSearchKeys };
 
 // A single filter control. Its options are read from the data,
 // so they can never go stale or be listed twice.
