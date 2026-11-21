@@ -244,7 +244,7 @@ export const teacherCourses: Record<number, string> = {
 
 // Mock data for Departments
 export const departments = [
-  { code: "CS", name: "Computer Science", courses: 12, accounts: 34 },
-  { code: "EE", name: "Electrical Engineering", courses: 9, accounts: 21 },
-  { code: "ME", name: "Mechanical Engineering", courses: 7, accounts: 18 },
+  { code: "CS", name: "Computer Science", courses: 12, teachers: 2, students: 10 },
+  { code: "EE", name: "Electrical Engineering", courses: 9, teachers: 2, students: 4 },
+  { code: "ME", name: "Mechanical Engineering", courses: 7, teachers: 1, students: 4 },
 ];
