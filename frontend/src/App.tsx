@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import { users } from "./models";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import UsersPage from "./pages/admin/UsersPage";
 
 function App() {
   return (
@@ -14,7 +15,7 @@ function App() {
           <Routes>
             <Route path="/" element={<AdminDashboard />} />
             {/* <Route path="/academics" element={<Academics />} /> */}
-            {/* <Route path="/users" element={<UsersPage />} /> */}
+            <Route path="/users" element={<UsersPage />} />
           </Routes>
         </main>
 
