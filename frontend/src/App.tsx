@@ -1,4 +1,4 @@
-import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
+import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersPage from "./pages/admin/UsersPage";
 import { UserColumns, UserFilters, UserSearchKeys } from "./components/userTableConfig";
@@ -60,7 +60,7 @@ const router = createBrowserRouter([
       { path: "quizzes/:quizId/attempt", element: <QuizAttemptPage /> },
       { path: "quizzes/:quizId/review", element: <QuizReviewPage /> },
       { path: "teachers/:teacherId", element: <TeacherProfilePage /> },
-      { path: "*", element: <Navigate to="/student" replace /> },
+      { path: "*", element: <NotFound /> },
     ],
   },
   { path: "*", element: <NotFound /> },
