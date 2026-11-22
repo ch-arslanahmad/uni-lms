@@ -37,7 +37,7 @@ function ClassDetail() {
   // announcement form
   const [annTitle, setAnnTitle] = useState(""); const [annBody, setAnnBody] = useState(""); const [annErr, setAnnErr] = useState("");
   // activity form
-  const [act, setAct] = useState({ title: "", kind: "assignment" as TeacherActivity["kind"], category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "" });
+  const [act, setAct] = useState({ title: "", kind: "assignment" as TeacherActivity["kind"], category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical" });
   const [actErr, setActErr] = useState("");
   // category form
   const [catName, setCatName] = useState(""); const [catWeight, setCatWeight] = useState(""); const [catErr, setCatErr] = useState("");
@@ -60,9 +60,10 @@ function ClassDetail() {
   function addActivity() {
     const e = err(act.title, "Title is required.") || err(act.openAt, "Open date is required.") || err(act.dueAt, "Due date is required.") || err(act.instructions, "Instructions are required.") || ((!Number(act.maxMarks) || Number(act.maxMarks) <= 0) ? "Max marks must be > 0." : "");
     if (e) { setActErr(e); return; }
-    const newAct: TeacherActivity = { id: `act-${Date.now()}`, sectionId: section!.id, kind: act.kind, title: act.title.trim(), instructions: act.instructions.trim(), category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, submissionModes: act.kind === "quiz" ? [] : ["upload"], hasMcq: act.kind === "quiz", reviewPolicy: act.kind === "quiz" ? "after_graded" : undefined, published: true };
+    const submissionModes = act.kind === "quiz" || act.kind === "exam" ? (act.submissionMode === "physical" ? ["physical"] as ("upload"|"physical")[] : []) : [act.submissionMode];
+    const newAct: TeacherActivity = { id: `act-${Date.now()}`, sectionId: section!.id, kind: act.kind, title: act.title.trim(), instructions: act.instructions.trim(), category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, submissionModes, hasMcq: act.kind === "quiz", reviewPolicy: act.kind === "quiz" || act.kind === "exam" ? act.reviewPolicy : undefined, published: true };
     ctx.setActivities((prev) => [newAct, ...prev]);
-    setAct({ title: "", kind: "assignment", category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "" }); setActErr("");
+    setAct({ title: "", kind: "assignment", category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded", submissionMode: "upload" }); setActErr("");
   }
   function saveCategory() {
     if (resultState?.frozenWeights) { setCatErr("Weights are frozen after publishing results."); return; }
@@ -98,7 +99,7 @@ function ClassDetail() {
     { key: "title", label: "Activity", render: (a) => <div><p className="font-medium">{a.title}</p><p className="text-xs text-muted-foreground capitalize">{a.kind} · {a.category}</p></div> },
     { key: "dueAt", label: "Due" },
     { key: "maxMarks", label: "Max" },
-    { key: "id", label: "Grading", render: (a) => <Link to={`/teacher/grading?activity=${a.id}`} className="text-blue-600 hover:underline">Open queue</Link> },
+    { key: "id", label: "Actions", render: (a) => <div className="flex gap-2"><Link to={`/teacher/grading?activity=${a.id}`} className="text-blue-600 hover:underline">Queue</Link><button type="button" className="text-red-600 hover:underline" onClick={() => ctx.setActivities((prev) => prev.filter((x) => x.id !== a.id))}>Delete</button></div> },
   ];
 
   return (
@@ -158,6 +159,8 @@ function ClassDetail() {
                 <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e=>setAct({...act,maxMarks:e.target.value})} /></div>
                 <div className="space-y-2"><Label>Open date</Label><Input type="date" value={act.openAt} onChange={e=>setAct({...act,openAt:e.target.value})} /></div>
                 <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e=>setAct({...act,dueAt:e.target.value})} /></div>
+                <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v)=> v && setAct({...act,submissionMode:v as "upload"|"physical"})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
+                {(act.kind === "quiz" || act.kind === "exam") && <div className="space-y-2"><Label>Review policy</Label><Select value={act.reviewPolicy} onValueChange={(v)=> v && setAct({...act,reviewPolicy:v as any})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["immediate","after_close","after_graded","never"].map(p=><SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>}
                 <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e=>setAct({...act,instructions:e.target.value})} /></div>
                 {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
                 <div className="md:col-span-2"><Button size="sm" onClick={addActivity}>Create activity</Button></div>
