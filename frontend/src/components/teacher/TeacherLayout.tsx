@@ -1,4 +1,4 @@
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import Footer from "../Footer";
@@ -97,7 +97,7 @@ function TeacherLayout() {
               ))}
             </ul>
           </div>
-          <div className="hidden text-sm font-medium sm:block">{teacher?.name ?? "Teacher"}</div>
+          <div className="hidden items-center gap-2 text-sm font-medium sm:flex"><UserRound className="size-4 text-muted-foreground" />{teacher?.name ?? "Teacher"}</div>
         </nav>
       </header>
       <main className="flex-1">

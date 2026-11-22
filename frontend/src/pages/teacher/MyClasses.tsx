@@ -1,3 +1,4 @@
+import { Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
@@ -40,7 +41,7 @@ function MyClasses() {
               </CardHeader>
               <CardContent className="space-y-1 text-sm text-muted-foreground">
                 <p>{c.schedule}</p>
-                <p>{c.section.enrolledCount} enrolled students</p>
+                <p className="inline-flex items-center gap-1.5"><Users className="size-4" />{c.section.enrolledCount} enrolled students</p>
               </CardContent>
               <CardFooter className="mt-auto">
                 <Link to={`/teacher/classes/${c.id}`} className="w-full"><Button variant="outline" size="sm" className="w-full">Open class</Button></Link>
