@@ -1,9 +1,16 @@
 // Student mock data for Phase 1. Pages read from here, never from a backend.
 // Kept compact: derived views are computed, not duplicated.
 
+export type SubmissionMode = "upload" | "physical";
+
+export interface PhysicalSubmission {
+  timeWindow: string;
+  room: string;
+}
+
 export interface Activity {
   id: string;
-  kind: "assignment" | "quiz";
+  kind: "assignment" | "quiz" | "project";
   title: string;
   opened: string;
   due: string;
@@ -12,6 +19,9 @@ export interface Activity {
   graded?: boolean;
   score?: number;
   max: number;
+  hasMcq?: boolean;
+  submissionModes: SubmissionMode[];
+  physical?: PhysicalSubmission;
 }
 
 export interface Week {
@@ -125,11 +135,11 @@ export const offerings: CourseOffering[] = [
       { title: "Guest lecture", date: "2026-11-03", body: "Industry guest lecture on design systems, Friday 14:00 in Lab 2." },
     ],
     weeks: weeks({
-      1: [{ id: "a1", kind: "assignment", title: "Assignment 1: Component basics", opened: "2026-09-01", due: "2026-09-07", submitted: true, graded: true, score: 88, max: 100 }],
-      3: [{ id: "q1", kind: "quiz", title: "Quiz #1", opened: "2026-09-15", due: "2026-09-21", submitted: true, graded: true, score: 10, max: 10 }],
-      10: [{ id: "a4", kind: "assignment", title: "Assignment 4: State management", opened: "2026-11-03", due: "2026-11-09", closed: "2026-11-16", submitted: false, max: 100 }],
-      11: [{ id: "a5", kind: "assignment", title: "DBMS Assignment_4 Fall 2026", opened: "2026-11-10", due: "2026-11-17", closed: "2026-11-24", submitted: true, max: 100 }],
-      12: [{ id: "q2", kind: "quiz", title: "Quiz #2", opened: "2026-11-18", due: "2026-11-24", submitted: false, max: 10 }],
+      1: [{ id: "a1", kind: "assignment", title: "Assignment 1: Component basics", opened: "2026-09-01", due: "2026-09-07", submitted: true, graded: true, score: 88, max: 100, submissionModes: ["upload"] }],
+      3: [{ id: "q1", kind: "quiz", title: "Quiz #1", opened: "2026-09-15", due: "2026-09-21", submitted: true, graded: true, score: 10, max: 10, hasMcq: true, submissionModes: ["upload"] }],
+      10: [{ id: "a4", kind: "assignment", title: "Assignment 4: State management", opened: "2026-11-03", due: "2026-11-09", closed: "2026-11-16", submitted: false, max: 100, submissionModes: ["upload", "physical"], physical: { timeWindow: "2:00 PM - 4:00 PM", room: "Lab 2" } }],
+      11: [{ id: "a5", kind: "assignment", title: "DBMS Assignment_4 Fall 2026", opened: "2026-11-10", due: "2026-11-17", closed: "2026-11-24", submitted: true, max: 100, submissionModes: ["upload"] }],
+      12: [{ id: "q2", kind: "quiz", title: "Quiz #2", opened: "2026-11-18", due: "2026-11-24", submitted: false, max: 10, hasMcq: true, submissionModes: [] }],
     }),
   },
   {
@@ -146,8 +156,8 @@ export const offerings: CourseOffering[] = [
     materials: [{ name: "Course outline.pdf", size: "180 KB" }],
     announcements: [{ title: "Lab make-up", date: "2026-11-12", body: "Lab shifted to Friday 10:00 this week." }],
     weeks: weeks({
-      2: [{ id: "a2", kind: "assignment", title: "Assignment 2: Trees", opened: "2026-09-08", due: "2026-09-14", submitted: true, graded: true, score: 92, max: 100 }],
-      11: [{ id: "a6", kind: "assignment", title: "Assignment: Graphs", opened: "2026-11-10", due: "2026-11-16", submitted: false, max: 100 }],
+      2: [{ id: "a2", kind: "assignment", title: "Assignment 2: Trees", opened: "2026-09-08", due: "2026-09-14", submitted: true, graded: true, score: 92, max: 100, submissionModes: ["upload"] }],
+      11: [{ id: "a6", kind: "assignment", title: "Assignment: Graphs", opened: "2026-11-10", due: "2026-11-16", submitted: false, max: 100, submissionModes: ["physical"], physical: { timeWindow: "10:00 AM - 12:00 PM", room: "Room E-202" } }],
     }),
   },
   {
@@ -164,7 +174,7 @@ export const offerings: CourseOffering[] = [
     materials: [{ name: "Steam tables.pdf", size: "540 KB" }],
     announcements: [{ title: "Midterm", date: "2026-11-09", body: "Midterm on Monday 09:00-11:00, room E-202." }],
     weeks: weeks({
-      11: [{ id: "a7", kind: "assignment", title: "Midterm", opened: "2026-11-09", due: "2026-11-14", submitted: false, max: 100 }],
+      11: [{ id: "a7", kind: "assignment", title: "Midterm", opened: "2026-11-09", due: "2026-11-14", submitted: false, max: 100, submissionModes: ["physical"], physical: { timeWindow: "9:00 AM - 11:00 AM", room: "Room E-202" } }],
     }),
   },
   {
@@ -181,7 +191,7 @@ export const offerings: CourseOffering[] = [
     materials: [{ name: "Course outline.pdf", size: "150 KB" }],
     announcements: [{ title: "Course completed", date: "2026-05-20", body: "Final grades have been published." }],
     weeks: weeks({
-      2: [{ id: "a8", kind: "assignment", title: "Assignment 1: Basics", opened: "2026-02-10", due: "2026-02-17", submitted: true, graded: true, score: 90, max: 100 }],
+      2: [{ id: "a8", kind: "assignment", title: "Assignment 1: Basics", opened: "2026-02-10", due: "2026-02-17", submitted: true, graded: true, score: 90, max: 100, submissionModes: ["upload"] }],
     }),
   },
   {
@@ -198,7 +208,7 @@ export const offerings: CourseOffering[] = [
     materials: [{ name: "Lab manual.pdf", size: "900 KB" }],
     announcements: [{ title: "Course completed", date: "2026-01-15", body: "Course archive available." }],
     weeks: weeks({
-      4: [{ id: "a9", kind: "assignment", title: "Lab report", opened: "2025-10-01", due: "2025-10-08", submitted: true, graded: true, score: 84, max: 100 }],
+      4: [{ id: "a9", kind: "assignment", title: "Lab report", opened: "2025-10-01", due: "2025-10-08", submitted: true, graded: true, score: 84, max: 100, submissionModes: ["upload", "physical"], physical: { timeWindow: "1:00 PM - 3:00 PM", room: "EE Lab 1" } }],
     }),
   },
 ];

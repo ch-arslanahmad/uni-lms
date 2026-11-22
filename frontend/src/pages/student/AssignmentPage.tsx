@@ -7,9 +7,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "../../components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { allActivities, findActivity, offerings, type Activity } from "../../mock/student";
 
 function ActivityBar({ activity }: { activity?: Activity }) {
@@ -17,16 +15,18 @@ function ActivityBar({ activity }: { activity?: Activity }) {
   const index = activity ? all.findIndex((a) => a.id === activity.id) : -1;
   const prev = all[index - 1];
   const next = all[index + 1];
+  const to = (a: Activity) => (a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`);
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3">
-      <Link to={prev ? `/student/assignments/${prev.id}` : "#"}>
+      <Link to={prev ? to(prev) : "#"}>
         <Button variant="outline" size="sm" disabled={!prev}>Prev Section</Button>
       </Link>
       <select
         className="h-9 rounded-lg border bg-background px-3 text-sm"
         value={activity?.id ?? ""}
         onChange={(e) => {
-          window.location.assign(`/student/assignments/${e.target.value}`);
+          const selected = all.find((a) => a.id === e.target.value);
+          if (selected) window.location.assign(to(selected));
         }}
       >
         <option value="">Jump to...</option>
@@ -34,7 +34,7 @@ function ActivityBar({ activity }: { activity?: Activity }) {
           <option key={a.id} value={a.id}>{a.title}</option>
         ))}
       </select>
-      <Link to={next ? `/student/assignments/${next.id}` : "#"}>
+      <Link to={next ? to(next) : "#"}>
         <Button variant="outline" size="sm" disabled={!next}>Next Activity</Button>
       </Link>
     </div>
@@ -45,37 +45,44 @@ function AssignmentPage() {
   const { assignmentId } = useParams();
   const activity = findActivity(assignmentId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
-  const [graded] = useState(activity?.graded ?? false);
-  const [fileName, setFileName] = useState("DBMS Assignment_4 Fall 2026.pdf");
+  const [fileName, setFileName] = useState("");
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<string[]>([]);
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   if (!activity) {
-    return <div className="mx-auto max-w-7xl px-4 py-8">Assignment not found.</div>;
+    return <div className="mx-auto max-w-7xl px-4 py-8">Activity not found.</div>;
   }
   const offering = offerings.find((o) => o.weeks.some((w) => w.activities.some((a) => a.id === activity.id)));
+  const graded = activity.graded ?? false;
+  const canUpload = activity.submissionModes.includes("upload");
+  const isPhysical = activity.submissionModes.includes("physical");
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <Breadcrumbs items={[
         { label: "My courses", to: "/student/courses" },
         { label: offering?.code ?? "Course", to: offering ? `/student/courses/${offering.offeringId}` : undefined },
-        { label: "Assignment" },
+        { label: activity.kind === "project" ? "Project" : "Assignment" },
       ]} />
       <div>
         <h1 className="text-2xl font-bold">{activity.title}</h1>
         <p className="text-sm text-muted-foreground">
           Opened {activity.opened} - Due {activity.due} - Max {activity.max} marks
         </p>
+        <p className="mt-1 text-xs text-muted-foreground capitalize">Type: {activity.kind}</p>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Assignment prompt</CardTitle></CardHeader>
-        <CardContent>
-          <a href="#" className="text-sm text-blue-600 hover:underline" onClick={(e) => e.preventDefault()}>
-            DBMS Assignment_4 Fall 2026.pdf
-          </a>
+        <CardHeader><CardTitle>Submission requirements</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {canUpload && <p>Attachment upload required.</p>}
+          {isPhysical && activity.physical && (
+            <p>
+              Physical submission: {activity.physical.timeWindow}, {activity.physical.room}. You can come any working day before and on the due date.
+            </p>
+          )}
+          {!canUpload && !isPhysical && <p>No online submission required.</p>}
         </CardContent>
       </Card>
 
@@ -84,27 +91,44 @@ function AssignmentPage() {
         <CardContent className="space-y-4">
           {!graded && !submitted && (
             <div className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="file">Upload file</Label>
-                <Input id="file" type="file" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? fileName)} />
-              </div>
+              {canUpload && (
+                <div className="space-y-1">
+                  <Label htmlFor="file">Upload file</Label>
+                  <Input id="file" type="file" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? fileName)} />
+                </div>
+              )}
               <div className="space-y-1">
                 <Label htmlFor="comment">Submission comments</Label>
                 <Textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional note for your teacher" />
               </div>
-              <Button onClick={() => { setSubmitted(true); if (comment.trim()) setComments((c) => [...c, comment.trim()]); setComment(""); }}>
-                Add submission
+              <Button
+                onClick={() => {
+                  if (canUpload && !fileName) return;
+                  setSubmitted(true);
+                  if (comment.trim()) setComments((c) => [...c, comment.trim()]);
+                  setComment("");
+                }}
+                disabled={canUpload && !fileName}
+              >
+                {isPhysical && !canUpload ? "Mark as submitted" : "Add submission"}
               </Button>
+              {canUpload && !fileName && <p className="text-xs text-muted-foreground">Select a file to submit.</p>}
             </div>
           )}
+
           {!graded && submitted && (
             <div className="flex flex-wrap items-center gap-2">
-              <Label htmlFor="edit-file" className="sr-only">Replace file</Label>
-              <Input id="edit-file" type="file" className="max-w-xs" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? fileName)} />
+              {canUpload && (
+                <>
+                  <Label htmlFor="edit-file" className="sr-only">Replace file</Label>
+                  <Input id="edit-file" type="file" className="max-w-xs" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? fileName)} />
+                </>
+              )}
               <Button size="sm" variant="outline" onClick={() => setSubmitted(false)}>Edit submission</Button>
               <Button size="sm" variant="destructive" onClick={() => setConfirmRemove(true)}>Remove submission</Button>
             </div>
           )}
+
           {graded && <p className="rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-700">Graded and locked. No further edits allowed.</p>}
 
           <Table>
@@ -119,15 +143,8 @@ function AssignmentPage() {
               <TableRow><TableCell>Grading status</TableCell><TableCell>{graded ? "Graded" : "Not graded"}</TableCell></TableRow>
               <TableRow><TableCell>Time remaining</TableCell><TableCell>{activity.due > "2026-11-22" ? `${activity.due} (on time)` : "Past due"}</TableCell></TableRow>
               <TableRow><TableCell>Last modified</TableCell><TableCell>{submitted ? "2026-11-21 09:15" : "-"}</TableCell></TableRow>
-              <TableRow><TableCell>Uploaded file</TableCell><TableCell>{submitted ? fileName : "-"}</TableCell></TableRow>
-              <TableRow>
-                <TableCell>Submission comments</TableCell>
-                <TableCell>
-                  {comments.length === 0 ? "No comments." : (
-                    <ul className="list-disc pl-4">{comments.map((c, i) => <li key={i}>{c}</li>)}</ul>
-                  )}
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell>Uploaded file</TableCell><TableCell>{submitted && fileName ? fileName : submitted && !canUpload ? "Physical submission" : "-"}</TableCell></TableRow>
+              <TableRow><TableCell>Submission comments</TableCell><TableCell>{comments.length === 0 ? "No comments." : <ul className="list-disc pl-4">{comments.map((c, i) => <li key={i}>{c}</li>)}</ul>}</TableCell></TableRow>
             </TableBody>
           </Table>
         </CardContent>
@@ -154,11 +171,11 @@ function AssignmentPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove submission?</DialogTitle>
-            <DialogDescription>This clears your uploaded file and comments for this activity.</DialogDescription>
+            <DialogDescription>This clears your submission for this activity.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmRemove(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => { setSubmitted(false); setComments([]); setConfirmRemove(false); }}>Remove</Button>
+            <Button variant="destructive" onClick={() => { setSubmitted(false); setFileName(""); setComments([]); setConfirmRemove(false); }}>Remove</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
