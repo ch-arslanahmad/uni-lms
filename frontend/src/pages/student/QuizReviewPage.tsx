@@ -35,7 +35,7 @@ function QuizReviewPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <p>Selected: <span className={correct ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}>{selected !== undefined ? q.options[selected] : "No answer"}</span></p>
+              <p>Selected: <span className={correct ? "text-green-700" : "text-red-700"}>{selected !== undefined ? q.options[selected] : "No answer"}</span></p>
               <p>Correct: <span className="font-medium">{q.options[q.answer]}</span></p>
               <p>Points: {correct ? q.points : 0} / {q.points}</p>
             </CardContent>

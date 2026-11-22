@@ -100,7 +100,7 @@ function MyCourses() {
                 <CardContent className="flex flex-wrap items-center justify-between gap-2">
                   <Link
                     to={`/student/teachers/${course.instructorId}`}
-                    className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+                    className="text-sm text-blue-600 hover:underline"
                   >
                     {teacher?.name ?? "Instructor"}
                   </Link>

@@ -196,7 +196,7 @@ function StudentDashboard() {
                           key={a.id}
                           to={`/student/assignments/${a.id}`}
                           title={a.title}
-                          className="mt-0.5 block truncate rounded bg-blue-500/15 px-1 text-[10px] text-blue-700 dark:text-blue-300"
+                          className="mt-0.5 block truncate rounded bg-blue-500/15 px-1 text-[10px] text-blue-700"
                         >
                           {a.title}
                         </Link>

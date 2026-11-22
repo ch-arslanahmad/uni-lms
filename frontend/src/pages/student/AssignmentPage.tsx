@@ -73,7 +73,7 @@ function AssignmentPage() {
       <Card>
         <CardHeader><CardTitle>Assignment prompt</CardTitle></CardHeader>
         <CardContent>
-          <a href="#" className="text-sm text-blue-600 hover:underline dark:text-blue-400" onClick={(e) => e.preventDefault()}>
+          <a href="#" className="text-sm text-blue-600 hover:underline" onClick={(e) => e.preventDefault()}>
             📄 DBMS Assignment_4 Fall 2026.pdf
           </a>
         </CardContent>
@@ -105,7 +105,7 @@ function AssignmentPage() {
               <Button size="sm" variant="destructive" onClick={() => setConfirmRemove(true)}>Remove submission</Button>
             </div>
           )}
-          {graded && <p className="rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">Graded and locked. No further edits allowed.</p>}
+          {graded && <p className="rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-700">Graded and locked. No further edits allowed.</p>}
 
           <Table>
             <TableHeader>
@@ -142,7 +142,7 @@ function AssignmentPage() {
             <p>Good structure — ensure every claim is backed by your SQL output.</p>
             <p>
               Graded by{" "}
-              <Link to={`/student/teachers/${offering?.instructorId ?? 3}`} className="text-blue-600 hover:underline dark:text-blue-400">
+              <Link to={`/student/teachers/${offering?.instructorId ?? 3}`} className="text-blue-600 hover:underline">
                 Imran Razzaq
               </Link>
             </p>
