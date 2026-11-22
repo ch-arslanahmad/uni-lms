@@ -20,6 +20,14 @@ import QuizReviewPage from "./pages/student/QuizReviewPage";
 import TeacherProfilePage from "./pages/student/TeacherProfilePage";
 import MyQuestionsPage from "./pages/student/MyQuestionsPage";
 import ResultsPage from "./pages/student/ResultsPage";
+import TeacherLayout from "./components/teacher/TeacherLayout";
+import TeacherDashboard from "./pages/teacher/TeacherDashboard";
+import MyClasses from "./pages/teacher/MyClasses";
+import ClassDetail from "./pages/teacher/ClassDetail";
+import GradingPage from "./pages/teacher/GradingPage";
+import SubmissionDetailPage from "./pages/teacher/SubmissionDetailPage";
+import QuestionsPage from "./pages/teacher/QuestionsPage";
+import TeacherTimetable from "./pages/teacher/TeacherTimetable";
 import AdminLayout from "./components/AdminLayout";
 
 const router = createBrowserRouter([
@@ -60,6 +68,20 @@ const router = createBrowserRouter([
       { path: "quizzes/:quizId/attempt", element: <QuizAttemptPage /> },
       { path: "quizzes/:quizId/review", element: <QuizReviewPage /> },
       { path: "teachers/:teacherId", element: <TeacherProfilePage /> },
+      { path: "*", element: <NotFound /> },
+    ],
+  },
+  {
+    path: "/teacher",
+    element: <TeacherLayout />,
+    children: [
+      { index: true, element: <TeacherDashboard /> },
+      { path: "classes", element: <MyClasses /> },
+      { path: "classes/:sectionId", element: <ClassDetail /> },
+      { path: "grading", element: <GradingPage /> },
+      { path: "grading/:submissionId", element: <SubmissionDetailPage /> },
+      { path: "questions", element: <QuestionsPage /> },
+      { path: "timetable", element: <TeacherTimetable /> },
       { path: "*", element: <NotFound /> },
     ],
   },
