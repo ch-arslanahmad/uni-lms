@@ -23,7 +23,7 @@ const gradeColumns: Column<GradeRow>[] = [
 function CoursePage() {
   const { offeringId } = useParams();
   const [params] = useSearchParams();
-  const { saveQuestion } = useOutletContext<StudentQuestionsContext>();
+  const { questions, saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const offering = findOffering(offeringId);
   const view = params.get("view") ?? "course";
   const [askOpen, setAskOpen] = useState(params.get("ask") === "1");
@@ -67,7 +67,7 @@ function CoursePage() {
       {askOpen && (
         <Card>
           <CardHeader><CardTitle>Ask instructor</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             <Label htmlFor="course-note">Your question</Label>
             <Textarea id="course-note" value={courseNote} onChange={(e) => setCourseNote(e.target.value)} placeholder="Ask one clear question, if needed" />
             <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
@@ -81,6 +81,34 @@ function CoursePage() {
               }}>Send question</Button>
               {courseNoteSaved && <span className="self-center text-xs text-muted-foreground">Question sent. Check My questions for replies.</span>}
             </div>
+            {(() => {
+              const courseQuestions = questions.filter((q) => q.contextTo === `/student/courses/${offering.offeringId}`);
+              if (courseQuestions.length === 0) return null;
+              return (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-xs font-medium text-muted-foreground">Your questions for this course</p>
+                  {courseQuestions.map((q) => {
+                    const status = q.answer && !q.readAt ? "Answered (new)" : q.answer ? "Read" : "Pending";
+                    return (
+                      <div key={q.id} className="rounded border px-3 py-2 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{q.question}</p>
+                          <span className={`shrink-0 text-xs ${status === "Answered (new)" ? "text-blue-600 font-medium" : "text-muted-foreground"}`}>{status}</span>
+                        </div>
+                        {q.answer ? (
+                          <div className="mt-2 text-muted-foreground">
+                            <p><span className="font-medium text-foreground">{q.responderName}:</span> {q.answer}</p>
+                            <p className="mt-1 text-xs">{q.answeredAt}</p>
+                          </div>
+                        ) : (
+                          <p className="mt-1 text-xs text-muted-foreground">No reply yet.</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       )}
@@ -186,21 +214,38 @@ function CoursePage() {
                   <div className="mt-3 space-y-2">
                     {week.activities.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No activities this week.</p>
-                    ) : week.activities.map((a) => (
-                      <Link
-                        key={a.id}
-                        to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm hover:bg-muted/50"
-                      >
-                        <div>
-                          <p className="font-medium">{a.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {a.kind} - Opened {a.opened} - Due {a.due}{a.closed ? ` - Closes ${a.closed}` : ""}
-                          </p>
-                        </div>
-                        <span className="text-xs text-muted-foreground capitalize">{a.submitted ? "Submitted" : "Open"}</span>
-                      </Link>
-                    ))}
+                    ) : week.activities.map((a) => {
+                      const to = a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`;
+                      const hasResponse = questions.some((q) => q.contextTo === to && q.answer && !q.readAt);
+                      const tone = a.submitted
+                        ? "text-emerald-600"
+                        : a.due < "2026-11-22"
+                          ? "text-red-600"
+                          : a.due <= "2026-11-24"
+                            ? "text-amber-600"
+                            : "text-muted-foreground";
+                      const status = a.submitted ? "Submitted" : a.due < "2026-11-22" ? "Past due" : "Open";
+                      return (
+                        <Link
+                          key={a.id}
+                          to={to}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm hover:bg-muted/50"
+                        >
+                          <div>
+                            <p className="font-medium">{a.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {a.kind} - Opened {a.opened} - Due {a.due}{a.closed ? ` - Closes ${a.closed}` : ""}
+                            </p>
+                            {hasResponse && (
+                              <p className="mt-0.5 flex items-center gap-1 text-xs text-blue-600">
+                                <span className="size-1.5 rounded-full bg-blue-500" /> Response received
+                              </p>
+                            )}
+                          </div>
+                          <span className={`text-xs font-medium ${tone}`}>{status}</span>
+                        </Link>
+                      );
+                    })}
                   </div>
                 </details>
               ))}

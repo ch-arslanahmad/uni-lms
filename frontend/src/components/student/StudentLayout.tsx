@@ -2,14 +2,24 @@ import { Bell, GraduationCap, Mail } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import Footer from "../Footer";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { currentStudentId, studentQuestions as seedQuestions, type StudentQuestion } from "../../mock/student";
+import {
+  currentStudentId,
+  studentQuestions as seedQuestions,
+  type StudentQuestion,
+} from "../../mock/student";
 import { students } from "../../models";
 
 export interface StudentQuestionsContext {
   questions: StudentQuestion[];
   markRead: (id: string) => Promise<void>;
-  saveQuestion: (input: { contextType: "event" | "course"; contextLabel: string; contextTo: string; question: string }) => void;
+  saveQuestion: (input: {
+    contextType: "event" | "course";
+    contextLabel: string;
+    contextTo: string;
+    question: string;
+  }) => void;
   unreadCount: number;
 }
 
@@ -22,11 +32,20 @@ function StudentLayout() {
     // Mock endpoint: sets read_at for this question only after "request" succeeds.
     await Promise.resolve();
     setQuestions((prev) =>
-      prev.map((q) => (q.id === id && q.answer && !q.readAt ? { ...q, readAt: new Date().toISOString() } : q)),
+      prev.map((q) =>
+        q.id === id && q.answer && !q.readAt
+          ? { ...q, readAt: new Date().toISOString() }
+          : q,
+      ),
     );
   }
 
-  function saveQuestion(input: { contextType: "event" | "course"; contextLabel: string; contextTo: string; question: string }) {
+  function saveQuestion(input: {
+    contextType: "event" | "course";
+    contextLabel: string;
+    contextTo: string;
+    question: string;
+  }) {
     const text = input.question.trim();
     if (!text) return;
     setQuestions((prev) => [
@@ -71,9 +90,9 @@ function StudentLayout() {
                   >
                     {label}
                     {label === "My questions" && unreadCount > 0 && (
-                      <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-blue-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <Badge className="rounded-full bg-blue-500 text-white hover:bg-blue-500">
                         {unreadCount}
-                      </span>
+                      </Badge>
                     )}
                   </NavLink>
                 </li>
@@ -101,7 +120,16 @@ function StudentLayout() {
       </header>
 
       <main className="flex-1">
-        <Outlet context={{ questions, markRead, saveQuestion, unreadCount } satisfies StudentQuestionsContext} />
+        <Outlet
+          context={
+            {
+              questions,
+              markRead,
+              saveQuestion,
+              unreadCount,
+            } satisfies StudentQuestionsContext
+          }
+        />
       </main>
       <Footer />
     </div>

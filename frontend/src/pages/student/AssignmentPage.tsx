@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Clock, MessageCircleQuestion, Upload } from "lucide-react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
@@ -53,6 +54,8 @@ function AssignmentPage() {
   const activity = findActivity(assignmentId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
+  const [askOpen, setAskOpen] = useState(params.get("ask") === "1" || params.get("extension") === "1");
+  const [extensionMode, setExtensionMode] = useState(params.get("extension") === "1");
   const [noteDraft, setNoteDraft] = useState(() =>
     params.get("extension") ? "Extension request: Reason - \nNeeded until - \nWork completed so far - " : "",
   );
@@ -66,6 +69,20 @@ function AssignmentPage() {
   const graded = activity.graded ?? false;
   const canUpload = activity.submissionModes.includes("upload");
   const isPhysical = activity.submissionModes.includes("physical");
+  const dueTone = graded || submitted
+    ? "text-emerald-600"
+    : activity.due < "2026-11-22"
+      ? "text-red-600"
+      : activity.due <= "2026-11-24"
+        ? "text-amber-600"
+        : "text-emerald-600";
+  const dueLabel = graded || submitted
+    ? `Due ${activity.due}`
+    : activity.due < "2026-11-22"
+      ? `Past due - ${activity.due}`
+      : activity.due <= "2026-11-24"
+        ? `Due soon - ${activity.due}`
+        : `Due ${activity.due}`;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
@@ -78,19 +95,56 @@ function AssignmentPage() {
         <div>
           <h1 className="text-2xl font-bold">{activity.title}</h1>
           <p className="text-sm text-muted-foreground">
-            Opened {activity.opened} - Due {activity.due} - Max {activity.max} marks
+            Opened {activity.opened} - Max {activity.max} marks
+          </p>
+          <p className={`mt-1 flex items-center gap-1 text-sm font-medium ${dueTone}`}>
+            <Clock className="size-4" /> {dueLabel}
           </p>
           <p className="mt-1 text-xs text-muted-foreground capitalize">Type: {activity.kind}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => { if (graded) return; if (submitted) { setNoteDraft(savedNote); setSubmitted(false); } setTimeout(() => document.getElementById("note")?.focus(), 0); }}>
-            Ask
+          <Button variant="outline" size="sm" onClick={() => { setExtensionMode(false); setAskOpen((v) => !v); setTimeout(() => document.getElementById("note")?.focus(), 0); }}>
+            <MessageCircleQuestion className="size-4" /> Ask teacher
           </Button>
-          <Button variant="outline" size="sm" onClick={() => { if (graded) return; if (submitted) { setNoteDraft(savedNote); setSubmitted(false); } setNoteDraft((d) => d || "Extension request: Reason - \nNeeded until - \nWork completed so far - "); setTimeout(() => document.getElementById("note")?.focus(), 0); }}>
-            Request extension
-          </Button>
+          {!graded && activity.kind !== "quiz" && (
+            <Button variant="outline" size="sm" onClick={() => { setExtensionMode(true); setAskOpen(true); setNoteDraft((d) => d || "Extension request: Reason - \nNeeded until - \nWork completed so far - "); setTimeout(() => document.getElementById("note")?.focus(), 0); }}>
+              <Clock className="size-4" /> Request time
+            </Button>
+          )}
         </div>
       </div>
+
+      {askOpen && (
+        <Card>
+          <CardHeader><CardTitle>{extensionMode ? "Request time" : "Ask teacher"}</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="note">{extensionMode ? "Request details" : "Your question"}</Label>
+            <Textarea id="note" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder={extensionMode ? "Reason, needed until, work completed so far" : "Ask one clear question, if needed"} />
+            <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => { const note = noteDraft.trim(); if (!note) return; setSavedNote(note); saveQuestion({ contextType: "event", contextLabel: activity.title, contextTo: `/student/assignments/${activity.id}`, question: note }); setNoteDraft(""); setAskOpen(false); }}>Send</Button>
+              <Button size="sm" variant="ghost" onClick={() => setAskOpen(false)}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {graded && (
+        <Card>
+          <CardHeader><CardTitle>Feedback &amp; grading</CardTitle></CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            <p className="text-xl font-bold">{activity.score?.toFixed(2)} / {activity.max.toFixed(2)}</p>
+            <p>Graded on 2026-09-12 14:30</p>
+            <p>Good structure - ensure every claim is backed by your SQL output.</p>
+            <p>
+              Graded by{" "}
+              <Link to={`/student/teachers/${offering?.instructorId ?? 3}`} className="text-blue-600 hover:underline">
+                Imran Razzaq
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader><CardTitle>Submission requirements</CardTitle></CardHeader>
@@ -111,23 +165,23 @@ function AssignmentPage() {
           {!graded && !submitted && (
             <div className="space-y-3">
               {canUpload && (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Label htmlFor="file">Upload file</Label>
-                  <Input id="file" type="file" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? fileName)} />
+                  <label
+                    htmlFor="file"
+                    className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-center text-sm hover:bg-muted/50"
+                  >
+                    <Upload className="size-5 text-muted-foreground" />
+                    <span className="font-medium">{fileName || "Click to choose a file"}</span>
+                    <span className="text-xs text-muted-foreground">{fileName ? "Click to replace" : "PDF, DOCX, ZIP, or image"}</span>
+                  </label>
+                  <Input id="file" type="file" className="hidden" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? fileName)} />
                 </div>
               )}
-              <div className="space-y-1">
-                <Label htmlFor="note">Question for teacher (optional)</Label>
-                <Textarea id="note" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Ask one clear question, if needed" />
-                <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
-              </div>
               <Button
                 onClick={() => {
                   if (canUpload && !fileName) return;
-                  const note = noteDraft.trim();
                   setSubmitted(true);
-                  setSavedNote(note);
-                  if (note) saveQuestion({ contextType: "event", contextLabel: activity.title, contextTo: `/student/assignments/${activity.id}`, question: note });
                 }}
                 disabled={canUpload && !fileName}
               >
@@ -156,7 +210,7 @@ function AssignmentPage() {
             <TableBody>
               <TableRow><TableCell>Submission status</TableCell><TableCell>{submitted ? "Submitted for grading" : "No submissions have been made yet"}</TableCell></TableRow>
               <TableRow><TableCell>Grading status</TableCell><TableCell>{graded ? "Graded" : "Not graded"}</TableCell></TableRow>
-              <TableRow><TableCell>Time remaining</TableCell><TableCell>{activity.due > "2026-11-22" ? `${activity.due} (on time)` : "Past due"}</TableCell></TableRow>
+              <TableRow><TableCell>Time remaining</TableCell><TableCell className={dueTone}>{dueLabel}</TableCell></TableRow>
               <TableRow><TableCell>Last modified</TableCell><TableCell>{submitted ? "2026-11-21 09:15" : "-"}</TableCell></TableRow>
               <TableRow><TableCell>Uploaded file</TableCell><TableCell>{submitted && fileName ? fileName : submitted && !canUpload ? "Physical submission" : "-"}</TableCell></TableRow>
               <TableRow><TableCell>Question for teacher</TableCell><TableCell>{savedNote || "No question submitted."}</TableCell></TableRow>
@@ -164,23 +218,6 @@ function AssignmentPage() {
           </Table>
         </CardContent>
       </Card>
-
-      {graded && (
-        <Card>
-          <CardHeader><CardTitle>Feedback</CardTitle></CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <p className="text-xl font-bold">{activity.score?.toFixed(2)} / {activity.max.toFixed(2)}</p>
-            <p>Graded on 2026-09-12 14:30</p>
-            <p>Good structure - ensure every claim is backed by your SQL output.</p>
-            <p>
-              Graded by{" "}
-              <Link to={`/student/teachers/${offering?.instructorId ?? 3}`} className="text-blue-600 hover:underline">
-                Imran Razzaq
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
       <Dialog open={confirmRemove} onOpenChange={setConfirmRemove}>
         <DialogContent>

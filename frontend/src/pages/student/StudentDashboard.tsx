@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, ChevronDown, ChevronUp, Clock, ListTodo } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { StatMetric } from "../../components/StatMetric";
 import { SearchInput } from "../../components/SearchInput";
@@ -13,18 +13,20 @@ import {
   offerings,
   type Activity,
 } from "../../mock/student";
+import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
 import { students } from "../../models";
 
 const MONTH = "November 2026";
 const DAYS = Array.from({ length: 30 }, (_, i) => i + 1);
 
-function dueLabel(a: Activity) {
-  if (a.graded) return "Completed";
-  if (a.due < "2026-11-22") return "Past due";
-  return a.due;
+function dueTone(a: Activity) {
+  if (a.due < "2026-11-22") return { label: `Past due - ${a.due}`, className: "text-red-600" };
+  if (a.due <= "2026-11-24") return { label: `Due soon - ${a.due}`, className: "text-amber-600" };
+  return { label: `Due ${a.due}`, className: "text-emerald-600" };
 }
 
 function StudentDashboard() {
+  const { questions } = useOutletContext<StudentQuestionsContext>();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("Due date");
   const [timeframe, setTimeframe] = useState("Next 7 days");
@@ -37,6 +39,7 @@ function StudentDashboard() {
   const activities = useMemo(() => {
     const filtered = allActivities().filter(
       (a) =>
+        !a.submitted &&
         a.title.toLowerCase().includes(query.toLowerCase()) &&
         (courseFilter === "All courses" ||
           offerings.some(
@@ -115,22 +118,31 @@ function StudentDashboard() {
             ) : (
               <>
                 <ul className="space-y-2">
-                  {(showAll ? activities : activities.slice(0, 5)).map((a) => (
-                    <li key={a.id}>
-                      <Link
-                        to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}
-                        className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 hover:bg-muted/50"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{a.title}</p>
-                          <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="size-3" /> Due {dueLabel(a)}
-                          </p>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{a.submitted ? "Submitted" : "Open"}</span>
-                      </Link>
-                    </li>
-                  ))}
+                  {(showAll ? activities : activities.slice(0, 5)).map((a) => {
+                    const to = a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`;
+                    const hasResponse = questions.some((q) => q.contextTo === to && q.answer && !q.readAt);
+                    return (
+                      <li key={a.id}>
+                        <Link
+                          to={to}
+                          className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 hover:bg-muted/50"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{a.title}</p>
+                            <p className={`flex items-center gap-1 text-xs ${dueTone(a).className}`}>
+                              <Clock className="size-3" /> {dueTone(a).label}
+                            </p>
+                            {hasResponse && (
+                              <p className="mt-0.5 flex items-center gap-1 text-xs text-blue-600">
+                                <span className="size-1.5 rounded-full bg-blue-500" /> Response received
+                              </p>
+                            )}
+                          </div>
+                          <span className={`text-xs font-medium ${dueTone(a).className}`}>Pending</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
                 {activities.length > 5 && (
                   <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowAll((v) => !v)}>

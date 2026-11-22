@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Clock, MessageCircleQuestion, Upload } from "lucide-react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
@@ -19,15 +20,12 @@ const attemptColumns: Column<AttemptRow>[] = [
   { key: "grade", label: "Grade" },
 ];
 
-function SubmissionBlock({ activityId, prefillExtension }: { activityId: string; prefillExtension?: boolean }) {
-  const [params] = useSearchParams();
+function SubmissionBlock({ activityId }: { activityId: string }) {
   const { saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const activity = findActivity(activityId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
-  const [noteDraft, setNoteDraft] = useState(() =>
-    params.get("extension") || prefillExtension ? "Extension request: Reason - \nNeeded until - \nWork completed so far - " : "",
-  );
+  const [noteDraft, setNoteDraft] = useState("");
   const [savedNote, setSavedNote] = useState("");
   if (!activity) return null;
   const canUpload = activity.submissionModes.includes("upload");
@@ -43,9 +41,17 @@ function SubmissionBlock({ activityId, prefillExtension }: { activityId: string;
         {!submitted ? (
           <div className="space-y-3">
             {canUpload && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label htmlFor="quiz-file">Upload file</Label>
-                <Input id="quiz-file" type="file" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")} />
+                <label
+                  htmlFor="quiz-file"
+                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-center text-sm hover:bg-muted/50"
+                >
+                  <Upload className="size-5 text-muted-foreground" />
+                  <span className="font-medium">{fileName || "Click to choose a file"}</span>
+                  <span className="text-xs text-muted-foreground">{fileName ? "Click to replace" : "PDF, DOCX, ZIP, or image"}</span>
+                </label>
+                <Input id="quiz-file" type="file" className="hidden" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")} />
               </div>
             )}
             <div className="space-y-1">
@@ -78,10 +84,7 @@ function QuizPage() {
   const offeringByActivity = offerings.find((o) => o.weeks.some((w) => w.activities.some((a) => a.id === quizId)));
   const offering = findOffering(quiz?.offeringId ?? offeringByActivity?.offeringId);
   const [askOpen, setAskOpen] = useState(params.get("ask") === "1");
-  const [extensionOpen, setExtensionOpen] = useState(params.get("extension") === "1");
-  const [eventNote, setEventNote] = useState(() =>
-    params.get("extension") ? "Extension request: Reason - \nNeeded until - \nWork completed so far - " : "",
-  );
+  const [eventNote, setEventNote] = useState("");
   const [eventNoteSaved, setEventNoteSaved] = useState("");
 
   if (!quiz && !activity) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
@@ -89,6 +92,21 @@ function QuizPage() {
   const title = quiz?.title ?? activity?.title ?? "Quiz";
   const hasMcq = quiz != null || activity?.hasMcq;
   const hasSubmission = (activity?.submissionModes.length ?? 0) > 0;
+  const dueDate = quiz?.closed?.slice(0, 10) ?? activity?.due ?? "";
+  const dueTone = activity?.submitted || activity?.graded
+    ? "text-emerald-600"
+    : dueDate < "2026-11-22"
+      ? "text-red-600"
+      : dueDate <= "2026-11-24"
+        ? "text-amber-600"
+        : "text-emerald-600";
+  const dueLabel = activity?.submitted || activity?.graded
+    ? `Due ${dueDate}`
+    : dueDate < "2026-11-22"
+      ? `Past due - ${dueDate}`
+      : dueDate <= "2026-11-24"
+        ? `Due soon - ${dueDate}`
+        : `Due ${dueDate}`;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
@@ -101,28 +119,35 @@ function QuizPage() {
         <div>
           <h1 className="text-2xl font-bold">{title}</h1>
           <p className="text-sm text-muted-foreground">
-            {quiz ? `Opened ${quiz.opened} - Closed ${quiz.closed}` : `Opened ${activity?.opened} - Due ${activity?.due}`}
+            {quiz ? `Opened ${quiz.opened}` : `Opened ${activity?.opened}`}
           </p>
+          {dueDate && (
+            <p className={`mt-1 flex items-center gap-1 text-sm font-medium ${dueTone}`}>
+              <Clock className="size-4" /> {dueLabel}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setAskOpen(true); setExtensionOpen(false); setTimeout(() => document.getElementById(hasSubmission ? "quiz-note" : "event-note")?.focus(), 0); }}>Ask</Button>
-          <Button variant="outline" size="sm" onClick={() => { setExtensionOpen(true); setAskOpen(true); setEventNote((d) => d || "Extension request: Reason - \nNeeded until - \nWork completed so far - "); setTimeout(() => document.getElementById(hasSubmission ? "quiz-note" : "event-note")?.focus(), 0); }}>Request extension</Button>
+          <Button variant="outline" size="sm" onClick={() => { setAskOpen((v) => !v); setTimeout(() => document.getElementById(hasSubmission ? "quiz-note" : "event-note")?.focus(), 0); }}>
+            <MessageCircleQuestion className="size-4" /> Ask teacher
+          </Button>
           <Link to={offering ? `/student/courses/${offering.offeringId}` : "/student/courses"}>
             <Button variant="outline" size="sm">Back to the course</Button>
           </Link>
         </div>
       </div>
 
-      {!hasSubmission && (askOpen || extensionOpen) && (
+      {!hasSubmission && askOpen && (
         <Card>
-          <CardHeader><CardTitle>{extensionOpen ? "Extension request" : "Ask instructor"}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Ask teacher</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            <Label htmlFor="event-note">{extensionOpen ? "Request details" : "Your question"}</Label>
-            <Textarea id="event-note" value={eventNote} onChange={(e) => setEventNote(e.target.value)} placeholder={extensionOpen ? "Reason, needed until, work completed so far" : "Ask one clear question, if needed"} />
+            <Label htmlFor="event-note">Your question</Label>
+            <Textarea id="event-note" value={eventNote} onChange={(e) => setEventNote(e.target.value)} placeholder="Ask one clear question, if needed" />
             <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
             <div className="flex gap-2">
-              <Button size="sm" onClick={() => { const text = eventNote.trim(); if (!text) return; saveQuestion({ contextType: "event", contextLabel: title, contextTo: `/student/quizzes/${quizId}`, question: text }); setEventNoteSaved(text); setEventNote(""); }}>Send question</Button>
-              {eventNoteSaved && <span className="self-center text-xs text-muted-foreground">Question sent. Check My questions for replies.</span>}
+              <Button size="sm" onClick={() => { const text = eventNote.trim(); if (!text) return; saveQuestion({ contextType: "event", contextLabel: title, contextTo: `/student/quizzes/${quizId}`, question: text }); setEventNoteSaved(text); setEventNote(""); setAskOpen(false); }}>Send</Button>
+              <Button size="sm" variant="ghost" onClick={() => setAskOpen(false)}>Cancel</Button>
+              {eventNoteSaved && <span className="self-center text-xs text-muted-foreground">Sent. Check My questions for replies.</span>}
             </div>
           </CardContent>
         </Card>
@@ -157,7 +182,7 @@ function QuizPage() {
         </>
       )}
 
-      {hasSubmission && activity && <SubmissionBlock activityId={activity.id} prefillExtension={extensionOpen} />}
+      {hasSubmission && activity && <SubmissionBlock activityId={activity.id} />}
     </div>
   );
 }

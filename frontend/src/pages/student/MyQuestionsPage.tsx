@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
+import { Badge } from "../../components/ui/badge";
 import { Card, CardContent } from "../../components/ui/card";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
 import type { StudentQuestion } from "../../mock/student";
@@ -25,9 +26,11 @@ function sortQuestions(questions: StudentQuestion[]) {
 }
 
 function StatusBadge({ status }: { status: Status }) {
-  if (status === "new") return <span className="rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-bold text-white">New</span>;
-  if (status === "pending") return <span className="text-xs text-muted-foreground">Pending</span>;
-  return <span className="text-xs text-muted-foreground">Read</span>;
+  if (status === "new")
+    return <Badge className="rounded-full bg-blue-500 text-white hover:bg-blue-500">New</Badge>;
+  if (status === "pending")
+    return <Badge variant="ghost" className="text-muted-foreground">Pending</Badge>;
+  return <Badge variant="ghost" className="text-muted-foreground">Read</Badge>;
 }
 
 function MyQuestionsPage() {
@@ -65,7 +68,7 @@ function MyQuestionsPage() {
               <div key={q.id} className="rounded-lg border">
                 <button
                   type="button"
-                  className="flex w-full flex-wrap items-start justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50"
+                  className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50"
                   onClick={() => void openQuestion(q)}
                 >
                   <div className="min-w-0 space-y-1">
