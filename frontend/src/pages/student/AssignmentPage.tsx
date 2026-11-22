@@ -50,8 +50,8 @@ function AssignmentPage() {
   const activity = findActivity(assignmentId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState<string[]>([]);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savedNote, setSavedNote] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   if (!activity) {
@@ -102,15 +102,15 @@ function AssignmentPage() {
                 </div>
               )}
               <div className="space-y-1">
-                <Label htmlFor="comment">Submission comments</Label>
-                <Textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional note for your teacher" />
+                <Label htmlFor="note">Question for teacher (optional)</Label>
+                <Textarea id="note" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Ask one clear question, if needed" />
+                <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
               </div>
               <Button
                 onClick={() => {
                   if (canUpload && !fileName) return;
                   setSubmitted(true);
-                  if (comment.trim()) setComments((c) => [...c, comment.trim()]);
-                  setComment("");
+                  setSavedNote(noteDraft.trim());
                 }}
                 disabled={canUpload && !fileName}
               >
@@ -122,13 +122,7 @@ function AssignmentPage() {
 
           {!graded && submitted && (
             <div className="flex flex-wrap items-center gap-2">
-              {canUpload && (
-                <>
-                  <Label htmlFor="edit-file" className="sr-only">Replace file</Label>
-                  <Input id="edit-file" type="file" className="max-w-xs" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? fileName)} />
-                </>
-              )}
-              <Button size="sm" variant="outline" onClick={() => setSubmitted(false)}>Edit submission</Button>
+              <Button size="sm" variant="outline" onClick={() => { setNoteDraft(savedNote); setSubmitted(false); }}>Edit submission</Button>
               <Button size="sm" variant="destructive" onClick={() => setConfirmRemove(true)}>Remove submission</Button>
             </div>
           )}
@@ -148,7 +142,7 @@ function AssignmentPage() {
               <TableRow><TableCell>Time remaining</TableCell><TableCell>{activity.due > "2026-11-22" ? `${activity.due} (on time)` : "Past due"}</TableCell></TableRow>
               <TableRow><TableCell>Last modified</TableCell><TableCell>{submitted ? "2026-11-21 09:15" : "-"}</TableCell></TableRow>
               <TableRow><TableCell>Uploaded file</TableCell><TableCell>{submitted && fileName ? fileName : submitted && !canUpload ? "Physical submission" : "-"}</TableCell></TableRow>
-              <TableRow><TableCell>Submission comments</TableCell><TableCell>{comments.length === 0 ? "No comments." : <ul className="list-disc pl-4">{comments.map((c, i) => <li key={i}>{c}</li>)}</ul>}</TableCell></TableRow>
+              <TableRow><TableCell>Question for teacher</TableCell><TableCell>{savedNote || "No question submitted."}</TableCell></TableRow>
             </TableBody>
           </Table>
         </CardContent>
@@ -179,7 +173,7 @@ function AssignmentPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmRemove(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => { setSubmitted(false); setFileName(""); setComments([]); setConfirmRemove(false); }}>Remove</Button>
+            <Button variant="destructive" onClick={() => { setSubmitted(false); setFileName(""); setSavedNote(""); setNoteDraft(""); setConfirmRemove(false); }}>Remove</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

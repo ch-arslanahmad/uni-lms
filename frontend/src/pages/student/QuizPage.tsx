@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import { findActivity, findOffering, offerings, quizzes, type Quiz } from "../../mock/student";
 
@@ -21,6 +22,8 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
   const activity = findActivity(activityId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savedNote, setSavedNote] = useState("");
   if (!activity) return null;
   const canUpload = activity.submissionModes.includes("upload");
   const isPhysical = activity.submissionModes.includes("physical");
@@ -32,22 +35,30 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
         {isPhysical && activity.physical && (
           <p>Physical submission: {activity.physical.timeWindow}, {activity.physical.room}. Any working day before and on due date.</p>
         )}
-        {canUpload && !submitted && (
-          <div className="space-y-2">
-            <Label htmlFor="quiz-file">Upload file</Label>
-            <Input id="quiz-file" type="file" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")} />
-          </div>
-        )}
-        <div className="flex gap-2">
-          {!submitted ? (
-            <Button size="sm" onClick={() => setSubmitted(true)} disabled={canUpload && !fileName}>
+        {!submitted ? (
+          <div className="space-y-3">
+            {canUpload && (
+              <div className="space-y-1">
+                <Label htmlFor="quiz-file">Upload file</Label>
+                <Input id="quiz-file" type="file" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")} />
+              </div>
+            )}
+            <div className="space-y-1">
+              <Label htmlFor="quiz-note">Question for teacher (optional)</Label>
+              <Textarea id="quiz-note" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Ask one clear question, if needed" />
+              <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
+            </div>
+            <Button size="sm" onClick={() => { setSubmitted(true); setSavedNote(noteDraft.trim()); }} disabled={canUpload && !fileName}>
               {isPhysical && !canUpload ? "Mark as submitted" : "Submit"}
             </Button>
-          ) : (
-            <Button size="sm" variant="outline" onClick={() => setSubmitted(false)}>Edit submission</Button>
-          )}
-          {submitted && fileName && <span className="self-center text-muted-foreground">{fileName}</span>}
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {fileName && <p className="text-muted-foreground">File: {fileName}</p>}
+            <p><span className="font-medium">Question for teacher:</span> {savedNote || "No question submitted."}</p>
+            <Button size="sm" variant="outline" onClick={() => { setNoteDraft(savedNote); setSubmitted(false); }}>Edit submission</Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
