@@ -42,7 +42,7 @@ function SubmissionDetailPage() {
   }
   function grantExtension() {
     if (!extDate) { setErr("Extension date is required."); return; }
-    if (!extReason.trim()) { setErr("Extension reason is required (FR12/I9)."); return; }
+    if (!extReason.trim()) { setErr("Extension reason is required."); return; }
     if (extDate <= act!.dueAt) { setErr("Extension must be after the original due date."); return; }
     setErr(""); setMsg("Extension granted.");
     setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, extensionDueAt: extDate, extensionReason: extReason.trim() } : x));
@@ -74,11 +74,11 @@ function SubmissionDetailPage() {
               <Button size="sm" onClick={() => saveGrade(true)} disabled={!canGrade}>Publish & lock</Button>
             </> : <Button size="sm" onClick={saveCorrection}>Save correction</Button>}
           </div>
-          <p className="text-xs text-muted-foreground">Publishing locks submission (I11). Correction updates current grade only; latest updater/timestamp stored (FR16/FR20).</p>
+          <p className="text-xs text-muted-foreground">Publishing locks the submission. Corrections update the current grade and latest updater/timestamp only.</p>
         </CardContent></Card>
       </div>
 
-      <Card><CardHeader><CardTitle className="text-base">Grant extension (FR12/I9)</CardTitle></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">
+      <Card><CardHeader><CardTitle className="text-base">Grant extension</CardTitle></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1"><Label>New deadline</Label><Input type="date" value={extDate} onChange={e=>setExtDate(e.target.value)} /></div>
         <div className="space-y-1 md:col-span-2"><Label>Reason (required)</Label><Textarea value={extReason} onChange={e=>setExtReason(e.target.value)} /></div>
         <div><Button size="sm" variant="outline" onClick={grantExtension}>Grant extension</Button></div>
