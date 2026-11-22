@@ -49,9 +49,9 @@ function TeacherDashboard() {
                       <p className="font-medium flex items-center gap-2">{a.title}{a.required && <Badge variant="secondary">Required</Badge>}{a.required && !a.documentName && <Badge variant="secondary" className="gap-1"><AlertCircle className="size-3" />Pending document</Badge>}</p>
                       <p className="text-xs text-muted-foreground">{sec ? `${sec.section.subjectCode} - ${sec.section.code} · ` : ""}{a.kind} · due {a.dueAt}</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Link to={`/teacher/grading?activity=${a.id}`} className="text-blue-600 hover:underline">Grading</Link>
-                      <Link to={`/teacher/classes/${a.sectionId}`} className="text-blue-600 hover:underline">Open class</Link>
+                    <div className="flex items-center gap-1">
+                      <Link to={`/teacher/grading?activity=${a.id}`} title="Grading" aria-label="Grading" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><ClipboardCheck className="size-4" /></Link>
+                      <Link to={`/teacher/classes/${a.sectionId}`} title="Open class" aria-label="Open class" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><BookOpen className="size-4" /></Link>
                     </div>
                   </div>
                 );
