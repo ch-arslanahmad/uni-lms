@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import { Badge } from "../../components/ui/badge";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { getSectionStudents, getTeacherSection, type TeacherActivity, type TeacherEvent, type TeacherQuestion } from "../../mock/teacher";
+import { getSectionStudents, getTeacherSection, type AssessmentQuestion, type TeacherActivity, type TeacherEvent, type TeacherQuestion } from "../../mock/teacher";
 import { students } from "../../models";
 
 function err(v: string, msg: string) { return v.trim() ? "" : msg; }
@@ -44,6 +44,10 @@ function ClassDetail() {
   // event form
   const [ev, setEv] = useState({ title: "", type: "other" as TeacherEvent["type"], startAt: "", endAt: "", room: "", linkedActivityId: "" });
   const [evErr, setEvErr] = useState("");
+  // assessment question form
+  const [qActId, setQActId] = useState<string>("");
+  const [aq, setAq] = useState({ type: "mcq" as AssessmentQuestion["type"], text: "", options: "A,B,C,D", correctOption: "0", marks: "5" });
+  const [aqErr, setAqErr] = useState("");
 
   if (!section || !sid) return <div className="mx-auto max-w-5xl px-4 py-8">Class not found.</div>;
 
@@ -89,6 +93,19 @@ function ClassDetail() {
     setEv({ title: "", type: "other", startAt: "", endAt: "", room: "", linkedActivityId: "" }); setEvErr("");
   }
 
+  function addAssessmentQuestion() {
+    if (!qActId) { setAqErr("Select a quiz/exam activity."); return; }
+    const m = Number(aq.marks);
+    if (!aq.text.trim()) { setAqErr("Question text is required."); return; }
+    if (!m || m <= 0) { setAqErr("Marks must be > 0."); return; }
+    const opts = aq.type === "mcq" ? aq.options.split(",").map(s => s.trim()).filter(Boolean) : undefined;
+    if (aq.type === "mcq" && (!opts || opts.length < 2)) { setAqErr("MCQ needs at least 2 comma-separated options."); return; }
+    const correct = aq.type === "mcq" ? Number(aq.correctOption) : undefined;
+    if (aq.type === "mcq" && (correct == null || correct < 0 || correct >= (opts?.length ?? 0))) { setAqErr("Correct option index is out of range."); return; }
+    ctx.setAssessmentQuestions((prev) => [...prev, { id: `aq-${Date.now()}`, activityId: qActId, type: aq.type, text: aq.text.trim(), options: opts, correctOption: correct, marks: m }]);
+    setAq({ type: "mcq", text: "", options: "A,B,C,D", correctOption: "0", marks: "5" }); setAqErr("");
+  }
+
   const totalWeight = categories.reduce((s, c) => s + c.weight, 0);
   const qCols: Column<TeacherQuestion>[] = [
     { key: "question", label: "Question", render: (q) => <span className="line-clamp-2">{q.question}</span> },
@@ -99,7 +116,7 @@ function ClassDetail() {
     { key: "title", label: "Activity", render: (a) => <div><p className="font-medium">{a.title}</p><p className="text-xs text-muted-foreground capitalize">{a.kind} · {a.category}</p></div> },
     { key: "dueAt", label: "Due" },
     { key: "maxMarks", label: "Max" },
-    { key: "id", label: "Actions", render: (a) => <div className="flex gap-2"><Link to={`/teacher/grading?activity=${a.id}`} className="text-blue-600 hover:underline">Queue</Link><button type="button" className="text-red-600 hover:underline" onClick={() => ctx.setActivities((prev) => prev.filter((x) => x.id !== a.id))}>Delete</button></div> },
+    { key: "id", label: "Actions", render: (a) => <div className="flex gap-2"><Link to={`/teacher/grading?activity=${a.id}`} className="text-blue-600 hover:underline">Queue</Link>{(a.kind === "quiz" || a.kind === "exam") && <button type="button" className="text-blue-600 hover:underline" onClick={() => setQActId(a.id)}>Questions</button>}<button type="button" className="text-red-600 hover:underline" onClick={() => ctx.setActivities((prev) => prev.filter((x) => x.id !== a.id))}>Delete</button></div> },
   ];
 
   return (
@@ -164,6 +181,18 @@ function ClassDetail() {
                 <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e=>setAct({...act,instructions:e.target.value})} /></div>
                 {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
                 <div className="md:col-span-2"><Button size="sm" onClick={addActivity}>Create activity</Button></div>
+              </CardContent></Card>
+              <Card><CardHeader><CardTitle className="text-base">Assessment questions (FR11)</CardTitle></CardHeader><CardContent className="space-y-3">
+                <div className="space-y-1"><Label>Quiz/Exam activity</Label><Select value={qActId || "none"} onValueChange={(v)=> setQActId(v === "none" ? "" : (v ?? ""))}><SelectTrigger><SelectValue placeholder="Select activity" /></SelectTrigger><SelectContent><SelectItem value="none">Select activity</SelectItem>{activities.filter(a=>a.kind==="quiz"||a.kind==="exam").map(a=><SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}</SelectContent></Select></div>
+                {qActId && <div className="space-y-2">{ctx.assessmentQuestions.filter(q=>q.activityId===qActId).map(q => <div key={q.id} className="rounded border px-3 py-2 text-sm"><div className="flex justify-between gap-2"><p className="font-medium">{q.text}</p><Button variant="ghost" size="sm" onClick={() => ctx.setAssessmentQuestions(prev => prev.filter(x=>x.id!==q.id))}>Remove</Button></div><p className="text-xs text-muted-foreground capitalize">{q.type} · {q.marks} marks{q.options ? ` · Options: ${q.options.join(", ")} · Correct: ${q.correctOption}` : ""}</p></div>)}</div>}
+                <div className="grid gap-2 md:grid-cols-2 rounded border p-3">
+                  <div className="space-y-1"><Label>Type</Label><Select value={aq.type} onValueChange={(v)=> v && setAq({...aq,type:v as AssessmentQuestion["type"]})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mcq">MCQ</SelectItem><SelectItem value="written">Written</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-1"><Label>Marks</Label><Input type="number" value={aq.marks} onChange={e=>setAq({...aq,marks:e.target.value})} /></div>
+                  <div className="space-y-1 md:col-span-2"><Label>Question text</Label><Textarea value={aq.text} onChange={e=>setAq({...aq,text:e.target.value})} /></div>
+                  {aq.type==="mcq" && <><div className="space-y-1"><Label>Options (comma-separated)</Label><Input value={aq.options} onChange={e=>setAq({...aq,options:e.target.value})} /></div><div className="space-y-1"><Label>Correct option index (0-based)</Label><Input type="number" value={aq.correctOption} onChange={e=>setAq({...aq,correctOption:e.target.value})} /></div></>}
+                  {aqErr && <p className="text-xs text-red-600 md:col-span-2">{aqErr}</p>}
+                  <div className="md:col-span-2"><Button size="sm" onClick={addAssessmentQuestion}>Add question</Button></div>
+                </div>
               </CardContent></Card>
             </div>
           )},

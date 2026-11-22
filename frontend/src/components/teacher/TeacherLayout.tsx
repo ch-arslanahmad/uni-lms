@@ -10,6 +10,7 @@ import {
   teacherActivities as seedActivities,
   teacherAnnouncements as seedAnnouncements,
   teacherEvents as seedEvents,
+  assessmentQuestions as seedAssessmentQuestions,
   teacherMaterials as seedMaterials,
   teacherQuestions as seedQuestions,
   teacherSubmissions as seedSubmissions,
@@ -18,6 +19,7 @@ import {
   type TeacherActivity,
   type TeacherAnnouncement,
   type TeacherEvent,
+  type AssessmentQuestion,
   type TeacherMaterial,
   type TeacherQuestion,
   type TeacherSubmission,
@@ -36,6 +38,8 @@ export interface TeacherContext {
   setAnnouncements: React.Dispatch<React.SetStateAction<TeacherAnnouncement[]>>;
   events: TeacherEvent[];
   setEvents: React.Dispatch<React.SetStateAction<TeacherEvent[]>>;
+  assessmentQuestions: AssessmentQuestion[];
+  setAssessmentQuestions: React.Dispatch<React.SetStateAction<AssessmentQuestion[]>>;
   categories: GradeCategory[];
   setCategories: React.Dispatch<React.SetStateAction<GradeCategory[]>>;
   resultStates: SectionResultState[];
@@ -50,6 +54,7 @@ function TeacherLayout() {
   const [materials, setMaterials] = useState<TeacherMaterial[]>(seedMaterials);
   const [announcements, setAnnouncements] = useState<TeacherAnnouncement[]>(seedAnnouncements);
   const [events, setEvents] = useState<TeacherEvent[]>(seedEvents);
+  const [assessmentQuestions, setAssessmentQuestions] = useState<AssessmentQuestion[]>(seedAssessmentQuestions);
   const [categories, setCategories] = useState<GradeCategory[]>(seedCategories);
   const [resultStates, setResultStates] = useState<SectionResultState[]>(seedResultStates);
 
@@ -104,6 +109,7 @@ function TeacherLayout() {
             materials, setMaterials,
             announcements, setAnnouncements,
             events, setEvents,
+            assessmentQuestions, setAssessmentQuestions,
             categories, setCategories,
             resultStates, setResultStates,
           } satisfies TeacherContext}

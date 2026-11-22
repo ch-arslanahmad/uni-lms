@@ -45,6 +45,16 @@ export interface TeacherEvent {
   linkedActivityId?: string;
 }
 
+export interface AssessmentQuestion {
+  id: string;
+  activityId: string;
+  type: "mcq" | "written";
+  text: string;
+  options?: string[];
+  correctOption?: number;
+  marks: number;
+}
+
 export type ActivityKind = "assignment" | "quiz" | "project" | "exam";
 export type SubmissionMode = "upload" | "physical";
 
@@ -140,6 +150,12 @@ export const teacherEvents: TeacherEvent[] = [
   { id: "te1", sectionId: 4, title: "Project Milestone 1 deadline", type: "deadline", startAt: "2026-11-25 23:59", endAt: "2026-11-25 23:59", linkedActivityId: "ta-a3" },
   { id: "te2", sectionId: 4, title: "Midterm Exam", type: "exam", startAt: "2026-11-12 09:00", endAt: "2026-11-12 11:00", room: "Exam Hall A", linkedActivityId: "ta-a4" },
   { id: "te3", sectionId: 6, title: "Guest lecture: OS security", type: "other", startAt: "2026-11-27 14:00", endAt: "2026-11-27 15:00", room: "CS-Lab-3" },
+];
+
+export const assessmentQuestions: AssessmentQuestion[] = [
+  { id: "aq1", activityId: "ta-a2", type: "mcq", text: "Which SQL clause filters rows?", options: ["ORDER BY", "WHERE", "GROUP BY", "HAVING"], correctOption: 1, marks: 5 },
+  { id: "aq2", activityId: "ta-a2", type: "mcq", text: "Which join returns only matching rows?", options: ["LEFT JOIN", "FULL JOIN", "INNER JOIN", "CROSS JOIN"], correctOption: 2, marks: 5 },
+  { id: "aq3", activityId: "ta-a4", type: "written", text: "Explain 3NF with an example.", marks: 20 },
 ];
 
 export const teacherActivities: TeacherActivity[] = [
