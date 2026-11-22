@@ -13,7 +13,6 @@ export interface TeacherSection {
   creditHours: number;
   term: string;
   schedule: string;
-  room: string;
 }
 
 export interface TeacherMaterial {
@@ -70,8 +69,11 @@ export interface TeacherActivity {
   dueAt: string;
   closeAt?: string;
   submissionModes: SubmissionMode[];
+  physicalRoom?: string; // only when physical submission is required
   hasMcq?: boolean;
   reviewPolicy?: "immediate" | "after_close" | "after_graded" | "never";
+  documentName?: string; // required supporting document
+  required?: boolean; // mandatory system/term requirement (mid/final)
   published: boolean;
 }
 
@@ -115,7 +117,8 @@ export interface SectionResultState {
   frozenWeights: boolean;
 }
 
-const assignedSectionRows = sections.filter((s) => s.teacherName === "Carol");
+// Same teacher, same subject, multiple sections (typical semester assignment).
+const assignedSectionRows = sections.filter((s) => s.teacherName === "Carol" && s.subjectCode === "CS-301");
 
 function makeOfferingId(s: SectionRow): string {
   return `${s.subjectCode}-${s.termName.replace(" ", "")}-${s.programCode}-${s.code}`.replace(/[^A-Za-z0-9-]/g, "");
@@ -130,8 +133,7 @@ export const teacherSections: TeacherSection[] = assignedSectionRows.map((s, idx
     subjectTitle: subject?.title ?? s.subjectCode,
     creditHours: subject?.creditHours ?? 3,
     term: s.termName,
-    schedule: ["Mon/Wed 09:00-10:30", "Tue/Thu 11:00-12:30", "Mon 14:00-15:30", "Wed 08:00-09:30"][idx % 4],
-    room: ["CS-Lab-1", "Room-204", "Room-205", "CS-Lab-3"][idx % 4],
+    schedule: ["Mon/Wed 09:00-10:30", "Tue/Thu 11:00-12:30"][idx % 2],
   };
 });
 
@@ -143,13 +145,13 @@ export const teacherMaterials: TeacherMaterial[] = [
 
 export const teacherAnnouncements: TeacherAnnouncement[] = [
   { id: "ta1", sectionId: 4, title: "Midterm syllabus", body: "Midterm covers ER modeling, relational model, and normalization up to 3NF.", date: "2026-11-10" },
-  { id: "ta2", sectionId: 6, title: "Lab timing update", body: "This week's OS lab starts at 2:00 PM.", date: "2026-11-18" },
+  { id: "ta2", sectionId: 5, title: "Section B lab reminder", body: "Bring your SQL lab sheet for Wednesday's session.", date: "2026-11-18" },
 ];
 
 export const teacherEvents: TeacherEvent[] = [
   { id: "te1", sectionId: 4, title: "Project Milestone 1 deadline", type: "deadline", startAt: "2026-11-25 23:59", endAt: "2026-11-25 23:59", linkedActivityId: "ta-a3" },
-  { id: "te2", sectionId: 4, title: "Midterm Exam", type: "exam", startAt: "2026-11-12 09:00", endAt: "2026-11-12 11:00", room: "Exam Hall A", linkedActivityId: "ta-a4" },
-  { id: "te3", sectionId: 6, title: "Guest lecture: OS security", type: "other", startAt: "2026-11-27 14:00", endAt: "2026-11-27 15:00", room: "CS-Lab-3" },
+  { id: "te2", sectionId: 4, title: "Midterm Exam", type: "exam", startAt: "2026-11-12 09:00", endAt: "2026-11-12 11:00", linkedActivityId: "ta-a4" },
+  { id: "te3", sectionId: 5, title: "Midterm Exam", type: "exam", startAt: "2026-11-12 09:00", endAt: "2026-11-12 11:00", linkedActivityId: "ta-a8" },
 ];
 
 export const assessmentQuestions: AssessmentQuestion[] = [
@@ -159,12 +161,15 @@ export const assessmentQuestions: AssessmentQuestion[] = [
 ];
 
 export const teacherActivities: TeacherActivity[] = [
-  { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1: ERD", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], published: true },
-  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", published: true },
-  { id: "ta-a3", sectionId: 4, kind: "project", title: "Project Milestone 1", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload", "physical"], published: true },
-  { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], published: true },
-  { id: "ta-a5", sectionId: 5, kind: "assignment", title: "Lab Assignment: Joins", instructions: "Write SQL joins for provided schema.", category: "Assignments", maxMarks: 50, openAt: "2026-11-05", dueAt: "2026-11-28", submissionModes: ["upload"], published: true },
-  { id: "ta-a6", sectionId: 6, kind: "quiz", title: "Quiz: Processes", instructions: "Short quiz on process states.", category: "Quizzes", maxMarks: 10, openAt: "2026-11-26", dueAt: "2026-11-26", submissionModes: [], hasMcq: true, reviewPolicy: "after_graded", published: true },
+  { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1: ERD", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
+  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", documentName: "quiz1-sql.pdf", published: true },
+  { id: "ta-a3", sectionId: 4, kind: "project", title: "Project Milestone 1", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], documentName: "project-m1-brief.pdf", published: true },
+  { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: undefined, published: true },
+  { id: "ta-a5", sectionId: 4, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: undefined, published: true },
+  { id: "ta-a6", sectionId: 5, kind: "assignment", title: "Assignment 1: ERD", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
+  { id: "ta-a7", sectionId: 5, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", documentName: "quiz1-sql.pdf", published: true },
+  { id: "ta-a8", sectionId: 5, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: undefined, published: true },
+  { id: "ta-a9", sectionId: 5, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: undefined, published: true },
 ];
 
 function seedSubmissions(): TeacherSubmission[] {
@@ -208,7 +213,7 @@ export const teacherSubmissions: TeacherSubmission[] = seedSubmissions();
 export const teacherQuestions: TeacherQuestion[] = [
   { id: "tq1", sectionId: 4, activityId: "ta-a3", studentId: 7, question: "Can we submit proposal as PDF and slides separately?", askedAt: "2026-11-20 14:10", status: "pending" },
   { id: "tq2", sectionId: 4, studentId: 9, question: "Will normalization beyond 3NF be in midterm?", askedAt: "2026-11-19 10:00", answer: "Midterm is up to 3NF; BCNF is good to know but not required.", answeredAt: "2026-11-19 12:30", status: "answered" },
-  { id: "tq3", sectionId: 6, studentId: 16, question: "Is Quiz: Processes open book?", askedAt: "2026-11-21 09:20", status: "pending" },
+  { id: "tq3", sectionId: 5, studentId: 16, question: "Is Quiz 1 the same format for section B?", askedAt: "2026-11-21 09:20", status: "pending" },
 ];
 
 export const gradeCategories: GradeCategory[] = [
@@ -217,14 +222,11 @@ export const gradeCategories: GradeCategory[] = [
   { id: "gc3", sectionId: 4, name: "Project", weight: 20 },
   { id: "gc4", sectionId: 4, name: "Midterm", weight: 20 },
   { id: "gc5", sectionId: 4, name: "Final", weight: 30 },
-  { id: "gc6", sectionId: 5, name: "Assignments", weight: 30 },
-  { id: "gc7", sectionId: 5, name: "Quizzes", weight: 20 },
-  { id: "gc8", sectionId: 5, name: "Midterm", weight: 20 },
-  { id: "gc9", sectionId: 5, name: "Final", weight: 30 },
-  { id: "gc10", sectionId: 6, name: "Assignments", weight: 30 },
-  { id: "gc11", sectionId: 6, name: "Quizzes", weight: 20 },
-  { id: "gc12", sectionId: 6, name: "Midterm", weight: 20 },
-  { id: "gc13", sectionId: 6, name: "Final", weight: 30 },
+  { id: "gc6", sectionId: 5, name: "Assignments", weight: 20 },
+  { id: "gc7", sectionId: 5, name: "Quizzes", weight: 10 },
+  { id: "gc8", sectionId: 5, name: "Project", weight: 20 },
+  { id: "gc9", sectionId: 5, name: "Midterm", weight: 20 },
+  { id: "gc10", sectionId: 5, name: "Final", weight: 30 },
 ];
 
 export const sectionResultStates: SectionResultState[] = teacherSections.map((s) => ({ sectionId: s.id, published: false, frozenWeights: false }));

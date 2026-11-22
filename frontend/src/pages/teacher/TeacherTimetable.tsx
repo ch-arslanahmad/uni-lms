@@ -27,7 +27,7 @@ function TeacherTimetable() {
                           <div key={`${day}-${s.id}`} className="rounded-md border bg-blue-50 p-2">
                             <p className="font-medium text-blue-700">{s.section.subjectCode} - {s.section.code}</p>
                             <p className="text-xs text-muted-foreground">{s.schedule}</p>
-                            <p className="text-xs text-muted-foreground">{s.room}</p>
+                            <p className="text-xs text-muted-foreground">{s.section.programCode}</p>
                           </div>
                         ))}
                       </div>

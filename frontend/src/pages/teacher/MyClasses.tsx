@@ -40,7 +40,6 @@ function MyClasses() {
               </CardHeader>
               <CardContent className="space-y-1 text-sm text-muted-foreground">
                 <p>{c.schedule}</p>
-                <p>{c.room}</p>
                 <p>{c.section.enrolledCount} enrolled students</p>
               </CardContent>
               <CardFooter className="mt-auto">

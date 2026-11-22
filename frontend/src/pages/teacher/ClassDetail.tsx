@@ -42,7 +42,7 @@ function ClassDetail() {
   // category form
   const [catName, setCatName] = useState(""); const [catWeight, setCatWeight] = useState(""); const [catErr, setCatErr] = useState("");
   // event form
-  const [ev, setEv] = useState({ title: "", type: "other" as TeacherEvent["type"], startAt: "", endAt: "", room: "", linkedActivityId: "" });
+  const [ev, setEv] = useState({ title: "", type: "other" as TeacherEvent["type"], startAt: "", endAt: "", linkedActivityId: "" });
   const [evErr, setEvErr] = useState("");
   // assessment question form
   const [qActId, setQActId] = useState<string>("");
@@ -89,8 +89,8 @@ function ClassDetail() {
     const e = err(ev.title, "Event title is required.") || err(ev.startAt, "Start time is required.") || err(ev.endAt, "End time is required.");
     if (e) { setEvErr(e); return; }
     if (ev.linkedActivityId && !activities.some((a) => a.id === ev.linkedActivityId)) { setEvErr("Linked activity must belong to this section."); return; }
-    ctx.setEvents((prev) => [{ id: `ev-${Date.now()}`, sectionId: section!.id, title: ev.title.trim(), type: ev.type, startAt: ev.startAt, endAt: ev.endAt, room: ev.room.trim() || undefined, linkedActivityId: ev.linkedActivityId || undefined }, ...prev]);
-    setEv({ title: "", type: "other", startAt: "", endAt: "", room: "", linkedActivityId: "" }); setEvErr("");
+    ctx.setEvents((prev) => [{ id: `ev-${Date.now()}`, sectionId: section!.id, title: ev.title.trim(), type: ev.type, startAt: ev.startAt, endAt: ev.endAt, linkedActivityId: ev.linkedActivityId || undefined }, ...prev]);
+    setEv({ title: "", type: "other", startAt: "", endAt: "", linkedActivityId: "" }); setEvErr("");
   }
 
   function addAssessmentQuestion() {
@@ -124,7 +124,7 @@ function ClassDetail() {
       <Breadcrumbs items={[{ label: "My classes", to: "/teacher/classes" }, { label: `${section.section.subjectCode} - ${section.section.code}` }]} />
       <div>
         <h1 className="text-2xl font-bold">{section.section.subjectCode} - Section {section.section.code}</h1>
-        <p className="text-sm text-muted-foreground">{section.subjectTitle} · {section.term} · {section.schedule} · {section.room}</p>
+        <p className="text-sm text-muted-foreground">{section.subjectTitle} · {section.term} · {section.schedule}</p>
       </div>
 
       <Tabs
@@ -201,12 +201,11 @@ function ClassDetail() {
               <Card><CardHeader><CardTitle className="text-base">Section events</CardTitle></CardHeader><CardContent className="space-y-3">
                 {events.length === 0 ? <p className="text-sm text-muted-foreground">No events scheduled.</p> : events.map((e) => {
                   const linked = activities.find((a) => a.id === e.linkedActivityId);
-                  return <div key={e.id} className="flex items-start justify-between rounded border px-3 py-2 text-sm"><div><p className="font-medium">{e.title}</p><p className="text-xs text-muted-foreground capitalize">{e.type} · {e.startAt} - {e.endAt}{e.room ? ` · ${e.room}` : ""}{linked ? ` · Linked: ${linked.title}` : ""}</p></div><Button variant="ghost" size="sm" onClick={() => ctx.setEvents((prev) => prev.filter((x) => x.id !== e.id))}>Remove</Button></div>;
+                  return <div key={e.id} className="flex items-start justify-between rounded border px-3 py-2 text-sm"><div><p className="font-medium">{e.title}</p><p className="text-xs text-muted-foreground capitalize">{e.type} · {e.startAt} - {e.endAt}{linked ? ` · Linked: ${linked.title}` : ""}</p></div><Button variant="ghost" size="sm" onClick={() => ctx.setEvents((prev) => prev.filter((x) => x.id !== e.id))}>Remove</Button></div>;
                 })}
                 <div className="grid gap-3 rounded border p-3 md:grid-cols-2">
                   <div className="space-y-1 md:col-span-2"><Label>Title</Label><Input value={ev.title} onChange={(e)=>setEv({...ev,title:e.target.value})} /></div>
                   <div className="space-y-1"><Label>Type</Label><Select value={ev.type} onValueChange={(v)=> v && setEv({...ev,type:v as TeacherEvent["type"]})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["class","exam","deadline","other"].map(t=><SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
-                  <div className="space-y-1"><Label>Room (optional)</Label><Input value={ev.room} onChange={(e)=>setEv({...ev,room:e.target.value})} /></div>
                   <div className="space-y-1"><Label>Start</Label><Input type="datetime-local" value={ev.startAt} onChange={(e)=>setEv({...ev,startAt:e.target.value})} /></div>
                   <div className="space-y-1"><Label>End</Label><Input type="datetime-local" value={ev.endAt} onChange={(e)=>setEv({...ev,endAt:e.target.value})} /></div>
                   <div className="space-y-1 md:col-span-2"><Label>Linked activity (optional, same section)</Label><Select value={ev.linkedActivityId || "none"} onValueChange={(v)=> setEv({...ev,linkedActivityId: v === "none" ? "" : (v ?? "")})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{activities.map(a=><SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}</SelectContent></Select></div>
