@@ -4,7 +4,7 @@ import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
-import { quizzes } from "../../mock/student";
+import { canReviewQuiz, quizzes } from "../../mock/student";
 
 function QuizAttemptPage() {
   const { quizId } = useParams();
@@ -109,7 +109,8 @@ function QuizAttemptPage() {
           <DialogHeader>
             <DialogTitle>Submit this attempt?</DialogTitle>
             <DialogDescription>
-              You answered {Object.keys(answers).length} of {quiz.questions.length} questions. Your provisional score is {score}/{quiz.max}.
+              You answered {Object.keys(answers).length} of {quiz.questions.length} questions.
+              {canReviewQuiz(quiz) ? ` Your provisional score is ${score}/${quiz.max}.` : " Your score will be available according to the review policy."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

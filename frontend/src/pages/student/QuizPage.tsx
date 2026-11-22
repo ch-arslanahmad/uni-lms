@@ -9,7 +9,7 @@ import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import { findActivity, findOffering, offerings, quizzes, type Quiz } from "../../mock/student";
+import { canReviewQuiz, findActivity, findOffering, offerings, quizReviewMessage, quizzes, type Quiz } from "../../mock/student";
 
 type AttemptRow = Quiz["attempts"][number];
 const attemptColumns: Column<AttemptRow>[] = [
@@ -109,6 +109,7 @@ function QuizPage() {
   const title = quiz?.title ?? activity?.title ?? "Quiz";
   const hasMcq = quiz != null || activity?.hasMcq;
   const hasSubmission = (activity?.submissionModes.length ?? 0) > 0;
+  const reviewAllowed = quiz ? canReviewQuiz(quiz) : false;
   const dueDate = quiz?.closed?.slice(0, 10) ?? activity?.due ?? "";
   const dueTone = activity?.submitted || activity?.graded
     ? "text-emerald-600"
@@ -203,14 +204,19 @@ function QuizPage() {
           <div className="grid gap-4 sm:grid-cols-4">
             <Card><CardHeader><CardTitle className="text-sm">Attempts allowed</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.attemptsAllowed}</CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">Time limit</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.timeLimit}</CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-sm">Grade</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.grade.toFixed(2)}/{quiz.max.toFixed(2)}</CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">Grade</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{reviewAllowed ? `${quiz.grade.toFixed(2)}/${quiz.max.toFixed(2)}` : `— / ${quiz.max.toFixed(2)}`}</CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">Questions</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.questions.length}</CardContent></Card>
           </div>
           <Card>
             <CardHeader><CardTitle>Attempts</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <SimpleTable columns={attemptColumns} data={quiz.attempts} searchable={false} searchKeys={["status"]} />
-              <div className="flex flex-wrap gap-2">
+              <SimpleTable
+                columns={attemptColumns}
+                data={reviewAllowed ? quiz.attempts : quiz.attempts.map((a) => ({ ...a, grade: "Hidden" }))}
+                searchable={false}
+                searchKeys={["status"]}
+              />
+              <div className="flex flex-wrap items-center gap-2">
                 {quiz.attempts.length === 0 ? (
                   <Link to={`/student/quizzes/${quiz.id}/attempt`}><Button>Start attempt</Button></Link>
                 ) : (
@@ -218,7 +224,11 @@ function QuizPage() {
                     {quiz.attempts.length < quiz.attemptsAllowed && (
                       <Link to={`/student/quizzes/${quiz.id}/attempt`}><Button>New attempt</Button></Link>
                     )}
-                    <Link to={`/student/quizzes/${quiz.id}/review`}><Button variant="outline">Review</Button></Link>
+                    {reviewAllowed ? (
+                      <Link to={`/student/quizzes/${quiz.id}/review`}><Button variant="outline">Review</Button></Link>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">{quizReviewMessage(quiz)}</span>
+                    )}
                   </>
                 )}
               </div>
