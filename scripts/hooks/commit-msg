@@ -1,0 +1,37 @@
+#!/usr/bin/env sh
+# commit-msg
+# Enforces Conventional Commits on the first line.
+# Pattern: <type>(<optional scope>)<optional !>: <description>
+# Usage:   sh commit-msg <file>
+#          echo "feat: msg" | sh commit-msg
+#          sh commit-msg "feat: msg"
+
+if [ -n "$1" ] && [ -f "$1" ]; then
+  FIRST_LINE=$(head -n 1 "$1" | tr -d '\r')
+elif [ -n "$1" ]; then
+  FIRST_LINE=$(printf '%s\n' "$1" | head -n 1 | tr -d '\r')
+else
+  FIRST_LINE=$(head -n 1 | tr -d '\r')
+fi
+
+# Allow merge, revert, and git-generated fixup/squash commits
+case "$FIRST_LINE" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+PATTERN='^(feat|fix|docs|chore|refactor|test|style|build|ci|revert)(\([^)]+\))?!?: .+'
+
+if ! printf '%s\n' "$FIRST_LINE" | grep -Eq "$PATTERN"; then
+  printf '\n'
+  printf '  ERROR: commit-msg: message does not follow Conventional Commits.\n'
+  printf '\n'
+  printf '     Got:      %s\n' "$FIRST_LINE"
+  printf '\n'
+  printf '     Expected: <type>(<scope>): <description>\n'
+  printf '     Types:    feat fix docs chore refactor test style build ci revert\n'
+  printf '     Example:  feat(admin): add grading page\n'
+  printf '\n'
+  exit 1
+fi
+
+exit 0

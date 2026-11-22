@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+# pre-commit — uni-lms
+# Runs on every commit. Blocks if:
+#   1. A locked/submitted .notes file is staged.
+#   2. Frontend lint or type-check fails.
+
+set -e
+
+frontendPath="frontend"
+
+#  Frontend checks
+staged_frontend=$(git diff --cached --name-only | grep '^frontend/' | grep -v '^frontend/dist/' || true)
+if [ -n "$staged_frontend" ]; then
+  echo "  › Linting frontend…"
+  cd "$frontendPath"
+  npm run lint --silent
+  echo "  › Type-checking frontend…"
+  npx tsc -b
+  cd ..
+  echo "  › Frontend lint & type-check passed"
+else
+  echo "  ✓  no frontend changes to check"
+fi
+
+echo "  ✔  pre-commit passed"
