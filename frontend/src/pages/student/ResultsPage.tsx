@@ -2,10 +2,17 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { StatMetric } from "../../components/StatMetric";
+import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
-import { calculateCgpa, calculateSgpa, courseResults, offerings, resultTerms, type CourseResult } from "../../mock/student";
+import {
+  calculateCgpa,
+  calculateSemesterGpa,
+  courseResults,
+  offerings,
+  resultSemesters,
+  type CourseResult,
+} from "../../mock/student";
 
 const columns: Column<CourseResult>[] = [
   {
@@ -54,56 +61,54 @@ const columns: Column<CourseResult>[] = [
 ];
 
 function ResultsPage() {
-  const terms = useMemo(() => resultTerms(), []);
-  const [term, setTerm] = useState("All terms");
-  const visibleTerms = term === "All terms" ? terms : terms.filter((t) => t === term);
+  const semesters = useMemo(() => resultSemesters(), []);
+  const [selected, setSelected] = useState<number>(semesters[semesters.length - 1] ?? 1);
   const cgpa = calculateCgpa();
+  const semesterGpa = calculateSemesterGpa(selected);
+  const rows = courseResults.filter((r) => r.semester === selected);
+  const completedCredits = courseResults
+    .filter((r) => r.status === "completed")
+    .reduce((sum, r) => sum + r.credits, 0);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
       <Breadcrumbs items={[{ label: "Results" }]} />
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Results</h1>
-          <p className="text-sm text-muted-foreground">Semester grades, SGPA, and CGPA from your academic record.</p>
-        </div>
-        <Select value={term} onValueChange={(v) => v && setTerm(v)}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All terms">All terms</SelectItem>
-            {terms.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div>
+        <h1 className="text-2xl font-bold">Results</h1>
+        <p className="text-sm text-muted-foreground">View your grades by semester, semester GPA, and overall CGPA.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatMetric label="CGPA" value={cgpa === null ? "—" : cgpa.toFixed(2)} highlight />
+        <StatMetric label="Semester GPA" value={semesterGpa === null ? "In progress" : semesterGpa.toFixed(2)} />
         <StatMetric label="Completed courses" value={courseResults.filter((r) => r.status === "completed").length} />
-        <StatMetric label="In-progress courses" value={courseResults.filter((r) => r.status === "in-progress").length} />
-        <StatMetric label="Total credits earned" value={courseResults.filter((r) => r.status === "completed").reduce((s, r) => s + r.credits, 0)} />
+        <StatMetric label="Credits earned" value={completedCredits} />
       </div>
 
-      {visibleTerms.map((t) => {
-        const rows = courseResults.filter((r) => r.term === t);
-        const sgpa = calculateSgpa(t);
-        return (
-          <Card key={t}>
-            <CardHeader className="flex flex-row items-center justify-between gap-4">
-              <CardTitle>{t}</CardTitle>
-              <div className="text-sm text-muted-foreground">
-                SGPA: <span className="font-semibold text-foreground">{sgpa === null ? "In progress" : sgpa.toFixed(2)}</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <SimpleTable columns={columns} data={rows} searchable={false} searchKeys={["code", "title"]} />
-            </CardContent>
-          </Card>
-        );
-      })}
+      <div className="flex flex-wrap gap-2">
+        {semesters.map((semester) => (
+          <Button
+            key={semester}
+            size="sm"
+            variant={selected === semester ? "default" : "outline"}
+            onClick={() => setSelected(semester)}
+          >
+            Semester {semester}
+          </Button>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <CardTitle>Semester {selected}</CardTitle>
+          <div className="text-sm text-muted-foreground">
+            GPA: <span className="font-semibold text-foreground">{semesterGpa === null ? "In progress" : semesterGpa.toFixed(2)}</span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <SimpleTable columns={columns} data={rows} searchable={false} searchKeys={["code", "title"]} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
