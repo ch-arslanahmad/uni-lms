@@ -37,10 +37,13 @@ function StudentDashboard() {
   const student = students.find((s) => s.id === currentStudentId);
 
   const activities = useMemo(() => {
+    const today = "2026-11-22";
+    const cutoff = timeframe === "Next 7 days" ? "2026-11-29" : timeframe === "Next 30 days" ? "2026-12-22" : null;
     const filtered = allActivities().filter(
       (a) =>
         !a.submitted &&
         a.title.toLowerCase().includes(query.toLowerCase()) &&
+        (!cutoff || (a.due >= today && a.due <= cutoff)) &&
         (courseFilter === "All courses" ||
           offerings.some(
             (o) =>
@@ -51,7 +54,7 @@ function StudentDashboard() {
     return sort === "Title"
       ? [...filtered].sort((a, b) => a.title.localeCompare(b.title))
       : [...filtered].sort((a, b) => a.due.localeCompare(b.due));
-  }, [query, sort, courseFilter]);
+  }, [query, sort, courseFilter, timeframe]);
 
   const owned = allActivities().filter((a) => !a.submitted);
   const done = allActivities().filter((a) => a.submitted);
@@ -174,11 +177,11 @@ function StudentDashboard() {
                 </SelectContent>
               </Select>
               <div className="ml-auto flex items-center gap-1 text-sm font-medium">
-                <Button variant="ghost" size="icon-sm" aria-label="Previous month">
+                <Button variant="ghost" size="icon-sm" aria-label="Previous month" disabled title="Mock data: November 2026 only">
                   &lt;
                 </Button>
                 {MONTH}
-                <Button variant="ghost" size="icon-sm" aria-label="Next month">
+                <Button variant="ghost" size="icon-sm" aria-label="Next month" disabled title="Mock data: November 2026 only">
                   &gt;
                 </Button>
               </div>
@@ -212,17 +215,19 @@ function StudentDashboard() {
                 return (
                   <div key={day} className="min-h-14 rounded border p-1 text-left">
                     <span className="text-xs font-medium">{day}</span>
-                    {calendarView === "month" &&
-                      visible.slice(0, 2).map((a) => (
-                        <Link
-                          key={a.id}
-                          to={`/student/assignments/${a.id}`}
-                          title={a.title}
-                          className="mt-0.5 block truncate rounded bg-blue-500/15 px-1 text-[10px] text-blue-700"
-                        >
-                          {a.title}
-                        </Link>
-                      ))}
+                    {(calendarView === "month" ? visible.slice(0, 2) : visible).map((a) => (
+                      <Link
+                        key={a.id}
+                        to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}
+                        title={a.title}
+                        className="mt-0.5 block truncate rounded bg-blue-500/15 px-1 text-[10px] text-blue-700"
+                      >
+                        {a.title}
+                      </Link>
+                    ))}
+                    {calendarView === "month" && visible.length > 2 && (
+                      <p className="mt-0.5 px-1 text-[10px] text-muted-foreground">+{visible.length - 2} more</p>
+                    )}
                   </div>
                 );
               })}

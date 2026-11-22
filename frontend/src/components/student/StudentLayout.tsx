@@ -1,9 +1,9 @@
-import { Bell, GraduationCap, Mail } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import Footer from "../Footer";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+
 import {
   currentStudentId,
   studentQuestions as seedQuestions,
@@ -101,12 +101,6 @@ function StudentLayout() {
           </div>
 
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" title="Notifications">
-              <Bell />
-            </Button>
-            <Button variant="ghost" size="icon" title="Messages">
-              <Mail />
-            </Button>
             <div className="ml-1 flex items-center gap-2 border-l pl-3">
               <span className="flex size-8 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
                 {student?.name.slice(0, 2).toUpperCase() ?? "ST"}

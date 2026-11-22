@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Clock, MessageCircleQuestion, Upload } from "lucide-react";
-import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -14,6 +14,7 @@ import type { StudentQuestionsContext } from "../../components/student/StudentLa
 import { allActivities, findActivity, offerings, type Activity } from "../../mock/student";
 
 function ActivityBar({ activity }: { activity?: Activity }) {
+  const navigate = useNavigate();
   const all = allActivities();
   const index = activity ? all.findIndex((a) => a.id === activity.id) : -1;
   const prev = all[index - 1];
@@ -28,7 +29,7 @@ function ActivityBar({ activity }: { activity?: Activity }) {
         value={activity?.id}
         onValueChange={(v) => {
           const selected = all.find((a) => a.id === v);
-          if (selected) window.location.assign(to(selected));
+          if (selected) navigate(to(selected));
         }}
       >
         <SelectTrigger className="w-64">
@@ -50,7 +51,7 @@ function ActivityBar({ activity }: { activity?: Activity }) {
 function AssignmentPage() {
   const { assignmentId } = useParams();
   const [params] = useSearchParams();
-  const { saveQuestion } = useOutletContext<StudentQuestionsContext>();
+  const { questions, saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const activity = findActivity(assignmentId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
@@ -83,6 +84,7 @@ function AssignmentPage() {
       : activity.due <= "2026-11-24"
         ? `Due soon - ${activity.due}`
         : `Due ${activity.due}`;
+  const eventQuestions = questions.filter((q) => q.contextTo === `/student/assignments/${activity.id}`);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
@@ -114,17 +116,45 @@ function AssignmentPage() {
         </div>
       </div>
 
-      {askOpen && (
+      {(askOpen || eventQuestions.length > 0) && (
         <Card>
-          <CardHeader><CardTitle>{extensionMode ? "Request time" : "Ask teacher"}</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="note">{extensionMode ? "Request details" : "Your question"}</Label>
-            <Textarea id="note" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder={extensionMode ? "Reason, needed until, work completed so far" : "Ask one clear question, if needed"} />
-            <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => { const note = noteDraft.trim(); if (!note) return; setSavedNote(note); saveQuestion({ contextType: "event", contextLabel: activity.title, contextTo: `/student/assignments/${activity.id}`, question: note }); setNoteDraft(""); setAskOpen(false); }}>Send</Button>
-              <Button size="sm" variant="ghost" onClick={() => setAskOpen(false)}>Cancel</Button>
-            </div>
+          <CardHeader><CardTitle>{extensionMode ? "Request time" : "Questions & responses"}</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {askOpen && (
+              <div className="space-y-2">
+                <Label htmlFor="note">{extensionMode ? "Request details" : "Your question"}</Label>
+                <Textarea id="note" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder={extensionMode ? "Reason, needed until, work completed so far" : "Ask one clear question, if needed"} />
+                <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => { const note = noteDraft.trim(); if (!note) return; setSavedNote(note); saveQuestion({ contextType: "event", contextLabel: activity.title, contextTo: `/student/assignments/${activity.id}`, question: note }); setNoteDraft(""); setAskOpen(false); }}>Send</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setAskOpen(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+            {eventQuestions.length > 0 && (
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-xs font-medium text-muted-foreground">Your questions for this event</p>
+                {eventQuestions.map((q) => {
+                  const status = q.answer && !q.readAt ? "Answered (new)" : q.answer ? "Read" : "Pending";
+                  return (
+                    <div key={q.id} className="rounded border px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium">{q.question}</p>
+                        <span className={`shrink-0 text-xs ${status === "Answered (new)" ? "font-medium text-blue-600" : "text-muted-foreground"}`}>{status}</span>
+                      </div>
+                      {q.answer ? (
+                        <div className="mt-2 text-muted-foreground">
+                          <p><span className="font-medium text-foreground">{q.responderName}:</span> {q.answer}</p>
+                          <p className="mt-1 text-xs">{q.answeredAt}</p>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted-foreground">No reply yet.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

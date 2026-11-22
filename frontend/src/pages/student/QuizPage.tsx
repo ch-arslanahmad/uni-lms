@@ -21,7 +21,7 @@ const attemptColumns: Column<AttemptRow>[] = [
 ];
 
 function SubmissionBlock({ activityId }: { activityId: string }) {
-  const { saveQuestion } = useOutletContext<StudentQuestionsContext>();
+  const { questions, saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const activity = findActivity(activityId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
@@ -30,6 +30,7 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
   if (!activity) return null;
   const canUpload = activity.submissionModes.includes("upload");
   const isPhysical = activity.submissionModes.includes("physical");
+  const eventQuestions = questions.filter((q) => q.contextTo === `/student/quizzes/${activity.id}`);
   return (
     <Card>
       <CardHeader><CardTitle>Submission</CardTitle></CardHeader>
@@ -70,6 +71,30 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
             <Button size="sm" variant="outline" onClick={() => { setNoteDraft(savedNote); setSubmitted(false); }}>Edit submission</Button>
           </div>
         )}
+        {eventQuestions.length > 0 && (
+          <div className="space-y-2 border-t pt-3">
+            <p className="text-xs font-medium text-muted-foreground">Your questions for this event</p>
+            {eventQuestions.map((q) => {
+              const status = q.answer && !q.readAt ? "Answered (new)" : q.answer ? "Read" : "Pending";
+              return (
+                <div key={q.id} className="rounded border px-3 py-2 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium">{q.question}</p>
+                    <span className={`shrink-0 text-xs ${status === "Answered (new)" ? "font-medium text-blue-600" : "text-muted-foreground"}`}>{status}</span>
+                  </div>
+                  {q.answer ? (
+                    <div className="mt-2 text-muted-foreground">
+                      <p><span className="font-medium text-foreground">{q.responderName}:</span> {q.answer}</p>
+                      <p className="mt-1 text-xs">{q.answeredAt}</p>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">No reply yet.</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -78,14 +103,13 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
 function QuizPage() {
   const { quizId } = useParams();
   const [params] = useSearchParams();
-  const { saveQuestion } = useOutletContext<StudentQuestionsContext>();
+  const { questions, saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const quiz = quizzes.find((q) => q.id === quizId);
   const activity = findActivity(quizId);
   const offeringByActivity = offerings.find((o) => o.weeks.some((w) => w.activities.some((a) => a.id === quizId)));
   const offering = findOffering(quiz?.offeringId ?? offeringByActivity?.offeringId);
   const [askOpen, setAskOpen] = useState(params.get("ask") === "1");
   const [eventNote, setEventNote] = useState("");
-  const [eventNoteSaved, setEventNoteSaved] = useState("");
 
   if (!quiz && !activity) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
@@ -107,6 +131,7 @@ function QuizPage() {
       : dueDate <= "2026-11-24"
         ? `Due soon - ${dueDate}`
         : `Due ${dueDate}`;
+  const eventQuestions = questions.filter((q) => q.contextTo === `/student/quizzes/${quizId}`);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
@@ -137,18 +162,45 @@ function QuizPage() {
         </div>
       </div>
 
-      {!hasSubmission && askOpen && (
+      {!hasSubmission && (askOpen || eventQuestions.length > 0) && (
         <Card>
-          <CardHeader><CardTitle>Ask teacher</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="event-note">Your question</Label>
-            <Textarea id="event-note" value={eventNote} onChange={(e) => setEventNote(e.target.value)} placeholder="Ask one clear question, if needed" />
-            <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => { const text = eventNote.trim(); if (!text) return; saveQuestion({ contextType: "event", contextLabel: title, contextTo: `/student/quizzes/${quizId}`, question: text }); setEventNoteSaved(text); setEventNote(""); setAskOpen(false); }}>Send</Button>
-              <Button size="sm" variant="ghost" onClick={() => setAskOpen(false)}>Cancel</Button>
-              {eventNoteSaved && <span className="self-center text-xs text-muted-foreground">Sent. Check My questions for replies.</span>}
-            </div>
+          <CardHeader><CardTitle>Questions & responses</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {askOpen && (
+              <div className="space-y-2">
+                <Label htmlFor="event-note">Your question</Label>
+                <Textarea id="event-note" value={eventNote} onChange={(e) => setEventNote(e.target.value)} placeholder="Ask one clear question, if needed" />
+                <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => { const text = eventNote.trim(); if (!text) return; saveQuestion({ contextType: "event", contextLabel: title, contextTo: `/student/quizzes/${quizId}`, question: text }); setEventNote(""); setAskOpen(false); }}>Send</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setAskOpen(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+            {eventQuestions.length > 0 && (
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-xs font-medium text-muted-foreground">Your questions for this event</p>
+                {eventQuestions.map((q) => {
+                  const status = q.answer && !q.readAt ? "Answered (new)" : q.answer ? "Read" : "Pending";
+                  return (
+                    <div key={q.id} className="rounded border px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium">{q.question}</p>
+                        <span className={`shrink-0 text-xs ${status === "Answered (new)" ? "font-medium text-blue-600" : "text-muted-foreground"}`}>{status}</span>
+                      </div>
+                      {q.answer ? (
+                        <div className="mt-2 text-muted-foreground">
+                          <p><span className="font-medium text-foreground">{q.responderName}:</span> {q.answer}</p>
+                          <p className="mt-1 text-xs">{q.answeredAt}</p>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted-foreground">No reply yet.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
