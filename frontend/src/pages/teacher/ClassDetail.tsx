@@ -233,6 +233,7 @@ function ClassDetail() {
           <Card>
             <CardHeader><CardTitle>Course Outline &amp; Material</CardTitle></CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">Course outline is usually a document or text. Add supporting materials as files or links.</p>
               <div className="flex flex-wrap gap-3">
                 {materials.map((m) => (
                   <div key={m.id} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted">
@@ -243,9 +244,9 @@ function ClassDetail() {
                 ))}
               </div>
               <div className="grid gap-2 rounded border p-3 md:grid-cols-[1fr_1fr_auto] items-end">
-                <div className="space-y-1"><Label htmlFor="mat-name">Material name</Label><Input id="mat-name" value={matName} onChange={e => setMatName(e.target.value)} /></div>
+                <div className="space-y-1"><Label htmlFor="mat-name">Name</Label><Input id="mat-name" value={matName} onChange={e => setMatName(e.target.value)} placeholder="Course outline / material name" /></div>
                 <div className="space-y-1"><Label htmlFor="mat-url">Link URL (optional)</Label><Input id="mat-url" value={matUrl} onChange={e => setMatUrl(e.target.value)} placeholder="https://..." /></div>
-                <Button size="sm" onClick={addMaterial}>Add material</Button>
+                <Button size="sm" onClick={addMaterial}>Add</Button>
                 {matErr && <p className="text-xs text-red-600 md:col-span-3">{matErr}</p>}
               </div>
             </CardContent>
@@ -259,19 +260,34 @@ function ClassDetail() {
 
             {showActForm && (
               <Card className="mb-3">
-                <CardHeader><CardTitle>Create activity</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle>Create activity</CardTitle>
+                  <p className="text-sm font-normal text-muted-foreground">Activities are classwork items students complete or attend, such as assignments, quizzes, projects, or exams.</p>
+                </CardHeader>
                 <CardContent>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-2 md:col-span-2"><Label>Title</Label><Input value={act.title} onChange={e => setAct({ ...act, title: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Kind</Label><Select value={act.kind} onValueChange={v => { if (!v) return; const k = v as TeacherActivity["kind"]; setAct({ ...act, kind: k, category: KIND_CATEGORY[k] || act.category }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["assignment","quiz","project","exam"].map(k => <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-2"><Label>Grading category</Label><Select value={act.category} onValueChange={v => v && setAct({ ...act, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2">
+                      <Label>Kind</Label>
+                      <Select value={act.kind} onValueChange={v => { if (!v) return; const k = v as TeacherActivity["kind"]; setAct({ ...act, kind: k, category: KIND_CATEGORY[k] || act.category }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["assignment","quiz","project","exam"].map(k => <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>)}</SelectContent></Select>
+                      <p className="text-xs text-muted-foreground">How the activity works (submission/attempt behavior).</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Grading category</Label>
+                      <Select value={act.category} onValueChange={v => v && setAct({ ...act, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                      <p className="text-xs text-muted-foreground">Which grading bucket its marks count toward.</p>
+                    </div>
                     <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
                     <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v) => v && setAct({ ...act, submissionMode: v as "upload" | "physical" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
                     <div className="space-y-2"><Label>Open date</Label><Input type="date" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
                     <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
                     {(act.kind === "quiz" || act.kind === "exam") && <div className="space-y-2"><Label>Review policy</Label><Select value={act.reviewPolicy} onValueChange={(v) => v && setAct({ ...act, reviewPolicy: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["immediate","after_close","after_graded","never"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>}
                     {act.submissionMode === "physical" && <div className="space-y-2"><Label>Room / location (physical only)</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>}
-                    <div className="space-y-2 md:col-span-2"><Label>Relevant document (required)</Label><Input value={act.documentName} onChange={e => setAct({ ...act, documentName: e.target.value })} placeholder="e.g. assignment-brief.pdf" /></div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="act-doc">Relevant document (required)</Label>
+                      <Input id="act-doc" type="file" onChange={e => setAct({ ...act, documentName: e.target.files?.[0]?.name ?? "" })} />
+                      <p className="text-xs text-muted-foreground">Upload the activity document (question paper, brief, or instructions file). Required for assignments, quizzes, projects, and exams.{act.documentName ? ` Selected: ${act.documentName}` : ""}</p>
+                    </div>
                     <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
                     {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
                     <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addActivity}>Create activity</Button><Button size="sm" variant="ghost" onClick={() => setShowActForm(false)}>Cancel</Button></div>
@@ -285,13 +301,25 @@ function ClassDetail() {
                 const weekActs = activities.filter(a => weekIndexFor(a.dueAt || a.openAt) === idx);
                 const current = idx === 11;
                 return (
-                  <details key={range} open={current} className={`rounded-lg border px-4 py-3 ${current ? "border-blue-300 bg-blue-500/5" : ""}`}>
+                  <details key={range} open={current} className={`group rounded-lg border px-4 py-3 ${current ? "border-blue-300 bg-blue-500/5" : ""}`}>
                     <summary className="cursor-pointer font-medium">
                       {range} {current && <span className="ml-2 rounded bg-blue-500 px-2 py-0.5 text-xs text-white">Current week</span>}
                     </summary>
                     <div className="mt-3 space-y-2">
                       {weekActs.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No activities this week.</p>
+                        WEEK_ENDS[idx] < "2026-11-22" ? (
+                          <p className="text-sm text-muted-foreground">No activities this week.</p>
+                        ) : (
+                          <button
+                            type="button"
+                            title="Add activity"
+                            aria-label="Add activity"
+                            onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx] })); setShowActForm(true); }}
+                            className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground opacity-0 transition-opacity hover:bg-muted/50 hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                          >
+                            <Plus className="size-4" />
+                          </button>
+                        )
                       ) : weekActs.map((a) => {
                         const isQuizExam = a.kind === "quiz" || a.kind === "exam";
                         const actQuestions = ctx.assessmentQuestions.filter(q => q.activityId === a.id);
