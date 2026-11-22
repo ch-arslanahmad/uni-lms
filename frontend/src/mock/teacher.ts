@@ -109,6 +109,7 @@ export interface GradeCategory {
   sectionId: number;
   name: string;
   weight: number;
+  count: number;
 }
 
 export interface SectionResultState {
@@ -161,12 +162,12 @@ export const assessmentQuestions: AssessmentQuestion[] = [
 ];
 
 export const teacherActivities: TeacherActivity[] = [
-  { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1: ERD", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
-  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", documentName: "quiz1-sql.pdf", published: true },
-  { id: "ta-a3", sectionId: 4, kind: "project", title: "Project Milestone 1", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], documentName: "project-m1-brief.pdf", published: true },
-  { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: undefined, published: true },
-  { id: "ta-a5", sectionId: 4, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: undefined, published: true },
-  { id: "ta-a6", sectionId: 5, kind: "assignment", title: "Assignment 1: ERD", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
+  { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
+  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", documentName: "quiz1-sql.pdf", published: true },
+  { id: "ta-a3", sectionId: 4, kind: "project", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], documentName: "project-m1-brief.pdf", published: true },
+  { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: undefined, published: true },
+  { id: "ta-a5", sectionId: 4, kind: "exam", title: "Final", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: undefined, published: true },
+  { id: "ta-a6", sectionId: 5, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
   { id: "ta-a7", sectionId: 5, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", documentName: "quiz1-sql.pdf", published: true },
   { id: "ta-a8", sectionId: 5, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: undefined, published: true },
   { id: "ta-a9", sectionId: 5, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: undefined, published: true },
@@ -217,16 +218,16 @@ export const teacherQuestions: TeacherQuestion[] = [
 ];
 
 export const gradeCategories: GradeCategory[] = [
-  { id: "gc1", sectionId: 4, name: "Assignments", weight: 20 },
-  { id: "gc2", sectionId: 4, name: "Quizzes", weight: 10 },
-  { id: "gc3", sectionId: 4, name: "Project", weight: 20 },
-  { id: "gc4", sectionId: 4, name: "Midterm", weight: 20 },
-  { id: "gc5", sectionId: 4, name: "Final", weight: 30 },
-  { id: "gc6", sectionId: 5, name: "Assignments", weight: 20 },
-  { id: "gc7", sectionId: 5, name: "Quizzes", weight: 10 },
-  { id: "gc8", sectionId: 5, name: "Project", weight: 20 },
-  { id: "gc9", sectionId: 5, name: "Midterm", weight: 20 },
-  { id: "gc10", sectionId: 5, name: "Final", weight: 30 },
+  { id: "gc1", sectionId: 4, name: "Assignments", weight: 20, count: 2 },
+  { id: "gc2", sectionId: 4, name: "Quizzes", weight: 10, count: 2 },
+  { id: "gc3", sectionId: 4, name: "Project", weight: 20, count: 1 },
+  { id: "gc4", sectionId: 4, name: "Midterm", weight: 20, count: 1 },
+  { id: "gc5", sectionId: 4, name: "Final", weight: 30, count: 1 },
+  { id: "gc6", sectionId: 5, name: "Assignments", weight: 20, count: 2 },
+  { id: "gc7", sectionId: 5, name: "Quizzes", weight: 10, count: 2 },
+  { id: "gc8", sectionId: 5, name: "Project", weight: 20, count: 1 },
+  { id: "gc9", sectionId: 5, name: "Midterm", weight: 20, count: 1 },
+  { id: "gc10", sectionId: 5, name: "Final", weight: 30, count: 1 },
 ];
 
 export const sectionResultStates: SectionResultState[] = teacherSections.map((s) => ({ sectionId: s.id, published: false, frozenWeights: false }));

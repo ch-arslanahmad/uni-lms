@@ -52,7 +52,19 @@ function ClassDetail() {
   const [matName, setMatName] = useState(""); const [matUrl, setMatUrl] = useState(""); const [matSize, setMatSize] = useState(""); const [matErr, setMatErr] = useState("");
   const [act, setAct] = useState({ title: "", kind: "assignment" as TeacherActivity["kind"], category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
   const [actErr, setActErr] = useState(""); const [showActForm, setShowActForm] = useState(false);
-  const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catErr, setCatErr] = useState("");
+  const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catCount, setCatCount] = useState("1"); const [catErr, setCatErr] = useState("");
+
+  function suggestTitle(kind: TeacherActivity["kind"], category: string) {
+    const sameCat = activities.filter((a) => a.category === category);
+    const n = sameCat.length + 1;
+    if (category === "Midterm") return "Midterm";
+    if (category === "Final") return "Final";
+    if (category === "Project") return (categories.find((c) => c.name === "Project")?.count === 1 ? "Final Project" : `Project ${n}`);
+    if (kind === "assignment") return `Assignment ${n}`;
+    if (kind === "quiz") return `Quiz ${n}`;
+    return `${category} ${n}`;
+  }
+
 
   const [qActId, setQActId] = useState<string>("");
   const [aq, setAq] = useState({ type: "mcq" as AssessmentQuestion["type"], text: "", options: "A,B,C,D", correctOption: "0", marks: "5" });
@@ -98,10 +110,12 @@ function ClassDetail() {
   function saveCategory() {
     if (resultState?.frozenWeights) { setCatErr("Weights are frozen after publishing results."); return; }
     const w = Number(catWeight);
+    const count = (catName === "Midterm" || catName === "Final") ? 1 : Number(catCount);
     if (!catName.trim() || !w || w <= 0 || w > 100) { setCatErr("Pick a category and weight 1-100."); return; }
+    if (!Number.isInteger(count) || count < 1) { setCatErr("Count must be at least 1."); return; }
     if (categories.some((c) => c.name.toLowerCase() === catName.trim().toLowerCase())) { setCatErr("Category already exists."); return; }
-    ctx.setCategories((prev) => [...prev, { id: `gc-${Date.now()}`, sectionId: section!.id, name: catName.trim(), weight: w }]);
-    setCatName("Assignments"); setCatWeight(""); setCatErr("");
+    ctx.setCategories((prev) => [...prev, { id: `gc-${Date.now()}`, sectionId: section!.id, name: catName.trim(), weight: w, count }]);
+    setCatName("Assignments"); setCatWeight(""); setCatCount("1"); setCatErr("");
   }
   function publishResults() {
     const total = categories.reduce((s, c) => s + c.weight, 0);
@@ -170,20 +184,29 @@ function ClassDetail() {
             <Card><CardHeader><CardTitle className="text-sm">Results</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm">{resultState?.published ? "Published" : "Not published"}</p><Button size="sm" onClick={publishResults} disabled={resultState?.published}>Publish results</Button></CardContent></Card>
           </div>
           <Card><CardHeader><CardTitle>Category weights</CardTitle></CardHeader><CardContent className="space-y-3">
-            {categories.map(c => <div key={c.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm"><span>{c.name}</span><span className="font-medium">{c.weight}%</span></div>)}
-            {!resultState?.frozenWeights && <div className="grid gap-2 md:grid-cols-3 rounded border p-3">
-              <div className="space-y-1"><Label>Category</Label><Select value={catName} onValueChange={(v) => v && setCatName(v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+            {categories.map(c => <div key={c.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm"><span>{c.name} <span className="text-muted-foreground">({c.count} {c.count === 1 ? "item" : "items"})</span></span><span className="font-medium">{c.weight}%</span></div>)}
+            {!resultState?.frozenWeights && <div className="grid gap-2 md:grid-cols-4 rounded border p-3">
+              <div className="space-y-1"><Label>Category</Label><Select value={catName} onValueChange={(v) => { if (!v) return; setCatName(v); if (v === "Midterm" || v === "Final") setCatCount("1"); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-1"><Label>Weight %</Label><Input type="number" value={catWeight} onChange={e => setCatWeight(e.target.value)} /></div>
+              <div className="space-y-1"><Label>Count</Label><Input type="number" min={1} value={catName === "Midterm" || catName === "Final" ? "1" : catCount} disabled={catName === "Midterm" || catName === "Final"} onChange={e => setCatCount(e.target.value)} /></div>
               <div className="flex items-end"><Button size="sm" onClick={saveCategory}>Add category</Button></div>
-              {catErr && <p className="text-xs text-red-600 md:col-span-3">{catErr}</p>}
+              {catErr && <p className="text-xs text-red-600 md:col-span-4">{catErr}</p>}
             </div>}
-            <p className="text-xs text-muted-foreground">Pick categories from the standard list. Midterm and Final required before publishing. Weights freeze after publish.</p>
+            <p className="text-xs text-muted-foreground">Define category weight and how many items in that category. Midterm and Final are fixed to 1 item. Total weight must be 100% before publish; weights freeze after publish.</p>
           </CardContent></Card>
-          <Card><CardHeader><CardTitle>Gradebook preview</CardTitle></CardHeader><CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">Preview of current marks/submission status per student across activities before final result publish. Missing items count as zero in category calculation.</p>
-            <Table><TableHeader><TableRow><TableHead>Student</TableHead>{activities.slice(0, 5).map(a => <TableHead key={a.id}>{a.title}</TableHead>)}</TableRow></TableHeader><TableBody>
-              {roster.map(stu => <TableRow key={stu.id}><TableCell className="font-medium">{stu.name}</TableCell>{activities.slice(0, 5).map(a => { const sub = ctx.submissions.find(s => s.activityId === a.id && s.studentId === stu.id); return <TableCell key={a.id} className="text-muted-foreground">{sub?.marks != null ? `${sub.marks}/${a.maxMarks}` : sub?.status === "submitted" ? "Submitted" : "—"}</TableCell>; })}</TableRow>)}
-            </TableBody></Table>
+          <Card><CardHeader className="flex-row items-center justify-between space-y-0"><CardTitle>Assessment summary</CardTitle><Button variant="outline" size="sm" render={<Link to="/teacher/grading" />}>Open grading</Button></CardHeader><CardContent>
+            <Table>
+              <TableHeader><TableRow><TableHead>Assessment</TableHead><TableHead>Category</TableHead><TableHead>Submitted</TableHead><TableHead>Graded</TableHead><TableHead></TableHead></TableRow></TableHeader>
+              <TableBody>
+                {activities.map((a) => {
+                  const subs = ctx.submissions.filter((s) => s.activityId === a.id);
+                  const submitted = subs.filter((s) => s.status !== "not-submitted").length;
+                  const graded = subs.filter((s) => s.marks != null).length;
+                  return <TableRow key={a.id}><TableCell className="font-medium">{a.title}</TableCell><TableCell>{a.category}</TableCell><TableCell>{submitted}/{roster.length}</TableCell><TableCell>{graded}/{roster.length}</TableCell><TableCell><Link to={`/teacher/grading?activity=${a.id}`} className="text-blue-600 hover:underline">Grade</Link></TableCell></TableRow>;
+                })}
+                {activities.length === 0 && <TableRow><TableCell colSpan={5} className="text-muted-foreground">No activities yet.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
           </CardContent></Card>
         </div>
       ) : (
@@ -279,12 +302,12 @@ function ClassDetail() {
                     <div className="space-y-2 md:col-span-2"><Label>Title</Label><Input value={act.title} onChange={e => setAct({ ...act, title: e.target.value })} /></div>
                     <div className="space-y-2">
                       <Label>Kind</Label>
-                      <Select value={act.kind} onValueChange={v => { if (!v) return; const k = v as TeacherActivity["kind"]; setAct({ ...act, kind: k, category: KIND_CATEGORY[k] || act.category }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["assignment","quiz","project","exam"].map(k => <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>)}</SelectContent></Select>
+                      <Select value={act.kind} onValueChange={v => { if (!v) return; const k = v as TeacherActivity["kind"]; const category = KIND_CATEGORY[k] || act.category; setAct({ ...act, kind: k, category, title: act.title || suggestTitle(k, category) }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["assignment","quiz","project","exam"].map(k => <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>)}</SelectContent></Select>
                       <p className="text-xs text-muted-foreground">How the activity works (submission/attempt behavior).</p>
                     </div>
                     <div className="space-y-2">
                       <Label>Grading category</Label>
-                      <Select value={act.category} onValueChange={v => v && setAct({ ...act, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                      <Select value={act.category} onValueChange={v => { if (!v) return; setAct({ ...act, category: v, title: act.title || suggestTitle(act.kind, v) }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                       <p className="text-xs text-muted-foreground">Which grading bucket its marks count toward.</p>
                     </div>
                     <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
@@ -320,21 +343,10 @@ function ClassDetail() {
                       {range} {current && <span className="ml-2 rounded bg-blue-500 px-2 py-0.5 text-xs text-white">Current week</span>}
                     </summary>
                     <div className="mt-3 space-y-2">
-                      {weekActs.length === 0 ? (
-                        WEEK_ENDS[idx] < "2026-11-22" ? (
-                          <p className="text-sm text-muted-foreground">No activities this week.</p>
-                        ) : (
-                          <button
-                            type="button"
-                            title="Add activity"
-                            aria-label="Add activity"
-                            onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx] })); setShowActForm(true); }}
-                            className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground opacity-0 transition-opacity hover:bg-muted/50 hover:text-foreground group-hover:opacity-100 focus:opacity-100"
-                          >
-                            <Plus className="size-4" />
-                          </button>
-                        )
-                      ) : weekActs.map((a) => {
+                      {weekActs.length === 0 && WEEK_ENDS[idx] < "2026-11-22" && (
+                        <p className="text-sm text-muted-foreground">No activities this week.</p>
+                      )}
+                      {weekActs.map((a) => {
                         const isQuizExam = a.kind === "quiz" || a.kind === "exam";
                         const actQuestions = ctx.assessmentQuestions.filter(q => q.activityId === a.id);
                         return (
@@ -371,6 +383,17 @@ function ClassDetail() {
                           </div>
                         );
                       })}
+                      {WEEK_ENDS[idx] >= "2026-11-22" && (
+                        <button
+                          type="button"
+                          title="Add activity"
+                          aria-label="Add activity"
+                          onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx], title: prev.title || suggestTitle(prev.kind, prev.category) })); setShowActForm(true); }}
+                          className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground opacity-0 transition-opacity hover:bg-muted/50 hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                        >
+                          <Plus className="size-4" />
+                        </button>
+                      )}
                     </div>
                   </details>
                 );
