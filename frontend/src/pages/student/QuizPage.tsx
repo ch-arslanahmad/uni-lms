@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Clock, MessageCircleQuestion, Upload } from "lucide-react";
+import { Clock, MessageCircleQuestion } from "lucide-react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
+import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
@@ -42,18 +42,11 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
         {!submitted ? (
           <div className="space-y-3">
             {canUpload && (
-              <div className="space-y-2">
-                <Label htmlFor="quiz-file">Upload file</Label>
-                <label
-                  htmlFor="quiz-file"
-                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-center text-sm hover:bg-muted/50"
-                >
-                  <Upload className="size-5 text-muted-foreground" />
-                  <span className="font-medium">{fileName || "Click to choose a file"}</span>
-                  <span className="text-xs text-muted-foreground">{fileName ? "Click to replace" : "PDF, DOCX, ZIP, or image"}</span>
-                </label>
-                <Input id="quiz-file" type="file" className="hidden" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")} />
-              </div>
+              <SubmissionFileUpload
+                id="quiz-file"
+                fileName={fileName}
+                onFileChange={setFileName}
+              />
             )}
             <div className="space-y-1">
               <Label htmlFor="quiz-note">Question for teacher (optional)</Label>
