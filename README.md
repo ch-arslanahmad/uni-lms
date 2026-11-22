@@ -32,6 +32,16 @@ Each directory has its own README with the rules code there must follow — read
 - [backend/README.md](backend/README.md), layering, security, atomic ops
 - [database/README.md](database/README.md), layout, schema/seed rules, tests
 
+## Setup
+
+After cloning, activate the Git hooks once:
+
+```bash
+git config core.hooksPath scripts/hooks
+```
+
+This wires up pre-commit (lint + type-check), commit-msg (Conventional Commits), and pre-push (full build) for your local clone. Ahsan needs to run this too.
+
 ## Commands
 
 To be added

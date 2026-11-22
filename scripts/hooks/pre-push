@@ -1,0 +1,70 @@
+#!/usr/bin/env sh
+# pre-push
+# Runs the frontend production build before code leaves the machine,
+# but only when the pushed commits touch frontend/.
+#
+# Git passes one line per ref on stdin:
+#   <local-ref> <local-sha> <remote-ref> <remote-sha>
+
+set -e
+
+# True if the argument is made up only of zeros (git's "no object" marker).
+is_zero_sha() {
+  case "$1" in
+    *[!0]*) return 1 ;;
+    *)      return 0 ;;
+  esac
+}
+
+FRONTEND_CHANGED=0
+REFS_SEEN=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  REFS_SEEN=1
+
+  # Local SHA is zero for a branch deletion — nothing to build.
+  if is_zero_sha "$local_sha"; then
+    continue
+  fi
+
+  # Remote SHA is zero for a new branch; compare against the empty tree instead.
+  if is_zero_sha "$remote_sha"; then
+    base=$(git hash-object -t tree /dev/null)
+  else
+    base=$remote_sha
+  fi
+
+  # If the diff cannot be computed, build to be safe.
+  if ! files=$(git diff --name-only "$base" "$local_sha"); then
+    echo "  ! could not diff $local_ref, building to be safe" >&2
+    FRONTEND_CHANGED=1
+    continue
+  fi
+
+  if printf '%s\n' "$files" | grep -q '^frontend/'; then
+    FRONTEND_CHANGED=1
+  fi
+done
+
+# Build when frontend changed, or when the hook was run without ref input
+# (manual invocation), since we can't tell what would be pushed.
+if [ "$FRONTEND_CHANGED" -eq 0 ] && [ "$REFS_SEEN" -eq 1 ]; then
+  echo "  > no frontend changes in pushed commits"
+  exit 0
+fi
+
+if [ ! -d frontend ]; then
+  echo "  > no frontend/ directory, skipping build"
+  exit 0
+fi
+
+echo "  > Building frontend (tsc + vite)..."
+if ! (cd frontend && npm run build); then
+  echo ""
+  echo "  ERROR: frontend build failed. Push aborted."
+  echo "  Fix the errors above, or bypass with: git push --no-verify"
+  exit 1
+fi
+echo "  > Frontend build passed"
+
+echo "  pre-push passed"
