@@ -5,6 +5,7 @@ import * as React from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { Button } from "./ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import {
   Table,
   TableBody,
@@ -24,19 +25,20 @@ export interface Column<T> {
 export function SimpleTable<T>({
   columns,
   data,
-
   paginated = false,
   pageSizeOptions = [10, 20, 50],
   initialPageSize = 10,
+  onRowClick,
 }: {
   columns: Column<T>[];
   data: T[];
-  searchKeys?: (keyof T & string)[]; // which things for the search to include, default:
+  searchKeys?: (keyof T & string)[];
   searchPlaceholder?: string;
-  searchable?: boolean; // false = hide the search box entirely
-  paginated?: boolean; // opt-in: pass paginated to show footer + page slicing
+  searchable?: boolean;
+  paginated?: boolean;
   pageSizeOptions?: number[];
   initialPageSize?: number;
+  onRowClick?: (row: T) => void;
 }) {
   // Sort + de-dupe so the options always read 10, 20, 50 regardless of caller order.
   const sizeOptions = React.useMemo(
@@ -123,7 +125,11 @@ export function SimpleTable<T>({
           <TableBody>
             {rows.length ? (
               rows.map((row, rowIndex) => (
-                <TableRow key={rowIndex}>
+                <TableRow
+                  key={rowIndex}
+                  className={onRowClick ? "cursor-pointer" : undefined}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
                   {columns.map((column) => (
                     <TableCell key={column.key}>
                       {column.render
@@ -152,17 +158,18 @@ export function SimpleTable<T>({
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Rows per page</span>
-            <select
-              className="h-8 rounded-md border bg-background px-2"
-              value={pageSize}
-              onChange={(event) => setPageSize(Number(event.target.value))}
-            >
-              {sizeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+            <Select value={String(pageSize)} onValueChange={(v) => v && setPageSize(Number(v))}>
+              <SelectTrigger size="sm" className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sizeOptions.map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="text-muted-foreground">
               {sorted.length
                 ? `${safePage * pageSize + 1}–${safePage * pageSize + rows.length} of ${sorted.length}`

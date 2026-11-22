@@ -137,6 +137,9 @@ export const offerings: CourseOffering[] = [
     weeks: weeks({
       1: [{ id: "a1", kind: "assignment", title: "Assignment 1: Component basics", opened: "2026-09-01", due: "2026-09-07", submitted: true, graded: true, score: 88, max: 100, submissionModes: ["upload"] }],
       3: [{ id: "q1", kind: "quiz", title: "Quiz #1", opened: "2026-09-15", due: "2026-09-21", submitted: true, graded: true, score: 10, max: 10, hasMcq: true, submissionModes: ["upload"] }],
+      5: [{ id: "p1", kind: "project", title: "Project Milestone 1: Proposal", opened: "2026-09-29", due: "2026-10-05", submitted: true, graded: true, score: 18, max: 20, submissionModes: ["upload"] }],
+      7: [{ id: "p2", kind: "project", title: "Project Viva", opened: "2026-10-13", due: "2026-10-19", submitted: false, max: 30, submissionModes: ["physical"], physical: { timeWindow: "10:00 AM - 1:00 PM", room: "Room C-304" } }],
+      9: [{ id: "q3", kind: "quiz", title: "Quiz #3", opened: "2026-10-27", due: "2026-10-27", submitted: false, max: 10, submissionModes: ["upload"] }],
       10: [{ id: "a4", kind: "assignment", title: "Assignment 4: State management", opened: "2026-11-03", due: "2026-11-09", closed: "2026-11-16", submitted: false, max: 100, submissionModes: ["upload", "physical"], physical: { timeWindow: "2:00 PM - 4:00 PM", room: "Lab 2" } }],
       11: [{ id: "a5", kind: "assignment", title: "DBMS Assignment_4 Fall 2026", opened: "2026-11-10", due: "2026-11-17", closed: "2026-11-24", submitted: true, max: 100, submissionModes: ["upload"] }],
       12: [{ id: "q2", kind: "quiz", title: "Quiz #2", opened: "2026-11-18", due: "2026-11-24", submitted: false, max: 10, hasMcq: true, submissionModes: [] }],
@@ -157,7 +160,10 @@ export const offerings: CourseOffering[] = [
     announcements: [{ title: "Lab make-up", date: "2026-11-12", body: "Lab shifted to Friday 10:00 this week." }],
     weeks: weeks({
       2: [{ id: "a2", kind: "assignment", title: "Assignment 2: Trees", opened: "2026-09-08", due: "2026-09-14", submitted: true, graded: true, score: 92, max: 100, submissionModes: ["upload"] }],
+      4: [{ id: "q4", kind: "quiz", title: "Quiz: Trees", opened: "2026-09-22", due: "2026-09-22", submitted: true, graded: true, score: 8, max: 10, hasMcq: true, submissionModes: [] }],
+      8: [{ id: "p3", kind: "project", title: "DSA Project Viva", opened: "2026-10-20", due: "2026-10-26", submitted: false, max: 40, submissionModes: ["upload", "physical"], physical: { timeWindow: "11:00 AM - 1:00 PM", room: "Lab 3" } }],
       11: [{ id: "a6", kind: "assignment", title: "Assignment: Graphs", opened: "2026-11-10", due: "2026-11-16", submitted: false, max: 100, submissionModes: ["physical"], physical: { timeWindow: "10:00 AM - 12:00 PM", room: "Room E-202" } }],
+      12: [{ id: "a10", kind: "assignment", title: "Assignment: Hashing", opened: "2026-11-17", due: "2026-11-23", submitted: false, max: 100, submissionModes: ["upload"] }],
     }),
   },
   {
@@ -174,7 +180,11 @@ export const offerings: CourseOffering[] = [
     materials: [{ name: "Steam tables.pdf", size: "540 KB" }],
     announcements: [{ title: "Midterm", date: "2026-11-09", body: "Midterm on Monday 09:00-11:00, room E-202." }],
     weeks: weeks({
+      3: [{ id: "q5", kind: "quiz", title: "Quiz: Thermo basics", opened: "2026-09-15", due: "2026-09-15", submitted: true, graded: true, score: 9, max: 10, submissionModes: ["upload"] }],
+      6: [{ id: "a11", kind: "assignment", title: "Assignment: Heat transfer", opened: "2026-10-06", due: "2026-10-12", submitted: false, max: 100, submissionModes: ["upload"] }],
+      9: [{ id: "p4", kind: "project", title: "Thermo Project Viva", opened: "2026-10-27", due: "2026-11-02", submitted: false, max: 50, submissionModes: ["physical"], physical: { timeWindow: "2:00 PM - 5:00 PM", room: "ME Seminar Hall" } }],
       11: [{ id: "a7", kind: "assignment", title: "Midterm", opened: "2026-11-09", due: "2026-11-14", submitted: false, max: 100, submissionModes: ["physical"], physical: { timeWindow: "9:00 AM - 11:00 AM", room: "Room E-202" } }],
+      12: [{ id: "a12", kind: "assignment", title: "Assignment: Refrigeration cycle", opened: "2026-11-17", due: "2026-11-23", submitted: false, max: 100, submissionModes: ["upload"] }],
     }),
   },
   {
@@ -258,6 +268,22 @@ export const quizzes: Quiz[] = [
       { id: "q2p2", text: "What is the correct way to update state based on previous state?", options: ["setState(value)", "setState(prev => prev + 1)", "state++", "useRef(state)"], answer: 1, points: 5 },
     ],
     attempts: [],
+  },
+  {
+    id: "q4",
+    offeringId: "CS201-5-B",
+    title: "Quiz: Trees",
+    opened: "2026-09-22 09:00",
+    closed: "2026-09-22 09:30",
+    timeLimit: "30 min",
+    attemptsAllowed: 1,
+    grade: 8,
+    max: 10,
+    questions: [
+      { id: "q4p1", text: "Which traversal visits root first?", options: ["Inorder", "Preorder", "Postorder", "Level order"], answer: 1, points: 5 },
+      { id: "q4p2", text: "A BST with n nodes has what average search time?", options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"], answer: 1, points: 5 },
+    ],
+    attempts: [{ status: "Finished", started: "2026-09-22 09:00", completed: "2026-09-22 09:18", duration: "18 min", grade: "8.00 / 10.00" }],
   },
 ];
 
