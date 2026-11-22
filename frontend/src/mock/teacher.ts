@@ -34,6 +34,17 @@ export interface TeacherAnnouncement {
   date: string;
 }
 
+export interface TeacherEvent {
+  id: string;
+  sectionId: number;
+  title: string;
+  type: "class" | "exam" | "deadline" | "other";
+  startAt: string;
+  endAt: string;
+  room?: string;
+  linkedActivityId?: string;
+}
+
 export type ActivityKind = "assignment" | "quiz" | "project" | "exam";
 export type SubmissionMode = "upload" | "physical";
 
@@ -123,6 +134,12 @@ export const teacherMaterials: TeacherMaterial[] = [
 export const teacherAnnouncements: TeacherAnnouncement[] = [
   { id: "ta1", sectionId: 4, title: "Midterm syllabus", body: "Midterm covers ER modeling, relational model, and normalization up to 3NF.", date: "2026-11-10" },
   { id: "ta2", sectionId: 6, title: "Lab timing update", body: "This week's OS lab starts at 2:00 PM.", date: "2026-11-18" },
+];
+
+export const teacherEvents: TeacherEvent[] = [
+  { id: "te1", sectionId: 4, title: "Project Milestone 1 deadline", type: "deadline", startAt: "2026-11-25 23:59", endAt: "2026-11-25 23:59", linkedActivityId: "ta-a3" },
+  { id: "te2", sectionId: 4, title: "Midterm Exam", type: "exam", startAt: "2026-11-12 09:00", endAt: "2026-11-12 11:00", room: "Exam Hall A", linkedActivityId: "ta-a4" },
+  { id: "te3", sectionId: 6, title: "Guest lecture: OS security", type: "other", startAt: "2026-11-27 14:00", endAt: "2026-11-27 15:00", room: "CS-Lab-3" },
 ];
 
 export const teacherActivities: TeacherActivity[] = [

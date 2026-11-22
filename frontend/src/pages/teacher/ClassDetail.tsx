@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import { Badge } from "../../components/ui/badge";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { getSectionStudents, getTeacherSection, type TeacherActivity, type TeacherQuestion } from "../../mock/teacher";
+import { getSectionStudents, getTeacherSection, type TeacherActivity, type TeacherEvent, type TeacherQuestion } from "../../mock/teacher";
 import { students } from "../../models";
 
 function err(v: string, msg: string) { return v.trim() ? "" : msg; }
@@ -20,13 +20,14 @@ function ClassDetail() {
   const { sectionId } = useParams();
   const section = getTeacherSection(sectionId);
   const ctx = useOutletContext<TeacherContext>();
-  const [tab, setTab] = useState<"overview" | "content" | "activities" | "people" | "gradebook" | "questions">("overview");
+  const [tab, setTab] = useState<"overview" | "content" | "activities" | "people" | "gradebook" | "questions" | "events">("overview");
 
   const sid = section?.id;
   const activities = useMemo(() => ctx.activities.filter((a) => a.sectionId === sid), [ctx.activities, sid]);
   const materials = useMemo(() => ctx.materials.filter((m) => m.sectionId === sid), [ctx.materials, sid]);
   const announcements = useMemo(() => ctx.announcements.filter((a) => a.sectionId === sid), [ctx.announcements, sid]);
   const questions = useMemo(() => ctx.questions.filter((q) => q.sectionId === sid), [ctx.questions, sid]);
+  const events = useMemo(() => ctx.events.filter((e) => e.sectionId === sid), [ctx.events, sid]);
   const categories = useMemo(() => ctx.categories.filter((c) => c.sectionId === sid), [ctx.categories, sid]);
   const resultState = ctx.resultStates.find((r) => r.sectionId === sid);
   const roster = sid ? getSectionStudents(sid) : [];
@@ -40,6 +41,9 @@ function ClassDetail() {
   const [actErr, setActErr] = useState("");
   // category form
   const [catName, setCatName] = useState(""); const [catWeight, setCatWeight] = useState(""); const [catErr, setCatErr] = useState("");
+  // event form
+  const [ev, setEv] = useState({ title: "", type: "other" as TeacherEvent["type"], startAt: "", endAt: "", room: "", linkedActivityId: "" });
+  const [evErr, setEvErr] = useState("");
 
   if (!section || !sid) return <div className="mx-auto max-w-5xl px-4 py-8">Class not found.</div>;
 
@@ -74,6 +78,14 @@ function ClassDetail() {
     const hasFinal = activities.some((a) => a.category === "Final");
     if (!hasMid || !hasFinal) { alert("Midterm and Final assessment results must exist before publishing."); return; }
     ctx.setResultStates((prev) => prev.map((r) => r.sectionId === sid ? { ...r, published: true, frozenWeights: true } : r));
+  }
+
+  function addEvent() {
+    const e = err(ev.title, "Event title is required.") || err(ev.startAt, "Start time is required.") || err(ev.endAt, "End time is required.");
+    if (e) { setEvErr(e); return; }
+    if (ev.linkedActivityId && !activities.some((a) => a.id === ev.linkedActivityId)) { setEvErr("Linked activity must belong to this section."); return; }
+    ctx.setEvents((prev) => [{ id: `ev-${Date.now()}`, sectionId: section!.id, title: ev.title.trim(), type: ev.type, startAt: ev.startAt, endAt: ev.endAt, room: ev.room.trim() || undefined, linkedActivityId: ev.linkedActivityId || undefined }, ...prev]);
+    setEv({ title: "", type: "other", startAt: "", endAt: "", room: "", linkedActivityId: "" }); setEvErr("");
   }
 
   const totalWeight = categories.reduce((s, c) => s + c.weight, 0);
@@ -149,6 +161,26 @@ function ClassDetail() {
                 <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e=>setAct({...act,instructions:e.target.value})} /></div>
                 {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
                 <div className="md:col-span-2"><Button size="sm" onClick={addActivity}>Create activity</Button></div>
+              </CardContent></Card>
+            </div>
+          )},
+          { id: "events", label: "Events", content: (
+            <div className="space-y-4">
+              <Card><CardHeader><CardTitle className="text-base">Section events</CardTitle></CardHeader><CardContent className="space-y-3">
+                {events.length === 0 ? <p className="text-sm text-muted-foreground">No events scheduled.</p> : events.map((e) => {
+                  const linked = activities.find((a) => a.id === e.linkedActivityId);
+                  return <div key={e.id} className="flex items-start justify-between rounded border px-3 py-2 text-sm"><div><p className="font-medium">{e.title}</p><p className="text-xs text-muted-foreground capitalize">{e.type} · {e.startAt} - {e.endAt}{e.room ? ` · ${e.room}` : ""}{linked ? ` · Linked: ${linked.title}` : ""}</p></div><Button variant="ghost" size="sm" onClick={() => ctx.setEvents((prev) => prev.filter((x) => x.id !== e.id))}>Remove</Button></div>;
+                })}
+                <div className="grid gap-3 rounded border p-3 md:grid-cols-2">
+                  <div className="space-y-1 md:col-span-2"><Label>Title</Label><Input value={ev.title} onChange={(e)=>setEv({...ev,title:e.target.value})} /></div>
+                  <div className="space-y-1"><Label>Type</Label><Select value={ev.type} onValueChange={(v)=> v && setEv({...ev,type:v as TeacherEvent["type"]})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["class","exam","deadline","other"].map(t=><SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="space-y-1"><Label>Room (optional)</Label><Input value={ev.room} onChange={(e)=>setEv({...ev,room:e.target.value})} /></div>
+                  <div className="space-y-1"><Label>Start</Label><Input type="datetime-local" value={ev.startAt} onChange={(e)=>setEv({...ev,startAt:e.target.value})} /></div>
+                  <div className="space-y-1"><Label>End</Label><Input type="datetime-local" value={ev.endAt} onChange={(e)=>setEv({...ev,endAt:e.target.value})} /></div>
+                  <div className="space-y-1 md:col-span-2"><Label>Linked activity (optional, same section)</Label><Select value={ev.linkedActivityId || "none"} onValueChange={(v)=> setEv({...ev,linkedActivityId: v === "none" ? "" : (v ?? "")})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{activities.map(a=><SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}</SelectContent></Select></div>
+                  {evErr && <p className="text-xs text-red-600 md:col-span-2">{evErr}</p>}
+                  <div className="md:col-span-2"><Button size="sm" onClick={addEvent}>Add event</Button></div>
+                </div>
               </CardContent></Card>
             </div>
           )},
