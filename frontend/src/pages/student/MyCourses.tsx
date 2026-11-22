@@ -3,13 +3,26 @@ import { ArrowUpDown, LayoutGrid, List, Star } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../components/ui/card";
 import FilterSelect from "../../components/FilterSelect";
 import { SearchInput } from "../../components/SearchInput";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { offerings, teachers } from "../../mock/student";
+import { SimpleTable, type Column } from "../../components/SimpleTable";
+import { offerings, teachers, type CourseOffering } from "../../mock/student";
 
 const TABS = ["All", "In progress", "Future", "Past", "Starred"];
+
+function TeacherBadge({ teacherId }: { teacherId: number }) {
+  const teacher = teachers.find((t) => t.id === teacherId);
+  const initials = (teacher?.name ?? "T").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="inline-flex size-7 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+        {initials}
+      </span>
+      <span>{teacher?.name ?? "Instructor"}</span>
+    </span>
+  );
+}
 
 function MyCourses() {
   const navigate = useNavigate();
@@ -40,6 +53,52 @@ function MyCourses() {
   function toggleStar(id: string) {
     setStarred((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
+
+  const columns: Column<CourseOffering>[] = [
+    {
+      key: "title",
+      label: "Course",
+      render: (c) => (
+        <div>
+          <p className="font-medium">{c.code} - {c.title}</p>
+          <p className="text-xs text-muted-foreground">{c.department}</p>
+        </div>
+      ),
+    },
+    { key: "section", label: "Section" },
+    { key: "term", label: "Term" },
+    {
+      key: "instructorId",
+      label: "Instructor",
+      render: (c) => (
+        <Link
+          to={`/student/teachers/${c.instructorId}`}
+          className="text-blue-600 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <TeacherBadge teacherId={c.instructorId} />
+        </Link>
+      ),
+    },
+    { key: "status", label: "Status", render: (c) => <span className="capitalize">{c.status.replace("-", " ")}</span> },
+    {
+      key: "offeringId",
+      label: "Star",
+      render: (c) => (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title="Star course"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleStar(c.offeringId);
+          }}
+        >
+          <Star className={`size-4 ${starred.includes(c.offeringId) ? "fill-yellow-400 text-yellow-500" : ""}`} />
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -72,92 +131,40 @@ function MyCourses() {
         </Card>
       ) : layout === "grid" ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {courses.map((course) => {
-            const teacher = teachers.find((t) => t.id === course.instructorId);
-            return (
-              <Card key={course.offeringId}>
-                <CardHeader className="flex-row items-start justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">{course.department}</p>
-                    <CardTitle className="mt-1">{course.code}-{course.section}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{course.title}</p>
-                    <p className="text-xs text-muted-foreground">{course.term}</p>
-                  </div>
+          {courses.map((course) => (
+            <Card key={course.offeringId} className="h-full">
+              <CardHeader>
+                <CardDescription className="text-xs uppercase tracking-wide">{course.department}</CardDescription>
+                <CardTitle>{course.code}-{course.section}</CardTitle>
+                <CardDescription>{course.title}</CardDescription>
+                <CardAction>
                   <Button variant="ghost" size="icon-sm" onClick={() => toggleStar(course.offeringId)} title="Star course">
                     <Star className={`size-4 ${starred.includes(course.offeringId) ? "fill-yellow-400 text-yellow-500" : ""}`} />
                   </Button>
-                </CardHeader>
-                <CardContent className="flex flex-wrap items-center justify-between gap-2">
-                  <Link to={`/student/teachers/${course.instructorId}`} className="text-sm text-blue-600 hover:underline">
-                    {teacher?.name ?? "Instructor"}
-                  </Link>
-                  <Link to={`/student/courses/${course.offeringId}`}>
-                    <Button size="xs" variant="outline">View Course</Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            );
-          })}
+                </CardAction>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-muted-foreground">{course.term} - <span className="capitalize">{course.status.replace("-", " ")}</span></p>
+                <Link to={`/student/teachers/${course.instructorId}`} className="text-sm text-blue-600 hover:underline">
+                  <TeacherBadge teacherId={course.instructorId} />
+                </Link>
+              </CardContent>
+              <CardFooter className="mt-auto">
+                <Link to={`/student/courses/${course.offeringId}`} className="w-full">
+                  <Button size="sm" variant="outline" className="w-full">View Course</Button>
+                </Link>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Section</TableHead>
-                  <TableHead>Term</TableHead>
-                  <TableHead>Instructor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {courses.map((course) => {
-                  const teacher = teachers.find((t) => t.id === course.instructorId);
-                  return (
-                    <TableRow
-                      key={course.offeringId}
-                      className="cursor-pointer"
-                      onClick={() => navigate(`/student/courses/${course.offeringId}`)}
-                    >
-                      <TableCell>
-                        <p className="font-medium">{course.code} - {course.title}</p>
-                        <p className="text-xs text-muted-foreground">{course.department}</p>
-                      </TableCell>
-                      <TableCell>{course.section}</TableCell>
-                      <TableCell>{course.term}</TableCell>
-                      <TableCell>
-                        <Link
-                          to={`/student/teachers/${course.instructorId}`}
-                          className="text-blue-600 hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {teacher?.name ?? "Instructor"}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="capitalize">{course.status.replace("-", " ")}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          title="Star course"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleStar(course.offeringId);
-                          }}
-                        >
-                          <Star className={`size-4 ${starred.includes(course.offeringId) ? "fill-yellow-400 text-yellow-500" : ""}`} />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <SimpleTable
+          columns={columns}
+          data={courses}
+          searchable={false}
+          searchKeys={["title", "code"]}
+          onRowClick={(c) => navigate(`/student/courses/${c.offeringId}`)}
+        />
       )}
     </div>
   );

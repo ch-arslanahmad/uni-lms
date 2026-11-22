@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Clock, ListTodo } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Clock, ListTodo } from "lucide-react";
 import { Link } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { StatMetric } from "../../components/StatMetric";
 import { SearchInput } from "../../components/SearchInput";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import {
   allActivities,
   currentStudentId,
@@ -29,6 +30,7 @@ function StudentDashboard() {
   const [timeframe, setTimeframe] = useState("Next 7 days");
   const [courseFilter, setCourseFilter] = useState("All courses");
   const [calendarView, setCalendarView] = useState<"month" | "full">("month");
+  const [showAll, setShowAll] = useState(false);
 
   const student = students.find((s) => s.id === currentStudentId);
 
@@ -83,24 +85,26 @@ function StudentDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <select
-                value={timeframe}
-                onChange={(e) => setTimeframe(e.target.value)}
-                className="h-9 rounded-lg border bg-background px-3 text-sm"
-              >
-                {["Next 7 days", "Next 30 days", "All"].map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                className="h-9 rounded-lg border bg-background px-3 text-sm"
-              >
-                {["Due date", "Title"].map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
+              <Select value={timeframe} onValueChange={(v) => v && setTimeframe(v)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Next 7 days", "Next 30 days", "All"].map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sort} onValueChange={(v) => v && setSort(v)}>
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Due date", "Title"].map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <SearchInput value={query} onChange={setQuery} placeholder="Search activities" />
             </div>
 
@@ -109,26 +113,33 @@ function StudentDashboard() {
                 No activities match this view.
               </p>
             ) : (
-              <ul className="space-y-2">
-                {activities.map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{a.title}</p>
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="size-3" /> Due {dueLabel(a)}
-                      </p>
-                    </div>
-                    <Link to={`/student/assignments/${a.id}`}>
-                      <Button size="xs" variant="outline">
-                        {a.submitted ? "View" : "Add submission"}
-                      </Button>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="space-y-2">
+                  {(showAll ? activities : activities.slice(0, 5)).map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{a.title}</p>
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="size-3" /> Due {dueLabel(a)}
+                        </p>
+                      </div>
+                      <Link to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}>
+                        <Button size="xs" variant="outline">
+                          {a.submitted ? "View" : "Add submission"}
+                        </Button>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {activities.length > 5 && (
+                  <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowAll((v) => !v)}>
+                    {showAll ? <>Show less <ChevronUp className="size-4" /></> : <>Show all ({activities.length}) <ChevronDown className="size-4" /></>}
+                  </Button>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -142,15 +153,16 @@ function StudentDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={courseFilter}
-                onChange={(e) => setCourseFilter(e.target.value)}
-                className="h-9 rounded-lg border bg-background px-3 text-sm"
-              >
-                {["All courses", ...offerings.map((o) => o.code)].map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
+              <Select value={courseFilter} onValueChange={(v) => v && setCourseFilter(v)}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["All courses", ...offerings.map((o) => o.code)].map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="ml-auto flex items-center gap-1 text-sm font-medium">
                 <Button variant="ghost" size="icon-sm" aria-label="Previous month">
                   &lt;

@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
@@ -21,19 +22,22 @@ function ActivityBar({ activity }: { activity?: Activity }) {
       <Link to={prev ? to(prev) : "#"}>
         <Button variant="outline" size="sm" disabled={!prev}>Prev Section</Button>
       </Link>
-      <select
-        className="h-9 rounded-lg border bg-background px-3 text-sm"
-        value={activity?.id ?? ""}
-        onChange={(e) => {
-          const selected = all.find((a) => a.id === e.target.value);
+      <Select
+        value={activity?.id}
+        onValueChange={(v) => {
+          const selected = all.find((a) => a.id === v);
           if (selected) window.location.assign(to(selected));
         }}
       >
-        <option value="">Jump to...</option>
-        {all.map((a) => (
-          <option key={a.id} value={a.id}>{a.title}</option>
-        ))}
-      </select>
+        <SelectTrigger className="w-64">
+          <SelectValue placeholder="Jump to..." />
+        </SelectTrigger>
+        <SelectContent>
+          {all.map((a) => (
+            <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Link to={next ? to(next) : "#"}>
         <Button variant="outline" size="sm" disabled={!next}>Next Activity</Button>
       </Link>
