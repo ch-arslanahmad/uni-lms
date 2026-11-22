@@ -19,6 +19,7 @@ import QuizAttemptPage from "./pages/student/QuizAttemptPage";
 import QuizReviewPage from "./pages/student/QuizReviewPage";
 import TeacherProfilePage from "./pages/student/TeacherProfilePage";
 import MyQuestionsPage from "./pages/student/MyQuestionsPage";
+import ResultsPage from "./pages/student/ResultsPage";
 import AdminLayout from "./components/AdminLayout";
 
 const router = createBrowserRouter([
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
       { path: "courses", element: <MyCourses /> },
       { path: "courses/:offeringId", element: <CoursePage /> },
       { path: "questions", element: <MyQuestionsPage /> },
+      { path: "results", element: <ResultsPage /> },
       { path: "assignments/:assignmentId", element: <AssignmentPage /> },
       { path: "quizzes/:quizId", element: <QuizPage /> },
       { path: "quizzes/:quizId/attempt", element: <QuizAttemptPage /> },

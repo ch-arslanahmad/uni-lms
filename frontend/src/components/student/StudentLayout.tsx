@@ -74,6 +74,7 @@ function StudentLayout() {
               {[
                 { label: "Dashboard", to: "/student", end: true },
                 { label: "My courses", to: "/student/courses", end: false },
+                { label: "Results", to: "/student/results", end: false },
                 { label: "My questions", to: "/student/questions", end: false },
               ].map(({ label, to, end }) => (
                 <li key={to}>
@@ -101,10 +102,7 @@ function StudentLayout() {
           </div>
 
           <div className="flex items-center gap-1">
-            <div className="ml-1 flex items-center gap-2 border-l pl-3">
-              <span className="flex size-8 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
-                {student?.name.slice(0, 2).toUpperCase() ?? "ST"}
-              </span>
+            <div className="ml-1 border-l pl-3">
               <span className="hidden text-sm font-medium sm:inline">
                 {student?.name ?? "Student"}
               </span>

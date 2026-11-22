@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import {
   allActivities,
+  calculateCgpa,
   currentStudentId,
   offerings,
   type Activity,
@@ -65,18 +66,25 @@ function StudentDashboard() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
       <Breadcrumbs items={[{ label: "Dashboard" }]} />
-      <div>
-        <h1 className="text-2xl font-bold">
-          Hello <span className="text-blue-500">{student?.name ?? "Student"}</span>
-        </h1>
-        <p className="text-sm text-muted-foreground">Fall 2026 - Your work at a glance</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">
+            Hello <span className="text-blue-500">{student?.name ?? "Student"}</span>
+          </h1>
+          <p className="text-sm text-muted-foreground">Fall 2026 - Your work at a glance</p>
+        </div>
+        <Link to="/student/results">
+          <Button variant="outline" size="sm">View results</Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Link to="/student/courses">
           <StatMetric label="Courses Enrolled" value={offerings.length} />
         </Link>
-        <StatMetric label="Courses Completed" value={0} />
+        <Link to="/student/results">
+          <StatMetric label="CGPA" value={calculateCgpa()?.toFixed(2) ?? "—"} />
+        </Link>
         <StatMetric label="Activities Completed" value={done.length} />
         <StatMetric label="Activities Due" value={owned.length} highlight />
       </div>

@@ -13,15 +13,7 @@ const TABS = ["All", "In progress", "Future", "Past", "Starred"];
 
 function TeacherBadge({ teacherId }: { teacherId: number }) {
   const teacher = teachers.find((t) => t.id === teacherId);
-  const initials = (teacher?.name ?? "T").split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="inline-flex size-7 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
-        {initials}
-      </span>
-      <span>{teacher?.name ?? "Instructor"}</span>
-    </span>
-  );
+  return <span>{teacher?.name ?? "Instructor"}</span>;
 }
 
 function MyCourses() {

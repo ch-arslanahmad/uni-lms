@@ -26,13 +26,6 @@ function TeacherProfilePage() {
       <Breadcrumbs items={[{ label: "Teacher profile" }]} />
       <Card>
         <CardContent className="flex flex-wrap items-center gap-4 py-6">
-          <div className="flex size-16 items-center justify-center rounded-full bg-blue-500 text-2xl font-bold text-white">
-            {teacher.name
-              .split(" ")
-              .map((p) => p[0])
-              .join("")
-              .slice(0, 2)}
-          </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold">{teacher.name}</h1>
             <p className="text-sm text-muted-foreground">
