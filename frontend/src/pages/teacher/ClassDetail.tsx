@@ -1,4 +1,4 @@
-import { AlertCircle, CalendarClock, ExternalLink, FileText, FileUp, HelpCircle, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { AlertCircle, ExternalLink, FileText, HelpCircle, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
@@ -12,11 +12,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable } from "../../components/SimpleTable";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { getSectionStudents, getTeacherSection, type AssessmentQuestion, type TeacherActivity, type TeacherEvent } from "../../mock/teacher";
-import { students } from "../../models";
+import { getSectionStudents, getTeacherSection, type AssessmentQuestion, type TeacherActivity } from "../../mock/teacher";
 
 const CATEGORY_OPTIONS = ["Assignments", "Quizzes", "Project", "Midterm", "Final", "Lab", "Participation"] as const;
 const KIND_CATEGORY: Record<TeacherActivity["kind"], string> = { assignment: "Assignments", quiz: "Quizzes", project: "Project", exam: "Midterm" };
+const WEEK_RANGES = [
+  "25 August - 31 August", "1 September - 7 September", "8 September - 14 September", "15 September - 21 September",
+  "22 September - 28 September", "29 September - 5 October", "6 October - 12 October", "13 October - 19 October",
+  "20 October - 26 October", "27 October - 2 November", "3 November - 9 November", "10 November - 16 November", "17 November - 23 November",
+];
+const WEEK_STARTS = ["2026-08-25","2026-09-01","2026-09-08","2026-09-15","2026-09-22","2026-09-29","2026-10-06","2026-10-13","2026-10-20","2026-10-27","2026-11-03","2026-11-10","2026-11-17"];
+const WEEK_ENDS   = ["2026-08-31","2026-09-07","2026-09-14","2026-09-21","2026-09-28","2026-10-05","2026-10-12","2026-10-19","2026-10-26","2026-11-02","2026-11-09","2026-11-16","2026-11-23"];
+function weekIndexFor(date: string) { const d = date.slice(0, 10); const i = WEEK_STARTS.findIndex((s, idx) => d >= s && d <= WEEK_ENDS[idx]); return i === -1 ? WEEK_RANGES.length - 1 : i; }
 
 function err(v: string, msg: string) { return v.trim() ? "" : msg; }
 function IconBtn({ title, onClick, children, danger }: { title: string; onClick: () => void; children: React.ReactNode; danger?: boolean }) {
@@ -34,8 +41,7 @@ function ClassDetail() {
   const activities = useMemo(() => ctx.activities.filter((a) => a.sectionId === sid), [ctx.activities, sid]);
   const materials = useMemo(() => ctx.materials.filter((m) => m.sectionId === sid), [ctx.materials, sid]);
   const announcements = useMemo(() => ctx.announcements.filter((a) => a.sectionId === sid), [ctx.announcements, sid]);
-  const questions = useMemo(() => ctx.questions.filter((q) => q.sectionId === sid), [ctx.questions, sid]);
-  const events = useMemo(() => ctx.events.filter((e) => e.sectionId === sid), [ctx.events, sid]);
+
   const categories = useMemo(() => ctx.categories.filter((c) => c.sectionId === sid), [ctx.categories, sid]);
   const resultState = ctx.resultStates.find((r) => r.sectionId === sid);
   const roster = sid ? getSectionStudents(sid) : [];
@@ -46,15 +52,13 @@ function ClassDetail() {
   const [act, setAct] = useState({ title: "", kind: "assignment" as TeacherActivity["kind"], category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
   const [actErr, setActErr] = useState(""); const [showActForm, setShowActForm] = useState(false);
   const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catErr, setCatErr] = useState("");
-  const [ev, setEv] = useState({ title: "", type: "other" as TeacherEvent["type"], startAt: "", endAt: "", linkedActivityId: "" });
-  const [evErr, setEvErr] = useState(""); const [showEvForm, setShowEvForm] = useState(false);
+
   const [qActId, setQActId] = useState<string>("");
   const [aq, setAq] = useState({ type: "mcq" as AssessmentQuestion["type"], text: "", options: "A,B,C,D", correctOption: "0", marks: "5" });
   const [aqErr, setAqErr] = useState("");
 
   if (!section || !sid) return <div className="mx-auto max-w-5xl px-4 py-8">Class not found.</div>;
 
-  const requiredExams = activities.filter((a) => a.required && (a.category === "Midterm" || a.category === "Final"));
   const base = `/teacher/classes/${sectionId}`;
 
   function saveAnnouncement() {
@@ -104,13 +108,6 @@ function ClassDetail() {
     if (!activities.some((a) => a.category === "Midterm") || !activities.some((a) => a.category === "Final")) { alert("Midterm and Final assessment results must exist before publishing."); return; }
     ctx.setResultStates((prev) => prev.map((r) => r.sectionId === sid ? { ...r, published: true, frozenWeights: true } : r));
   }
-  function addEvent() {
-    const e = err(ev.title, "Event title is required.") || err(ev.startAt, "Start time is required.") || err(ev.endAt, "End time is required.");
-    if (e) { setEvErr(e); return; }
-    if (ev.linkedActivityId && !activities.some((a) => a.id === ev.linkedActivityId)) { setEvErr("Linked activity must belong to this section."); return; }
-    ctx.setEvents((prev) => [{ id: `ev-${Date.now()}`, sectionId: section!.id, title: ev.title.trim(), type: ev.type, startAt: ev.startAt, endAt: ev.endAt, linkedActivityId: ev.linkedActivityId || undefined }, ...prev]);
-    setEv({ title: "", type: "other", startAt: "", endAt: "", linkedActivityId: "" }); setEvErr(""); setShowEvForm(false);
-  }
   function addAssessmentQuestion() {
     if (!qActId) { setAqErr("Select a quiz/exam activity."); return; }
     const m = Number(aq.marks);
@@ -123,9 +120,6 @@ function ClassDetail() {
     ctx.setAssessmentQuestions((prev) => [...prev, { id: `aq-${Date.now()}`, activityId: qActId, type: aq.type, text: aq.text.trim(), options: opts, correctOption: correct, marks: m }]);
     setAq({ type: "mcq", text: "", options: "A,B,C,D", correctOption: "0", marks: "5" }); setAqErr("");
   }
-  function attachRequiredDoc(activityId: string) {
-    ctx.setActivities((prev) => prev.map((a) => a.id === activityId ? { ...a, documentName: `${a.category.toLowerCase()}-document.pdf` } : a));
-  }
 
   const totalWeight = categories.reduce((s, c) => s + c.weight, 0);
   const tabs = [
@@ -137,15 +131,9 @@ function ClassDetail() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
       <Breadcrumbs items={[{ label: "My classes", to: "/teacher/classes" }, { label: `${section.section.subjectCode} - ${section.section.code}` }]} />
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">{section.section.subjectCode} - {section.subjectTitle}</h1>
-          <p className="text-sm text-muted-foreground">{section.section.code} · {section.term} · {section.schedule}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setShowActForm((v) => !v); setShowEvForm(false); }}><Plus className="size-4" /> Activity</Button>
-          <Button variant="outline" size="sm" onClick={() => { setShowEvForm((v) => !v); setShowActForm(false); }}><CalendarClock className="size-4" /> Event</Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">{section.section.subjectCode} - {section.subjectTitle}</h1>
+        <p className="text-sm text-muted-foreground">{section.section.programCode}-{section.section.code} - {section.term}</p>
       </div>
 
       <nav className="flex flex-wrap gap-1 border-b">
@@ -199,48 +187,12 @@ function ClassDetail() {
         </div>
       ) : (
         <>
-          {(showActForm || showEvForm) && (
-            <Card>
-              <CardHeader><CardTitle>{showActForm ? "Create activity" : "Add event"}</CardTitle></CardHeader>
-              <CardContent>
-                {showActForm ? (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2 md:col-span-2"><Label>Title</Label><Input value={act.title} onChange={e => setAct({ ...act, title: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Kind</Label><Select value={act.kind} onValueChange={v => { if (!v) return; const k = v as TeacherActivity["kind"]; setAct({ ...act, kind: k, category: KIND_CATEGORY[k] || act.category }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["assignment", "quiz", "project", "exam"].map(k => <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-2"><Label>Grading category</Label><Select value={act.category} onValueChange={v => v && setAct({ ...act, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v) => v && setAct({ ...act, submissionMode: v as "upload" | "physical" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
-                    <div className="space-y-2"><Label>Open date</Label><Input type="date" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
-                    {(act.kind === "quiz" || act.kind === "exam") && <div className="space-y-2"><Label>Review policy</Label><Select value={act.reviewPolicy} onValueChange={(v) => v && setAct({ ...act, reviewPolicy: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["immediate", "after_close", "after_graded", "never"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>}
-                    {act.submissionMode === "physical" && <div className="space-y-2"><Label>Room / location (physical only)</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>}
-                    <div className="space-y-2 md:col-span-2"><Label>Relevant document (required)</Label><Input value={act.documentName} onChange={e => setAct({ ...act, documentName: e.target.value })} placeholder="e.g. assignment-brief.pdf" /></div>
-                    <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
-                    {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
-                    <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addActivity}>Create activity</Button><Button size="sm" variant="ghost" onClick={() => setShowActForm(false)}>Cancel</Button></div>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-1 md:col-span-2"><Label>Title</Label><Input value={ev.title} onChange={(e) => setEv({ ...ev, title: e.target.value })} /></div>
-                    <div className="space-y-1"><Label>Type</Label><Select value={ev.type} onValueChange={(v) => v && setEv({ ...ev, type: v as TeacherEvent["type"] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["class", "exam", "deadline", "other"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-1"><Label>Linked activity (optional)</Label><Select value={ev.linkedActivityId || "none"} onValueChange={(v) => setEv({ ...ev, linkedActivityId: v === "none" ? "" : (v ?? "") })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{activities.map(a => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-1"><Label>Start</Label><Input type="datetime-local" value={ev.startAt} onChange={(e) => setEv({ ...ev, startAt: e.target.value })} /></div>
-                    <div className="space-y-1"><Label>End</Label><Input type="datetime-local" value={ev.endAt} onChange={(e) => setEv({ ...ev, endAt: e.target.value })} /></div>
-                    <p className="text-xs text-muted-foreground md:col-span-2">Events are class schedule items such as deadlines, exams, or class activities. Link an event to an activity to keep them connected.</p>
-                    {evErr && <p className="text-xs text-red-600 md:col-span-2">{evErr}</p>}
-                    <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addEvent}>Add event</Button><Button size="sm" variant="ghost" onClick={() => setShowEvForm(false)}>Cancel</Button></div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader><CardTitle>Announcements</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {announcements.length === 0 ? <p className="text-sm text-muted-foreground">No announcements yet.</p> : announcements.map((a) => (
-                  <div key={a.id} className="border-b pb-3 last:border-0 last:pb-0">
+                  <div key={a.id} className="border-b pb-2 last:border-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="text-sm font-medium">{a.title}</p>
@@ -251,65 +203,41 @@ function ClassDetail() {
                         <IconBtn title="Remove announcement" danger onClick={() => ctx.setAnnouncements(prev => prev.filter(x => x.id !== a.id))}><Trash2 className="size-4" /></IconBtn>
                       </div>
                     </div>
-                    <p className="text-sm mt-1">{a.body}</p>
+                    <p className="text-sm">{a.body}</p>
                   </div>
                 ))}
-                <div className="space-y-2 rounded border p-3">
+                <div className="space-y-2 border-t pt-3">
                   <p className="text-sm font-medium">{editAnnId ? "Edit announcement" : "Post announcement"}</p>
                   <Label htmlFor="ann-title">Title</Label><Input id="ann-title" value={annTitle} onChange={e => setAnnTitle(e.target.value)} />
                   <Label htmlFor="ann-body">Body</Label><Textarea id="ann-body" value={annBody} onChange={e => setAnnBody(e.target.value)} />
                   {annErr && <p className="text-xs text-red-600">{annErr}</p>}
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={saveAnnouncement}>{editAnnId ? "Save" : "Post announcement"}</Button>
+                    <Button size="sm" onClick={saveAnnouncement}>{editAnnId ? "Save" : "Post"}</Button>
                     {editAnnId && <Button size="sm" variant="ghost" onClick={() => { setEditAnnId(null); setAnnTitle(""); setAnnBody(""); setAnnErr(""); }}>Cancel</Button>}
                   </div>
                 </div>
               </CardContent>
             </Card>
-
             <div className="space-y-4">
               <Card>
-                <CardHeader><CardTitle>Section details</CardTitle></CardHeader>
-                <CardContent className="space-y-1 text-sm">
-                  <p><span className="text-muted-foreground">Program:</span> {section.section.programCode}</p>
-                  <p><span className="text-muted-foreground">Credits:</span> {section.creditHours}</p>
-                  <p><span className="text-muted-foreground">Enrolled:</span> {section.section.enrolledCount} (admin-managed)</p>
-                  <p><span className="text-muted-foreground">Results:</span> {resultState?.published ? "Published" : "Not published"}</p>
-                </CardContent>
+                <CardHeader><CardTitle>Course Objective</CardTitle></CardHeader>
+                <CardContent className="text-sm">Build practical database-backed web application skills through the Uni-LMS project, covering requirements, design, implementation, and assessment workflows.</CardContent>
               </Card>
               <Card>
-                <CardHeader><CardTitle>Schedule</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Time Table</CardTitle></CardHeader>
                 <CardContent className="text-sm">{section.schedule}</CardContent>
               </Card>
             </div>
           </div>
 
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><CalendarClock className="size-4" />Required assessments</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              {requiredExams.length === 0 ? <p className="text-sm text-muted-foreground">No required midterm/final configured.</p> : requiredExams.map((a) => (
-                <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm">
-                  <div>
-                    <p className="font-medium">{a.title}</p>
-                    <p className="text-xs text-muted-foreground">{a.dueAt}{a.physicalRoom ? ` · Physical · ${a.physicalRoom}` : ""}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {a.documentName ? <><Badge variant="outline">Document uploaded</Badge><span className="text-xs text-muted-foreground inline-flex items-center gap-1"><FileText className="size-3" />{a.documentName}</span></> : <><Badge variant="secondary" className="gap-1"><AlertCircle className="size-3" />Pending document</Badge><Button size="sm" variant="outline" onClick={() => attachRequiredDoc(a.id)}><FileUp className="size-4 mr-1" />Upload</Button></>}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>Materials</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Course Outline &amp; Material</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">Lecture slides, links, and reference files shared with students.</p>
-              <div className="flex flex-wrap gap-2">
-                {materials.map(m => (
-                  <div key={m.id} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+              <div className="flex flex-wrap gap-3">
+                {materials.map((m) => (
+                  <div key={m.id} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted">
                     <FileText className="size-4 text-muted-foreground" />
-                    <div><p className="font-medium leading-none">{m.name}</p><p className="text-xs text-muted-foreground">{m.type}{m.size ? ` · ${m.size}` : ""}</p></div>
+                    <span>{m.name}{m.size ? <span className="text-muted-foreground"> ({m.size})</span> : null}</span>
                     <IconBtn title="Remove material" danger onClick={() => ctx.setMaterials(prev => prev.filter(x => x.id !== m.id))}><Trash2 className="size-4" /></IconBtn>
                   </div>
                 ))}
@@ -325,83 +253,87 @@ function ClassDetail() {
 
           <div>
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-lg font-bold">Classwork</h2>
-              <p className="text-xs text-muted-foreground">Kind sets behavior; category sets grading bucket.</p>
+              <h2 className="text-lg font-bold">Weekly sections</h2>
+              <Button variant="outline" size="sm" onClick={() => setShowActForm((v) => !v)}><Plus className="size-4" /> Activity</Button>
             </div>
+
+            {showActForm && (
+              <Card className="mb-3">
+                <CardHeader><CardTitle>Create activity</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2 md:col-span-2"><Label>Title</Label><Input value={act.title} onChange={e => setAct({ ...act, title: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Kind</Label><Select value={act.kind} onValueChange={v => { if (!v) return; const k = v as TeacherActivity["kind"]; setAct({ ...act, kind: k, category: KIND_CATEGORY[k] || act.category }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["assignment","quiz","project","exam"].map(k => <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Grading category</Label><Select value={act.category} onValueChange={v => v && setAct({ ...act, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v) => v && setAct({ ...act, submissionMode: v as "upload" | "physical" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Open date</Label><Input type="date" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
+                    {(act.kind === "quiz" || act.kind === "exam") && <div className="space-y-2"><Label>Review policy</Label><Select value={act.reviewPolicy} onValueChange={(v) => v && setAct({ ...act, reviewPolicy: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["immediate","after_close","after_graded","never"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>}
+                    {act.submissionMode === "physical" && <div className="space-y-2"><Label>Room / location (physical only)</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>}
+                    <div className="space-y-2 md:col-span-2"><Label>Relevant document (required)</Label><Input value={act.documentName} onChange={e => setAct({ ...act, documentName: e.target.value })} placeholder="e.g. assignment-brief.pdf" /></div>
+                    <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
+                    {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
+                    <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addActivity}>Create activity</Button><Button size="sm" variant="ghost" onClick={() => setShowActForm(false)}>Cancel</Button></div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="space-y-2">
-              {activities.length === 0 ? <Card><CardContent className="py-6 text-sm text-muted-foreground">No activities yet.</CardContent></Card> : activities.map((a) => {
-                const actQuestions = ctx.assessmentQuestions.filter(q => q.activityId === a.id);
-                const isQuizExam = a.kind === "quiz" || a.kind === "exam";
+              {WEEK_RANGES.map((range, idx) => {
+                const weekActs = activities.filter(a => weekIndexFor(a.dueAt || a.openAt) === idx);
+                const current = idx === 11;
                 return (
-                  <details key={a.id} className="rounded-lg border px-4 py-3">
-                    <summary className="cursor-pointer list-none">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="font-medium flex items-center gap-2">{a.title}{a.required && <Badge variant="secondary">Required</Badge>}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{a.kind} · {a.category} · Open {a.openAt} · Due {a.dueAt}{a.documentName ? ` · ${a.documentName}` : " · Document pending"}{a.physicalRoom ? ` · ${a.physicalRoom}` : ""}</p>
-                        </div>
-                        <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
-                          <Link to={`/teacher/grading?activity=${a.id}`} title="Open grading queue" aria-label="Open grading queue" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><ExternalLink className="size-4" /></Link>
-                          {isQuizExam && <IconBtn title="Manage assessment questions" onClick={() => setQActId(qActId === a.id ? "" : a.id)}><HelpCircle className="size-4" /></IconBtn>}
-                          <IconBtn title="Delete activity" danger onClick={() => ctx.setActivities((prev) => prev.filter((x) => x.id !== a.id))}><Trash2 className="size-4" /></IconBtn>
-                        </div>
-                      </div>
+                  <details key={range} open={current} className={`rounded-lg border px-4 py-3 ${current ? "border-blue-300 bg-blue-500/5" : ""}`}>
+                    <summary className="cursor-pointer font-medium">
+                      {range} {current && <span className="ml-2 rounded bg-blue-500 px-2 py-0.5 text-xs text-white">Current week</span>}
                     </summary>
-                    <div className="mt-3 space-y-3 text-sm">
-                      <p className="text-muted-foreground">{a.instructions}</p>
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span>Max {a.maxMarks}</span>
-                        {a.submissionModes.length > 0 && <span>Submission: {a.submissionModes.join(", ")}</span>}
-                        {a.reviewPolicy && <span>Review: {a.reviewPolicy}</span>}
-                      </div>
-                      {qActId === a.id && isQuizExam && (
-                        <div className="space-y-3 rounded border p-3">
-                          <p className="text-sm font-medium">Assessment questions</p>
-                          <p className="text-xs text-muted-foreground">Add MCQ or written questions for this quiz/exam.</p>
-                          <div className="space-y-2">{actQuestions.map(q => (
-                            <div key={q.id} className="rounded border px-3 py-2 text-sm"><div className="flex justify-between gap-2"><p className="font-medium">{q.text}</p><IconBtn title="Remove question" danger onClick={() => ctx.setAssessmentQuestions(prev => prev.filter(x => x.id !== q.id))}><Trash2 className="size-4" /></IconBtn></div><p className="text-xs text-muted-foreground capitalize">{q.type} · {q.marks} marks{q.options ? ` · Options: ${q.options.join(", ")} · Correct: ${q.correctOption}` : ""}</p></div>
-                          ))}</div>
-                          <div className="grid gap-2 md:grid-cols-2">
-                            <div className="space-y-1"><Label>Type</Label><Select value={aq.type} onValueChange={(v) => v && setAq({ ...aq, type: v as AssessmentQuestion["type"] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mcq">MCQ</SelectItem><SelectItem value="written">Written</SelectItem></SelectContent></Select></div>
-                            <div className="space-y-1"><Label>Marks</Label><Input type="number" value={aq.marks} onChange={e => setAq({ ...aq, marks: e.target.value })} /></div>
-                            <div className="space-y-1 md:col-span-2"><Label>Question text</Label><Textarea value={aq.text} onChange={e => setAq({ ...aq, text: e.target.value })} /></div>
-                            {aq.type === "mcq" && <><div className="space-y-1"><Label>Options (comma-separated)</Label><Input value={aq.options} onChange={e => setAq({ ...aq, options: e.target.value })} /></div><div className="space-y-1"><Label>Correct option index (0-based)</Label><Input type="number" value={aq.correctOption} onChange={e => setAq({ ...aq, correctOption: e.target.value })} /></div></>}
-                            {aqErr && <p className="text-xs text-red-600 md:col-span-2">{aqErr}</p>}
-                            <div className="md:col-span-2"><Button size="sm" onClick={addAssessmentQuestion}>Add question</Button></div>
+                    <div className="mt-3 space-y-2">
+                      {weekActs.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No activities this week.</p>
+                      ) : weekActs.map((a) => {
+                        const isQuizExam = a.kind === "quiz" || a.kind === "exam";
+                        const actQuestions = ctx.assessmentQuestions.filter(q => q.activityId === a.id);
+                        return (
+                          <div key={a.id} className="space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm hover:bg-muted/50">
+                              <div>
+                                <p className="font-medium flex items-center gap-2">{a.title}{a.required && <Badge variant="secondary">Required</Badge>}{a.required && !a.documentName && <Badge variant="secondary" className="gap-1"><AlertCircle className="size-3" />Pending document</Badge>}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Link to={`/teacher/grading?activity=${a.id}`} title="Open grading queue" aria-label="Open grading queue" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><ExternalLink className="size-4" /></Link>
+                                {isQuizExam && <IconBtn title="Manage assessment questions" onClick={() => setQActId(qActId === a.id ? "" : a.id)}><HelpCircle className="size-4" /></IconBtn>}
+                                <IconBtn title="Delete activity" danger onClick={() => ctx.setActivities((prev) => prev.filter((x) => x.id !== a.id))}><Trash2 className="size-4" /></IconBtn>
+                              </div>
+                            </div>
+                            {qActId === a.id && isQuizExam && (
+                              <div className="space-y-3 rounded border p-3 text-sm">
+                                <p className="font-medium">Assessment questions</p>
+                                <div className="space-y-2">{actQuestions.map(q => (
+                                  <div key={q.id} className="rounded border px-3 py-2"><div className="flex justify-between gap-2"><p className="font-medium">{q.text}</p><IconBtn title="Remove question" danger onClick={() => ctx.setAssessmentQuestions(prev => prev.filter(x => x.id !== q.id))}><Trash2 className="size-4" /></IconBtn></div><p className="text-xs text-muted-foreground capitalize">{q.type} · {q.marks} marks{q.options ? ` · Options: ${q.options.join(", ")} · Correct: ${q.correctOption}` : ""}</p></div>
+                                ))}</div>
+                                <div className="grid gap-2 md:grid-cols-2">
+                                  <div className="space-y-1"><Label>Type</Label><Select value={aq.type} onValueChange={(v) => v && setAq({ ...aq, type: v as AssessmentQuestion["type"] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mcq">MCQ</SelectItem><SelectItem value="written">Written</SelectItem></SelectContent></Select></div>
+                                  <div className="space-y-1"><Label>Marks</Label><Input type="number" value={aq.marks} onChange={e => setAq({ ...aq, marks: e.target.value })} /></div>
+                                  <div className="space-y-1 md:col-span-2"><Label>Question text</Label><Textarea value={aq.text} onChange={e => setAq({ ...aq, text: e.target.value })} /></div>
+                                  {aq.type === "mcq" && <><div className="space-y-1"><Label>Options (comma-separated)</Label><Input value={aq.options} onChange={e => setAq({ ...aq, options: e.target.value })} /></div><div className="space-y-1"><Label>Correct option index (0-based)</Label><Input type="number" value={aq.correctOption} onChange={e => setAq({ ...aq, correctOption: e.target.value })} /></div></>}
+                                  {aqErr && <p className="text-xs text-red-600 md:col-span-2">{aqErr}</p>}
+                                  <div className="md:col-span-2"><Button size="sm" onClick={addAssessmentQuestion}>Add question</Button></div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })}
                     </div>
                   </details>
                 );
               })}
             </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle>Events</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">Class schedule items such as deadlines, exams, or class activities.</p>
-                {events.length === 0 ? <p className="text-sm text-muted-foreground">No events scheduled.</p> : events.map((e) => {
-                  const linked = activities.find((a) => a.id === e.linkedActivityId);
-                  return <div key={e.id} className="flex items-start justify-between rounded border px-3 py-2 text-sm"><div><p className="font-medium">{e.title}</p><p className="text-xs text-muted-foreground capitalize">{e.type} · {e.startAt} - {e.endAt}{linked ? ` · ${linked.title}` : ""}</p></div><IconBtn title="Remove event" danger onClick={() => ctx.setEvents((prev) => prev.filter((x) => x.id !== e.id))}><Trash2 className="size-4" /></IconBtn></div>;
-                })}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle>Recent questions</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                {questions.length === 0 ? <p className="text-sm text-muted-foreground">No questions yet.</p> : questions.slice(0, 4).map((q) => (
-                  <Link key={q.id} to="/teacher/questions" className="block rounded border p-2 text-sm hover:bg-muted/40">
-                    <p className="font-medium line-clamp-1">{q.question}</p>
-                    <p className="text-xs text-muted-foreground">{students.find(s => s.id === q.studentId)?.name ?? q.studentId} · <span className="capitalize">{q.status}</span></p>
-                  </Link>
-                ))}
-                <Link to="/teacher/questions" className="text-sm text-blue-600 hover:underline">View all questions</Link>
-              </CardContent>
-            </Card>
           </div>
         </>
       )}
