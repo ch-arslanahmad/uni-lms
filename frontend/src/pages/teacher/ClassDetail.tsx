@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable } from "../../components/SimpleTable";
+import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { getSectionStudents, getTeacherSection, type AssessmentQuestion, type TeacherActivity } from "../../mock/teacher";
 
@@ -48,7 +49,7 @@ function ClassDetail() {
 
   const [annTitle, setAnnTitle] = useState(""); const [annBody, setAnnBody] = useState(""); const [annErr, setAnnErr] = useState("");
   const [editAnnId, setEditAnnId] = useState<string | null>(null);
-  const [matName, setMatName] = useState(""); const [matUrl, setMatUrl] = useState(""); const [matErr, setMatErr] = useState("");
+  const [matName, setMatName] = useState(""); const [matUrl, setMatUrl] = useState(""); const [matSize, setMatSize] = useState(""); const [matErr, setMatErr] = useState("");
   const [act, setAct] = useState({ title: "", kind: "assignment" as TeacherActivity["kind"], category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
   const [actErr, setActErr] = useState(""); const [showActForm, setShowActForm] = useState(false);
   const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catErr, setCatErr] = useState("");
@@ -72,8 +73,8 @@ function ClassDetail() {
   }
   function addMaterial() {
     const e = err(matName, "Material name is required."); if (e) { setMatErr(e); return; }
-    ctx.setMaterials((prev) => [{ id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(), type: matUrl ? "link" : "file", size: matUrl ? undefined : "mock", url: matUrl.trim() || undefined, uploadedAt: "2026-11-22" }, ...prev]);
-    setMatName(""); setMatUrl(""); setMatErr("");
+    ctx.setMaterials((prev) => [{ id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(), type: matUrl ? "link" : "file", size: matUrl ? undefined : (matSize || "file"), url: matUrl.trim() || undefined, uploadedAt: "2026-11-22" }, ...prev]);
+    setMatName(""); setMatUrl(""); setMatSize(""); setMatErr("");
   }
   function addActivity() {
     const e = err(act.title, "Title is required.") || err(act.openAt, "Open date is required.") || err(act.dueAt, "Due date is required.")
@@ -244,8 +245,17 @@ function ClassDetail() {
                 ))}
               </div>
               <div className="grid gap-2 rounded border p-3 md:grid-cols-[1fr_1fr_auto] items-end">
+                <div className="md:col-span-3">
+                  <SubmissionFileUpload
+                    id="mat-file"
+                    label="Upload attachment"
+                    fileName={matName && !matUrl ? matName : ""}
+                    onFileChange={(name) => { setMatName(name); setMatUrl(""); setMatSize("file"); }}
+                    hint="Upload course outline or supporting material file"
+                  />
+                </div>
                 <div className="space-y-1"><Label htmlFor="mat-name">Name</Label><Input id="mat-name" value={matName} onChange={e => setMatName(e.target.value)} placeholder="Course outline / material name" /></div>
-                <div className="space-y-1"><Label htmlFor="mat-url">Link URL (optional)</Label><Input id="mat-url" value={matUrl} onChange={e => setMatUrl(e.target.value)} placeholder="https://..." /></div>
+                <div className="space-y-1"><Label htmlFor="mat-url">Link URL (optional)</Label><Input id="mat-url" value={matUrl} onChange={e => { setMatUrl(e.target.value); if (e.target.value) setMatSize(""); }} placeholder="https://..." /></div>
                 <Button size="sm" onClick={addMaterial}>Add</Button>
                 {matErr && <p className="text-xs text-red-600 md:col-span-3">{matErr}</p>}
               </div>
@@ -283,10 +293,14 @@ function ClassDetail() {
                     <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
                     {(act.kind === "quiz" || act.kind === "exam") && <div className="space-y-2"><Label>Review policy</Label><Select value={act.reviewPolicy} onValueChange={(v) => v && setAct({ ...act, reviewPolicy: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["immediate","after_close","after_graded","never"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>}
                     {act.submissionMode === "physical" && <div className="space-y-2"><Label>Room / location (physical only)</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>}
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="act-doc">Relevant document (required)</Label>
-                      <Input id="act-doc" type="file" onChange={e => setAct({ ...act, documentName: e.target.files?.[0]?.name ?? "" })} />
-                      <p className="text-xs text-muted-foreground">Upload the activity document (question paper, brief, or instructions file). Required for assignments, quizzes, projects, and exams.{act.documentName ? ` Selected: ${act.documentName}` : ""}</p>
+                    <div className="md:col-span-2">
+                      <SubmissionFileUpload
+                        id="act-doc"
+                        label="Relevant document (required)"
+                        fileName={act.documentName}
+                        onFileChange={(name) => setAct({ ...act, documentName: name })}
+                        hint="Upload question paper, brief, or instructions file. Required for assignments, quizzes, projects, and exams."
+                      />
                     </div>
                     <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
                     {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
