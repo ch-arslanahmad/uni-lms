@@ -20,7 +20,7 @@ function ActivityBar({ activity }: { activity?: Activity }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3">
       <Link to={prev ? `/student/assignments/${prev.id}` : "#"}>
-        <Button variant="outline" size="sm" disabled={!prev}>← Prev Section</Button>
+        <Button variant="outline" size="sm" disabled={!prev}>Prev Section</Button>
       </Link>
       <select
         className="h-9 rounded-lg border bg-background px-3 text-sm"
@@ -35,7 +35,7 @@ function ActivityBar({ activity }: { activity?: Activity }) {
         ))}
       </select>
       <Link to={next ? `/student/assignments/${next.id}` : "#"}>
-        <Button variant="outline" size="sm" disabled={!next}>Next Activity →</Button>
+        <Button variant="outline" size="sm" disabled={!next}>Next Activity</Button>
       </Link>
     </div>
   );
@@ -66,7 +66,7 @@ function AssignmentPage() {
       <div>
         <h1 className="text-2xl font-bold">{activity.title}</h1>
         <p className="text-sm text-muted-foreground">
-          Opened {activity.opened} · Due {activity.due} · Max {activity.max} marks
+          Opened {activity.opened} - Due {activity.due} - Max {activity.max} marks
         </p>
       </div>
 
@@ -74,7 +74,7 @@ function AssignmentPage() {
         <CardHeader><CardTitle>Assignment prompt</CardTitle></CardHeader>
         <CardContent>
           <a href="#" className="text-sm text-blue-600 hover:underline" onClick={(e) => e.preventDefault()}>
-            📄 DBMS Assignment_4 Fall 2026.pdf
+            DBMS Assignment_4 Fall 2026.pdf
           </a>
         </CardContent>
       </Card>
@@ -118,8 +118,8 @@ function AssignmentPage() {
               <TableRow><TableCell>Submission status</TableCell><TableCell>{submitted ? "Submitted for grading" : "No submissions have been made yet"}</TableCell></TableRow>
               <TableRow><TableCell>Grading status</TableCell><TableCell>{graded ? "Graded" : "Not graded"}</TableCell></TableRow>
               <TableRow><TableCell>Time remaining</TableCell><TableCell>{activity.due > "2026-11-22" ? `${activity.due} (on time)` : "Past due"}</TableCell></TableRow>
-              <TableRow><TableCell>Last modified</TableCell><TableCell>{submitted ? "2026-11-21 09:15" : "—"}</TableCell></TableRow>
-              <TableRow><TableCell>Uploaded file</TableCell><TableCell>{submitted ? fileName : "—"}</TableCell></TableRow>
+              <TableRow><TableCell>Last modified</TableCell><TableCell>{submitted ? "2026-11-21 09:15" : "-"}</TableCell></TableRow>
+              <TableRow><TableCell>Uploaded file</TableCell><TableCell>{submitted ? fileName : "-"}</TableCell></TableRow>
               <TableRow>
                 <TableCell>Submission comments</TableCell>
                 <TableCell>
@@ -139,7 +139,7 @@ function AssignmentPage() {
           <CardContent className="space-y-1 text-sm">
             <p className="text-xl font-bold">{activity.score?.toFixed(2)} / {activity.max.toFixed(2)}</p>
             <p>Graded on 2026-09-12 14:30</p>
-            <p>Good structure — ensure every claim is backed by your SQL output.</p>
+            <p>Good structure - ensure every claim is backed by your SQL output.</p>
             <p>
               Graded by{" "}
               <Link to={`/student/teachers/${offering?.instructorId ?? 3}`} className="text-blue-600 hover:underline">

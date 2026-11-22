@@ -34,7 +34,7 @@ function QuizAttemptPage() {
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <Breadcrumbs items={[{ label: "My courses", to: "/student/courses" }, { label: quiz.title, to: `/student/quizzes/${quiz.id}` }, { label: "Attempt" }]} />
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{quiz.title} · Attempt</h1>
+        <h1 className="text-2xl font-bold">{quiz.title} - Attempt</h1>
         <span className="rounded-lg bg-blue-500/10 px-3 py-2 font-mono text-lg font-bold tabular-nums text-blue-600">
           {minutes}:{seconds}
         </span>

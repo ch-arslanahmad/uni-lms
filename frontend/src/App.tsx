@@ -13,7 +13,6 @@ import StudentLayout from "./components/student/StudentLayout";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import MyCourses from "./pages/student/MyCourses";
 import CoursePage from "./pages/student/CoursePage";
-import GradesPage from "./pages/student/GradesPage";
 import AssignmentPage from "./pages/student/AssignmentPage";
 import QuizPage from "./pages/student/QuizPage";
 import QuizAttemptPage from "./pages/student/QuizAttemptPage";
@@ -52,7 +51,6 @@ const router = createBrowserRouter([
       { index: true, element: <StudentDashboard /> },
       { path: "courses", element: <MyCourses /> },
       { path: "courses/:offeringId", element: <CoursePage /> },
-      { path: "courses/:offeringId/grades", element: <GradesPage /> },
       { path: "assignments/:assignmentId", element: <AssignmentPage /> },
       { path: "quizzes/:quizId", element: <QuizPage /> },
       { path: "quizzes/:quizId/attempt", element: <QuizAttemptPage /> },

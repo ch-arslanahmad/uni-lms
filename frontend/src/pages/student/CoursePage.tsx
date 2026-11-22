@@ -2,9 +2,18 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { findOffering } from "../../mock/student";
-import { SimpleTable } from "../../components/SimpleTable";
+import { SimpleTable, type Column } from "../../components/SimpleTable";
+import { findOffering, grades, type GradeRow } from "../../mock/student";
 import { students } from "../../models";
+
+const gradeColumns: Column<GradeRow>[] = [
+  { key: "title", label: "Assessment" },
+  { key: "kind", label: "Type" },
+  { key: "raw", label: "Marks obtained" },
+  { key: "max", label: "Max marks" },
+  { key: "weight", label: "Weightage %", render: (r) => `${r.weight}%` },
+  { key: "raw", label: "Weighted marks", render: (r) => ((r.raw / r.max) * r.weight).toFixed(2) },
+];
 
 function CoursePage() {
   const { offeringId } = useParams();
@@ -23,8 +32,12 @@ function CoursePage() {
   const tabs = [
     { label: "Course", value: "course", to: `/student/courses/${offering.offeringId}` },
     { label: "Participants", value: "participants", to: `/student/courses/${offering.offeringId}?view=participants` },
-    { label: "Grades", value: "grades", to: `/student/courses/${offering.offeringId}/grades` },
+    { label: "Grades", value: "grades", to: `/student/courses/${offering.offeringId}?view=grades` },
   ];
+
+  const gradeRows = grades.filter((g) => g.course === offering.code);
+  const total = gradeRows.reduce((sum, r) => sum + (r.raw / r.max) * r.weight, 0);
+  const gpa = (total / 100) * 4;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -33,9 +46,10 @@ function CoursePage() {
         { label: `${offering.code}-${offering.section}` },
       ]} />
       <div>
-        <h1 className="text-2xl font-bold">{offering.code} · {offering.title}</h1>
-        <p className="text-sm text-muted-foreground">{offering.section} · Fall 2026</p>
+        <h1 className="text-2xl font-bold">{offering.code} - {offering.title}</h1>
+        <p className="text-sm text-muted-foreground">{offering.section} - {offering.term}</p>
       </div>
+
       <nav className="flex flex-wrap gap-1 border-b">
         {tabs.map((tab) => (
           <Link key={tab.value} to={tab.to}>
@@ -62,6 +76,23 @@ function CoursePage() {
             />
           </CardContent>
         </Card>
+      ) : view === "grades" ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card><CardHeader><CardTitle className="text-sm">Weighted total</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{total.toFixed(2)}%</CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">GPA contribution</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{gpa.toFixed(2)}</CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">Credit hours</CardTitle></CardHeader><CardContent className="text-2xl font-bold">4</CardContent></Card>
+          </div>
+          <Card>
+            <CardHeader><CardTitle>Assessment breakdown</CardTitle></CardHeader>
+            <CardContent>
+              <SimpleTable columns={gradeColumns} data={gradeRows} searchable={false} searchKeys={["title"]} />
+              <p className="mt-3 text-xs text-muted-foreground">
+                Weighted marks = (obtained / max) x weightage. GPA contribution = weighted total / 25.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
@@ -93,9 +124,14 @@ function CoursePage() {
             <CardHeader><CardTitle>Course Outline & Material</CardTitle></CardHeader>
             <CardContent className="flex flex-wrap gap-3">
               {offering.materials.map((m) => (
-                <span key={m.name} className="rounded-lg border px-3 py-2 text-sm">
-                  📄 {m.name} <span className="text-muted-foreground">({m.size})</span>
-                </span>
+                <a
+                  key={m.name}
+                  href={`data:text/plain;charset=utf-8,${encodeURIComponent(`${m.name}\nMock file for ${offering.code}`)}`}
+                  download={m.name}
+                  className="rounded-lg border px-3 py-2 text-sm hover:bg-muted"
+                >
+                  {m.name} <span className="text-muted-foreground">({m.size})</span>
+                </a>
               ))}
             </CardContent>
           </Card>
@@ -120,7 +156,7 @@ function CoursePage() {
                         <div>
                           <p className="font-medium">{a.title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {a.kind} · Opened {a.opened} · Due {a.due}{a.closed ? ` · Closes ${a.closed}` : ""}
+                            {a.kind} - Opened {a.opened} - Due {a.due}{a.closed ? ` - Closes ${a.closed}` : ""}
                           </p>
                         </div>
                         <Link to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}>

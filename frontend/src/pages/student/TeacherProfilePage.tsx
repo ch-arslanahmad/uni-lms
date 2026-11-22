@@ -20,7 +20,7 @@ function TeacherProfilePage() {
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold">{teacher.name}</h1>
-            <p className="text-sm text-muted-foreground">{teacher.department} · {teacher.location}</p>
+            <p className="text-sm text-muted-foreground">{teacher.department} - {teacher.location}</p>
             <p className="text-sm text-muted-foreground">{teacher.email}</p>
             <p className="text-xs text-muted-foreground">Last access: {teacher.lastAccess}</p>
           </div>
@@ -41,7 +41,7 @@ function TeacherProfilePage() {
               to={`/student/courses/${course.offeringId}`}
               className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm hover:bg-muted"
             >
-              <span><span className="font-medium">{course.code}-{course.section}</span> · {course.title}</span>
+              <span><span className="font-medium">{course.code}-{course.section}</span> - {course.title}</span>
               <span className="text-muted-foreground">View</span>
             </Link>
           ))}

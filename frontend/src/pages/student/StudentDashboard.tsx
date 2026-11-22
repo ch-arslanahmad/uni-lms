@@ -61,7 +61,7 @@ function StudentDashboard() {
         <h1 className="text-2xl font-bold">
           Hello <span className="text-blue-500">{student?.name ?? "Student"}</span>
         </h1>
-        <p className="text-sm text-muted-foreground">Fall 2026 · Your work at a glance</p>
+        <p className="text-sm text-muted-foreground">Fall 2026 - Your work at a glance</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -73,7 +73,7 @@ function StudentDashboard() {
         <StatMetric label="Activities Due" value={owned.length} highlight />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+      <div className="space-y-6">
         {/* Timeline */}
         <Card>
           <CardHeader>

@@ -20,6 +20,8 @@ export interface Week {
   activities: Activity[];
 }
 
+export type CourseStatus = "in-progress" | "past" | "future";
+
 export interface CourseOffering {
   offeringId: string;
   code: string;
@@ -27,6 +29,8 @@ export interface CourseOffering {
   title: string;
   department: string;
   instructorId: number;
+  term: string;
+  status: CourseStatus;
   objective: string;
   timetable: string;
   materials: { name: string; size: string }[];
@@ -107,6 +111,8 @@ export const offerings: CourseOffering[] = [
     title: "Advanced Front-End Development",
     department: "CS",
     instructorId: 3,
+    term: "Fall 2026",
+    status: "in-progress",
     objective: "Build accessible, production-grade web interfaces with React and TypeScript.",
     timetable: "Monday 09:00-10:30 · Wednesday 11:00-12:30 · Lab Friday 14:00-16:00",
     materials: [
@@ -133,6 +139,8 @@ export const offerings: CourseOffering[] = [
     title: "Data Structures & Algorithms",
     department: "CS",
     instructorId: 5,
+    term: "Fall 2026",
+    status: "in-progress",
     objective: "Analyse and implement core data structures and algorithms.",
     timetable: "Tuesday 09:00-10:30 · Thursday 09:00-10:30",
     materials: [{ name: "Course outline.pdf", size: "180 KB" }],
@@ -149,12 +157,48 @@ export const offerings: CourseOffering[] = [
     title: "Thermodynamics - I",
     department: "ME",
     instructorId: 4,
+    term: "Fall 2026",
+    status: "in-progress",
     objective: "Apply the laws of thermodynamics to engineering systems.",
     timetable: "Monday 14:00-15:30 · Wednesday 14:00-15:30",
     materials: [{ name: "Steam tables.pdf", size: "540 KB" }],
     announcements: [{ title: "Midterm", date: "2026-11-09", body: "Midterm on Monday 09:00-11:00, room E-202." }],
     weeks: weeks({
       11: [{ id: "a7", kind: "assignment", title: "Midterm", opened: "2026-11-09", due: "2026-11-14", submitted: false, max: 100 }],
+    }),
+  },
+  {
+    offeringId: "CS101-4-A",
+    code: "CS101",
+    section: "BSIET-4-A",
+    title: "Introduction to Programming",
+    department: "CS",
+    instructorId: 5,
+    term: "Spring 2026",
+    status: "past",
+    objective: "Learn programming fundamentals and problem solving.",
+    timetable: "Monday 11:00-12:30 · Wednesday 09:00-10:30",
+    materials: [{ name: "Course outline.pdf", size: "150 KB" }],
+    announcements: [{ title: "Course completed", date: "2026-05-20", body: "Final grades have been published." }],
+    weeks: weeks({
+      2: [{ id: "a8", kind: "assignment", title: "Assignment 1: Basics", opened: "2026-02-10", due: "2026-02-17", submitted: true, graded: true, score: 90, max: 100 }],
+    }),
+  },
+  {
+    offeringId: "EE110-3-A",
+    code: "EE110",
+    section: "BSEE-3-A",
+    title: "Circuit Analysis",
+    department: "EE",
+    instructorId: 4,
+    term: "Fall 2025",
+    status: "past",
+    objective: "Analyze DC and AC circuits.",
+    timetable: "Tuesday 14:00-15:30 · Thursday 14:00-15:30",
+    materials: [{ name: "Lab manual.pdf", size: "900 KB" }],
+    announcements: [{ title: "Course completed", date: "2026-01-15", body: "Course archive available." }],
+    weeks: weeks({
+      4: [{ id: "a9", kind: "assignment", title: "Lab report", opened: "2025-10-01", due: "2025-10-08", submitted: true, graded: true, score: 84, max: 100 }],
     }),
   },
 ];

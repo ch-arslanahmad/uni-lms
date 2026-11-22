@@ -25,7 +25,7 @@ function QuizSummary({ quiz }: { quiz: Quiz }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{quiz.title}</h1>
-          <p className="text-sm text-muted-foreground">Opened {quiz.opened} · Closed {quiz.closed}</p>
+          <p className="text-sm text-muted-foreground">Opened {quiz.opened} - Closed {quiz.closed}</p>
         </div>
         <Link to={offering ? `/student/courses/${offering.offeringId}` : "/student/courses"}>
           <Button variant="outline" size="sm">Back to the course</Button>

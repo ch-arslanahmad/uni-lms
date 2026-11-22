@@ -18,7 +18,7 @@ function QuizReviewPage() {
       <Breadcrumbs items={[{ label: "My courses", to: "/student/courses" }, { label: quiz.title, to: `/student/quizzes/${quiz.id}` }, { label: "Review" }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{quiz.title} · Review</h1>
+          <h1 className="text-2xl font-bold">{quiz.title} - Review</h1>
           <p className="text-sm text-muted-foreground">Score: {score.toFixed(2)} / {quiz.max.toFixed(2)}</p>
         </div>
         <Link to={`/student/quizzes/${quiz.id}`}><Button variant="outline" size="sm">Back to summary</Button></Link>
