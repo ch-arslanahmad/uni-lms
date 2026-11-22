@@ -1,12 +1,46 @@
 import { Bell, GraduationCap, Mail } from "lucide-react";
+import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import Footer from "../Footer";
 import { Button } from "../ui/button";
-import { currentStudentId } from "../../mock/student";
+import { currentStudentId, studentQuestions as seedQuestions, type StudentQuestion } from "../../mock/student";
 import { students } from "../../models";
+
+export interface StudentQuestionsContext {
+  questions: StudentQuestion[];
+  markRead: (id: string) => Promise<void>;
+  saveQuestion: (input: { contextType: "event" | "course"; contextLabel: string; contextTo: string; question: string }) => void;
+  unreadCount: number;
+}
 
 function StudentLayout() {
   const student = students.find((s) => s.id === currentStudentId);
+  const [questions, setQuestions] = useState<StudentQuestion[]>(seedQuestions);
+  const unreadCount = questions.filter((q) => q.answer && !q.readAt).length;
+
+  async function markRead(id: string) {
+    // Mock endpoint: sets read_at for this question only after "request" succeeds.
+    await Promise.resolve();
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === id && q.answer && !q.readAt ? { ...q, readAt: new Date().toISOString() } : q)),
+    );
+  }
+
+  function saveQuestion(input: { contextType: "event" | "course"; contextLabel: string; contextTo: string; question: string }) {
+    const text = input.question.trim();
+    if (!text) return;
+    setQuestions((prev) => [
+      {
+        id: `sq-${Date.now()}`,
+        question: text,
+        askedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+        contextType: input.contextType,
+        contextLabel: input.contextLabel,
+        contextTo: input.contextTo,
+      },
+      ...prev,
+    ]);
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -19,15 +53,16 @@ function StudentLayout() {
             </Link>
             <ul className="flex items-center gap-1">
               {[
-                { label: "Dashboard", to: "/student" },
-                { label: "My courses", to: "/student/courses" },
-              ].map(({ label, to }) => (
+                { label: "Dashboard", to: "/student", end: true },
+                { label: "My courses", to: "/student/courses", end: false },
+                { label: "My questions", to: "/student/questions", end: false },
+              ].map(({ label, to, end }) => (
                 <li key={to}>
                   <NavLink
                     to={to}
-                    end
+                    end={end}
                     className={({ isActive }) =>
-                      `rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      `inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                         isActive
                           ? "bg-blue-500/10 text-blue-600"
                           : "text-muted-foreground hover:bg-slate-100"
@@ -35,6 +70,11 @@ function StudentLayout() {
                     }
                   >
                     {label}
+                    {label === "My questions" && unreadCount > 0 && (
+                      <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-blue-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        {unreadCount}
+                      </span>
+                    )}
                   </NavLink>
                 </li>
               ))}
@@ -61,7 +101,7 @@ function StudentLayout() {
       </header>
 
       <main className="flex-1">
-        <Outlet />
+        <Outlet context={{ questions, markRead, saveQuestion, unreadCount } satisfies StudentQuestionsContext} />
       </main>
       <Footer />
     </div>

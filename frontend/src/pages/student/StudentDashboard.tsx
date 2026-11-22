@@ -116,20 +116,18 @@ function StudentDashboard() {
               <>
                 <ul className="space-y-2">
                   {(showAll ? activities : activities.slice(0, 5)).map((a) => (
-                    <li
-                      key={a.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{a.title}</p>
-                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="size-3" /> Due {dueLabel(a)}
-                        </p>
-                      </div>
-                      <Link to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}>
-                        <Button size="xs" variant="outline">
-                          {a.submitted ? "View" : "Add submission"}
-                        </Button>
+                    <li key={a.id}>
+                      <Link
+                        to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 hover:bg-muted/50"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{a.title}</p>
+                          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="size-3" /> Due {dueLabel(a)}
+                          </p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{a.submitted ? "Submitted" : "Open"}</span>
                       </Link>
                     </li>
                   ))}

@@ -1,8 +1,13 @@
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { MessageCircleQuestion } from "lucide-react";
+import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
+import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
 import { findOffering, grades, type GradeRow } from "../../mock/student";
 import { students } from "../../models";
 
@@ -18,8 +23,12 @@ const gradeColumns: Column<GradeRow>[] = [
 function CoursePage() {
   const { offeringId } = useParams();
   const [params] = useSearchParams();
+  const { saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const offering = findOffering(offeringId);
   const view = params.get("view") ?? "course";
+  const [askOpen, setAskOpen] = useState(params.get("ask") === "1");
+  const [courseNote, setCourseNote] = useState("");
+  const [courseNoteSaved, setCourseNoteSaved] = useState("");
 
   if (!offering) {
     return (
@@ -45,10 +54,36 @@ function CoursePage() {
         { label: "My courses", to: "/student/courses" },
         { label: `${offering.code}-${offering.section}` },
       ]} />
-      <div>
-        <h1 className="text-2xl font-bold">{offering.code} - {offering.title}</h1>
-        <p className="text-sm text-muted-foreground">{offering.section} - {offering.term}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">{offering.code} - {offering.title}</h1>
+          <p className="text-sm text-muted-foreground">{offering.section} - {offering.term}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setAskOpen((v) => !v)}>
+          <MessageCircleQuestion className="size-4" /> Ask instructor
+        </Button>
       </div>
+
+      {askOpen && (
+        <Card>
+          <CardHeader><CardTitle>Ask instructor</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="course-note">Your question</Label>
+            <Textarea id="course-note" value={courseNote} onChange={(e) => setCourseNote(e.target.value)} placeholder="Ask one clear question, if needed" />
+            <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => {
+                const text = courseNote.trim();
+                if (!text) return;
+                saveQuestion({ contextType: "course", contextLabel: `${offering.code}-${offering.section} - ${offering.title}`, contextTo: `/student/courses/${offering.offeringId}`, question: text });
+                setCourseNoteSaved(text);
+                setCourseNote("");
+              }}>Send question</Button>
+              {courseNoteSaved && <span className="self-center text-xs text-muted-foreground">Question sent. Check My questions for replies.</span>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <nav className="flex flex-wrap gap-1 border-b">
         {tabs.map((tab) => (
@@ -152,17 +187,19 @@ function CoursePage() {
                     {week.activities.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No activities this week.</p>
                     ) : week.activities.map((a) => (
-                      <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm">
+                      <Link
+                        key={a.id}
+                        to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm hover:bg-muted/50"
+                      >
                         <div>
                           <p className="font-medium">{a.title}</p>
                           <p className="text-xs text-muted-foreground">
                             {a.kind} - Opened {a.opened} - Due {a.due}{a.closed ? ` - Closes ${a.closed}` : ""}
                           </p>
                         </div>
-                        <Link to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}>
-                          <Button size="xs" variant="outline">{a.kind === "quiz" ? "View quiz" : "View activity"}</Button>
-                        </Link>
-                      </div>
+                        <span className="text-xs text-muted-foreground capitalize">{a.submitted ? "Submitted" : "Open"}</span>
+                      </Link>
                     ))}
                   </div>
                 </details>

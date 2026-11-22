@@ -287,6 +287,61 @@ export const quizzes: Quiz[] = [
   },
 ];
 
+export interface StudentQuestion {
+  id: string;
+  question: string;
+  askedAt: string;
+  contextType: "event" | "course";
+  contextLabel: string;
+  contextTo: string;
+  answer?: string;
+  answeredAt?: string;
+  responderName?: string;
+  readAt?: string;
+}
+
+export const studentQuestions: StudentQuestion[] = [
+  {
+    id: "sq1",
+    question: "For Assignment 4, should the state diagram be included in the PDF or as a separate image?",
+    askedAt: "2026-11-08 14:20",
+    contextType: "event",
+    contextLabel: "Assignment 4: State management",
+    contextTo: "/student/assignments/a4",
+    answer: "Include it in the PDF. If the diagram is large, you can also attach the source image, but the PDF must be readable on its own.",
+    answeredAt: "2026-11-09 09:15",
+    responderName: "Imran Razzaq",
+  },
+  {
+    id: "sq2",
+    question: "Will the viva cover only Milestone 1 scope or the full project proposal?",
+    askedAt: "2026-11-10 11:00",
+    contextType: "event",
+    contextLabel: "Project Viva",
+    contextTo: "/student/assignments/p2",
+  },
+  {
+    id: "sq3",
+    question: "Can I get clarification on the grading breakdown for the DSA project viva?",
+    askedAt: "2026-11-07 16:40",
+    contextType: "event",
+    contextLabel: "DSA Project Viva",
+    contextTo: "/student/assignments/p3",
+    answer: "The viva is 40 marks: 15 for problem understanding, 15 for implementation explanation, and 10 for Q&A.",
+    answeredAt: "2026-11-07 18:05",
+    responderName: "Erin",
+    readAt: "2026-11-08 08:10",
+  },
+  {
+    id: "sq4",
+    question: "Is there a recommended reference book for the thermodynamics section after midterm?",
+    askedAt: "2026-11-11 10:30",
+    contextType: "course",
+    contextLabel: "ME101-5A - Introduction to Thermodynamics",
+    contextTo: "/student/courses/ME101-5-A",
+  },
+];
+
 export const teachers: TeacherProfile[] = [
   { id: 3, name: "Imran Razzaq", email: "imran.razzaq@tech.uol.edu.pk", department: "CS", location: "Room C-304, Tech Block", lastAccess: "Today, 09:42", courseIds: ["CS301-5-A", "CS201-5-B"] },
   { id: 4, name: "Dan", email: "dan@tech.uol.edu.pk", department: "ME", location: "Room M-112", lastAccess: "Yesterday, 16:10", courseIds: ["ME101-5-A"] },

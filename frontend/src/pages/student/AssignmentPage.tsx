@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "../../components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
 import { allActivities, findActivity, offerings, type Activity } from "../../mock/student";
 
 function ActivityBar({ activity }: { activity?: Activity }) {
@@ -47,10 +48,14 @@ function ActivityBar({ activity }: { activity?: Activity }) {
 
 function AssignmentPage() {
   const { assignmentId } = useParams();
+  const [params] = useSearchParams();
+  const { saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const activity = findActivity(assignmentId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
-  const [noteDraft, setNoteDraft] = useState("");
+  const [noteDraft, setNoteDraft] = useState(() =>
+    params.get("extension") ? "Extension request: Reason - \nNeeded until - \nWork completed so far - " : "",
+  );
   const [savedNote, setSavedNote] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(false);
 
@@ -69,12 +74,22 @@ function AssignmentPage() {
         { label: offering?.code ?? "Course", to: offering ? `/student/courses/${offering.offeringId}` : undefined },
         { label: activity.kind === "project" ? "Project" : "Assignment" },
       ]} />
-      <div>
-        <h1 className="text-2xl font-bold">{activity.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          Opened {activity.opened} - Due {activity.due} - Max {activity.max} marks
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground capitalize">Type: {activity.kind}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">{activity.title}</h1>
+          <p className="text-sm text-muted-foreground">
+            Opened {activity.opened} - Due {activity.due} - Max {activity.max} marks
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground capitalize">Type: {activity.kind}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => { if (graded) return; if (submitted) { setNoteDraft(savedNote); setSubmitted(false); } setTimeout(() => document.getElementById("note")?.focus(), 0); }}>
+            Ask
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { if (graded) return; if (submitted) { setNoteDraft(savedNote); setSubmitted(false); } setNoteDraft((d) => d || "Extension request: Reason - \nNeeded until - \nWork completed so far - "); setTimeout(() => document.getElementById("note")?.focus(), 0); }}>
+            Request extension
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -109,8 +124,10 @@ function AssignmentPage() {
               <Button
                 onClick={() => {
                   if (canUpload && !fileName) return;
+                  const note = noteDraft.trim();
                   setSubmitted(true);
-                  setSavedNote(noteDraft.trim());
+                  setSavedNote(note);
+                  if (note) saveQuestion({ contextType: "event", contextLabel: activity.title, contextTo: `/student/assignments/${activity.id}`, question: note });
                 }}
                 disabled={canUpload && !fileName}
               >

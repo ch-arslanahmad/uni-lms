@@ -18,6 +18,7 @@ import QuizPage from "./pages/student/QuizPage";
 import QuizAttemptPage from "./pages/student/QuizAttemptPage";
 import QuizReviewPage from "./pages/student/QuizReviewPage";
 import TeacherProfilePage from "./pages/student/TeacherProfilePage";
+import MyQuestionsPage from "./pages/student/MyQuestionsPage";
 import AdminLayout from "./components/AdminLayout";
 
 const router = createBrowserRouter([
@@ -51,14 +52,15 @@ const router = createBrowserRouter([
       { index: true, element: <StudentDashboard /> },
       { path: "courses", element: <MyCourses /> },
       { path: "courses/:offeringId", element: <CoursePage /> },
+      { path: "questions", element: <MyQuestionsPage /> },
       { path: "assignments/:assignmentId", element: <AssignmentPage /> },
       { path: "quizzes/:quizId", element: <QuizPage /> },
       { path: "quizzes/:quizId/attempt", element: <QuizAttemptPage /> },
       { path: "quizzes/:quizId/review", element: <QuizReviewPage /> },
       { path: "teachers/:teacherId", element: <TeacherProfilePage /> },
+      { path: "*", element: <Navigate to="/student" replace /> },
     ],
   },
-  { path: "/student/*", element: <Navigate to="/student" replace /> },
   { path: "*", element: <NotFound /> },
 ]);
 
