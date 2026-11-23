@@ -358,6 +358,16 @@ export function saveSlot(input: Omit<ScheduleSlot, "id">, id?: number): string |
   if (!input.subjectCode || !input.teacherName || !input.room.trim())
     return "Subject, teacher and room are all required.";
   if (!input.sectionCode) return "Select a class first.";
+  const examConflict = state.examDatesheet.find(
+    (e) =>
+      e.classSection.toUpperCase() === input.sectionCode.toUpperCase() &&
+      e.dayOfWeek === input.dayOfWeek &&
+      ["midterm", "final"].includes(e.examType.toLowerCase()),
+  );
+  if (examConflict) {
+    return `Cannot schedule a recurring class on ${input.dayOfWeek}: ${input.sectionCode} has ${examConflict.examType} (${examConflict.subjectCode}) on ${examConflict.examDate}.`;
+  }
+
   const conflict = state.scheduleSlots.find(
     (s) =>
       s.id !== id &&
