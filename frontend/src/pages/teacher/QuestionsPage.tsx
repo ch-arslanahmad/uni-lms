@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { teacherSections } from "../../mock/teacher";
+import { teacherSections } from "../../api";
 import { students } from "../../models";
 
 type StatusFilter = "All" | "pending" | "answered" | "resolved";

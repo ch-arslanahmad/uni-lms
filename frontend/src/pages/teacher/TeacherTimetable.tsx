@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { teacherSections, type TeacherAssessment, type TeacherEvent } from "../../mock/teacher";
+import { teacherSections, type TeacherAssessment, type TeacherEvent } from "../../api";
 
 type SectionFilter = "all" | number;
 

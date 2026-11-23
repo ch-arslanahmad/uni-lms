@@ -10,6 +10,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
 import { canReviewQuiz, findActivity, findOffering, offerings, quizReviewMessage, quizzes, type Quiz } from "../../mock/student";
+import { fileToSubmissionFile, type SubmissionFile } from "../../api";
 
 type AttemptRow = Quiz["attempts"][number];
 const attemptColumns: Column<AttemptRow>[] = [
@@ -25,6 +26,7 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
   const activity = findActivity(activityId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<SubmissionFile | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [savedNote, setSavedNote] = useState("");
   if (!activity) return null;
@@ -46,8 +48,10 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
                 id="quiz-file"
                 fileName={fileName}
                 onFileChange={setFileName}
+                onFileSelected={(file) => { if (!file) { setUploadedFile(null); return; } void fileToSubmissionFile(file).then(setUploadedFile); }}
               />
             )}
+            {uploadedFile && <p className="text-xs text-muted-foreground">Selected: {uploadedFile.name} · {uploadedFile.mimeType} · {uploadedFile.size} bytes</p>}
             <div className="space-y-1">
               <Label htmlFor="quiz-note">Question for teacher (optional)</Label>
               <Textarea id="quiz-note" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Ask one clear question, if needed" />

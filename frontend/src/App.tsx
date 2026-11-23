@@ -33,8 +33,10 @@ import SubmissionDetailPage from "./pages/teacher/SubmissionDetailPage";
 import QuestionsPage from "./pages/teacher/QuestionsPage";
 import TeacherTimetable from "./pages/teacher/TeacherTimetable";
 import AdminLayout from "./components/AdminLayout";
+import LoginPage from "./pages/LoginPage";
 
 const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
   {
     element: <AdminLayout />,
     children: [

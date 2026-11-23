@@ -13,7 +13,18 @@ import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable } from "../../components/SimpleTable";
 import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { getSectionStudents, getTeacherSection, makeAssessmentReference, type AssessmentQuestion, type TeacherAssessment } from "../../mock/teacher";
+import {
+  calculateCourseResults,
+  fileToSubmissionFile,
+  getSectionStudents,
+  getTeacherSection,
+  makeAssessmentReference,
+  type AssessmentQuestion,
+  type RequirementType,
+  type SubmissionFile,
+  type SubmissionMode,
+  type TeacherAssessment,
+} from "../../api";
 
 const CATEGORY_OPTIONS = ["Assignments", "Quizzes", "Project", "Midterm", "Final", "Lab"] as const;
 function inferKind(category: string): TeacherAssessment["kind"] {
@@ -52,11 +63,30 @@ function ClassDetail() {
   const categories = useMemo(() => ctx.categories.filter((c) => c.sectionId === sid), [ctx.categories, sid]);
   const resultState = ctx.resultStates.find((r) => r.sectionId === sid);
   const roster = sid ? getSectionStudents(sid) : [];
+  const results = useMemo(() => sid ? calculateCourseResults({
+    sectionId: sid,
+    categories,
+    assessments,
+    submissions: ctx.submissions,
+    questions: ctx.assessmentQuestions,
+    attempts: ctx.assessmentAttempts,
+    answers: ctx.assessmentAnswers,
+  }) : [], [sid, categories, assessments, ctx.submissions, ctx.assessmentQuestions, ctx.assessmentAttempts, ctx.assessmentAnswers]);
 
   const [annTitle, setAnnTitle] = useState(""); const [annBody, setAnnBody] = useState(""); const [annErr, setAnnErr] = useState("");
   const [editAnnId, setEditAnnId] = useState<string | null>(null);
   const [matName, setMatName] = useState(""); const [matUrl, setMatUrl] = useState(""); const [matSize, setMatSize] = useState(""); const [matErr, setMatErr] = useState("");
-  const [act, setAct] = useState({ category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", hasViva: false, documentName: "", physicalRoom: "" });
+  const [matFile, setMatFile] = useState<SubmissionFile | null>(null);
+  const [actFile, setActFile] = useState<SubmissionFile | null>(null);
+  const emptyAct = () => ({
+    category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", closeAt: "",
+    instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never",
+    submissionModes: ["upload"] as SubmissionMode[],
+    requirements: [{ type: "attachment" as RequirementType, isRequired: true }],
+    hasViva: false, documentName: "", physicalRoom: "", projectId: "", stageNumber: "1", newProjectTitle: "",
+  });
+  const [act, setAct] = useState(emptyAct);
+  const paperOnly = act.category === "Midterm" || act.category === "Final";
   const [actErr, setActErr] = useState(""); const [showAddForm, setShowAddForm] = useState(false);
   const [addType, setAddType] = useState<"assessment" | "class">("assessment");
   const addFormRef = useRef<HTMLDivElement>(null);
@@ -65,6 +95,9 @@ function ClassDetail() {
   // One-off makeup/extra class sessions. Recurring schedule is admin-owned (FR19); exam dates come from assessments.
   const [evt, setEvt] = useState({ title: "", startAt: "", endAt: "", room: "" });
   const [evtErr, setEvtErr] = useState(""); const [editEvtId, setEditEvtId] = useState<string | null>(null);
+  const [publishErr, setPublishErr] = useState("");
+  const [newProjectTitle, setNewProjectTitle] = useState("");
+  const [newProjectError, setNewProjectError] = useState("");
 
   function suggestTitle(category: string) {
     const sameCat = assessments.filter((a) => a.category === category);
@@ -96,8 +129,14 @@ function ClassDetail() {
   }
   function addMaterial() {
     const e = err(matName, "Material name is required."); if (e) { setMatErr(e); return; }
-    ctx.setMaterials((prev) => [{ id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(), type: matUrl ? "link" : "file", size: matUrl ? undefined : (matSize || "file"), url: matUrl.trim() || undefined, uploadedAt: "2026-09-03" }, ...prev]);
-    setMatName(""); setMatUrl(""); setMatSize(""); setMatErr("");
+    if (!matUrl && !matFile) { setMatErr("Choose a file or provide a link."); return; }
+    ctx.setMaterials((prev) => [{
+      id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(),
+      type: matUrl ? "link" : "file", size: matUrl ? undefined : (matFile ? String(matFile.size) : matSize || "file"),
+      url: matUrl.trim() || matFile?.url, fileName: matFile?.name, mimeType: matFile?.mimeType,
+      uploadedAt: "2026-09-03",
+    }, ...prev]);
+    setMatName(""); setMatUrl(""); setMatSize(""); setMatErr(""); setMatFile(null);
   }
   function saveEvent() {
     const e = err(evt.title, "Title is required.") || err(evt.startAt, "Start is required.") || err(evt.endAt, "End is required.");
@@ -117,27 +156,44 @@ function ClassDetail() {
   }
   function addAssessment() {
     const kind = inferKind(act.category);
-    const e = err(act.openAt, "Open date is required.") || err(act.dueAt, "Due date is required.")
+    const submissionModes: SubmissionMode[] = paperOnly ? ["physical"] : act.submissionModes;
+    const e = err(act.openAt, "Open date/time is required.") || err(act.dueAt, "Due date/time is required.")
+      || err(act.closeAt, "Close date/time is required.")
       || err(act.instructions, "Instructions are required.")
-      || (kind !== "quiz" ? err(act.documentName, "A relevant document is required.") : "")
+      || (kind !== "quiz" ? err(act.documentName || (actFile?.name ?? ""), "A relevant document is required.") : "")
       || ((!Number(act.maxMarks) || Number(act.maxMarks) <= 0) ? "Max marks must be > 0." : "")
-      || (act.submissionMode === "physical" ? err(act.physicalRoom, "Room/location is required for physical assessments.") : "");
+      || (!submissionModes.length ? "Select at least one submission mode." : "")
+      || (paperOnly && act.submissionModes.some((m) => m !== "physical") ? "Midterm and Final are paper-based: only Physical submission is allowed." : "")
+      || (submissionModes.includes("physical") ? err(act.physicalRoom, "Room/location is required for physical assessments.") : "")
+      || (!act.requirements.length ? "Add at least one submission requirement." : "")
+      || (!act.requirements.some((r) => r.isRequired) ? "At least one requirement must be marked required." : "")
+      || (act.closeAt && act.dueAt && act.closeAt < act.dueAt ? "Close time must be after the due time." : "")
+      || (act.dueAt && act.openAt && act.dueAt < act.openAt ? "Due time must be after the open time." : "")
+      || (act.category === "Project" && Number(act.stageNumber) < 1 ? "Stage number must be at least 1." : "");
     if (e) { setActErr(e); return; }
-    const submissionModes = kind === "quiz" || kind === "exam" ? (act.submissionMode === "physical" ? ["physical"] as ("upload" | "physical")[] : []) : [act.submissionMode];
+
+    let projectId = act.projectId || undefined;
+    if (act.category === "Project" && act.newProjectTitle.trim()) {
+      projectId = `proj-${Date.now()}`;
+      ctx.setProjects((prev) => [...prev, { id: projectId!, sectionId: section!.id, title: act.newProjectTitle.trim() }]);
+    }
+    const documentName = act.documentName.trim() || actFile?.name || undefined;
     const newAct: TeacherAssessment = {
       id: `act-${Date.now()}`, sectionId: section!.id, kind, title: suggestTitle(act.category), instructions: act.instructions.trim(),
-      category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, submissionModes,
-      physicalRoom: act.submissionMode === "physical" ? act.physicalRoom.trim() : undefined,
-      hasViva: act.submissionMode === "physical" ? act.hasViva : undefined,
-      hasMcq: kind === "quiz",
+      category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, closeAt: act.closeAt,
+      submissionModes, requirements: act.requirements,
+      projectId, stageNumber: act.category === "Project" ? Number(act.stageNumber) : undefined,
+      physicalRoom: submissionModes.includes("physical") ? act.physicalRoom.trim() : undefined,
+      hasViva: submissionModes.includes("physical") ? act.hasViva : undefined,
+      hasMcq: kind === "quiz" && submissionModes.includes("online"),
       reviewPolicy: kind === "quiz" || kind === "exam" ? act.reviewPolicy : undefined,
-      documentName: act.documentName.trim() || undefined,
-      document: act.documentName.trim() ? makeAssessmentReference(act.documentName.trim()) : undefined,
-      required: act.category === "Midterm" || act.category === "Final", published: true,
+      documentName,
+      document: actFile ?? (documentName ? makeAssessmentReference(documentName) : undefined),
+      required: paperOnly, published: true,
     };
     ctx.setAssessments((prev) => [newAct, ...prev]);
     if (newAct.kind === "quiz" || newAct.kind === "exam") setQActId(newAct.id);
-    setAct({ category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded", submissionMode: "upload", hasViva: false, documentName: "", physicalRoom: "" });
+    setAct(emptyAct()); setActFile(null);
     setActErr(""); setShowAddForm(false);
   }
   function saveCategory() {
@@ -152,9 +208,21 @@ function ClassDetail() {
   }
   function publishResults() {
     const total = categories.reduce((s, c) => s + c.weight, 0);
-    if (total !== 100) { alert("Category weights must total 100% before publishing."); return; }
-    if (!assessments.some((a) => a.category === "Midterm") || !assessments.some((a) => a.category === "Final")) { alert("Midterm and Final assessment results must exist before publishing."); return; }
+    if (total !== 100) { setPublishErr("Category weights must total 100% before publishing."); return; }
+    if (!assessments.some((a) => a.category === "Midterm") || !assessments.some((a) => a.category === "Final")) {
+      setPublishErr("Midterm and Final assessments must exist before publishing."); return;
+    }
+    if (results.length === 0 || results.some((r) => !r.complete)) {
+      setPublishErr("Every student needs Midterm and Final marks before results can be published."); return;
+    }
+    setPublishErr("");
     ctx.setResultStates((prev) => prev.map((r) => r.sectionId === sid ? { ...r, published: true, frozenWeights: true } : r));
+  }
+  function addProject() {
+    const e = err(newProjectTitle, "Project title is required.");
+    if (e) { setNewProjectError(e); return; }
+    ctx.setProjects((prev) => [...prev, { id: `proj-${Date.now()}`, sectionId: section!.id, title: newProjectTitle.trim() }]);
+    setNewProjectTitle(""); setNewProjectError("");
   }
   function addAssessmentQuestion() {
     if (!qActId) { setAqErr("Select a quiz/exam assessment."); return; }
@@ -214,7 +282,7 @@ function ClassDetail() {
           <div className="grid gap-4 sm:grid-cols-3">
             <Card><CardHeader><CardTitle className="text-sm">Weight total</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold ${totalWeight === 100 ? "text-emerald-600" : "text-amber-600"}`}>{totalWeight}%</p><p className="text-xs text-muted-foreground">Must total 100% before publish.</p></CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">Weights</CardTitle></CardHeader><CardContent className="text-sm">{resultState?.frozenWeights ? "Frozen after publish" : "Editable"}</CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-sm">Results</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm">{resultState?.published ? "Published" : "Not published"}</p><Button size="sm" onClick={publishResults} disabled={resultState?.published}>Publish results</Button></CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">Results</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm">{resultState?.published ? "Published" : "Not published"}</p><Button size="sm" onClick={publishResults} disabled={resultState?.published}>Publish results</Button>{publishErr && <p role="alert" className="text-xs text-red-600">{publishErr}</p>}</CardContent></Card>
           </div>
           <Card><CardHeader><CardTitle>Category weights</CardTitle></CardHeader><CardContent className="space-y-3">
             {categories.map(c => <div key={c.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm"><span>{c.name} <span className="text-muted-foreground">({c.count} {c.count === 1 ? "item" : "items"})</span></span><span className="font-medium">{c.weight}%</span></div>)}
@@ -227,7 +295,27 @@ function ClassDetail() {
             </div>}
             <p className="text-xs text-muted-foreground">Define category weight and how many items in that category. Midterm and Final are fixed to 1 item. Total weight must be 100% before publish; weights freeze after publish.</p>
           </CardContent></Card>
-          <Card><CardHeader className="flex-row items-center justify-between space-y-0"><CardTitle>Assessment summary</CardTitle><Button variant="outline" size="sm" render={<Link to="/teacher/grading" />}>Open grading</Button></CardHeader><CardContent>
+          <Card>
+            <CardHeader><CardTitle>Course results preview</CardTitle><p className="text-sm font-normal text-muted-foreground">Calculated from category weights. Missing items count as zero; Midterm and Final must be graded before publishing.</p></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader><TableRow><TableHead>Student</TableHead>{categories.map((c) => <TableHead key={c.id}>{c.name} ({c.weight}%)</TableHead>)}<TableHead>Course %</TableHead><TableHead>Grade</TableHead><TableHead>Complete</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {results.map((r) => (
+                    <TableRow key={r.studentId}>
+                      <TableCell className="font-medium">{r.studentName}</TableCell>
+                      {categories.map((c) => <TableCell key={c.id}>{r.categoryPercents[c.name]?.toFixed(1) ?? "0.0"}%</TableCell>)}
+                      <TableCell className="tabular-nums">{r.coursePercent.toFixed(1)}%</TableCell>
+                      <TableCell>{r.complete ? <><span className="font-medium">{r.letter}</span> <span className="text-muted-foreground">({r.gradePoints})</span></> : "—"}</TableCell>
+                      <TableCell>{r.complete ? <Badge className="bg-emerald-600 hover:bg-emerald-600">Ready</Badge> : <Badge variant="secondary">Missing marks</Badge>}</TableCell>
+                    </TableRow>
+                  ))}
+                  {results.length === 0 && <TableRow><TableCell colSpan={categories.length + 4} className="text-muted-foreground">No students enrolled.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          <Card><CardHeader className="flex-row items-center justify-between space-y-0"><CardTitle>Assessment summary</CardTitle><Button variant="outline" size="sm" nativeButton={false} render={<Link to="/teacher/grading" />}>Open grading</Button></CardHeader><CardContent>
             <Table>
               <TableHeader><TableRow><TableHead>Assessment</TableHead><TableHead>Category</TableHead><TableHead>Submitted</TableHead><TableHead>Graded</TableHead><TableHead></TableHead></TableRow></TableHeader>
               <TableBody>
@@ -283,6 +371,29 @@ function ClassDetail() {
               <Card>
                 <CardHeader><CardTitle>Time Table</CardTitle></CardHeader>
                 <CardContent className="text-sm">{section.schedule}</CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle>Multi-stage projects</CardTitle><p className="text-sm font-normal text-muted-foreground">Create a project, then add assessment stages to it from the assessment form.</p></CardHeader>
+                <CardContent className="space-y-3">
+                  {ctx.projects.filter((p) => p.sectionId === sid).map((project) => {
+                    const stages = assessments.filter((a) => a.projectId === project.id).sort((a, b) => (a.stageNumber ?? 0) - (b.stageNumber ?? 0));
+                    return (
+                      <div key={project.id} className="rounded border p-2 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div><p className="font-medium">{project.title}</p>{project.description && <p className="text-xs text-muted-foreground">{project.description}</p>}</div>
+                          <IconBtn title="Delete project" danger onClick={() => ctx.setProjects((prev) => prev.filter((p) => p.id !== project.id))}><Trash2 className="size-4" /></IconBtn>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">Stages: {stages.length ? stages.map((a) => `${a.stageNumber ?? "?"}. ${a.title}`).join(" · ") : "none yet"}</p>
+                      </div>
+                    );
+                  })}
+                  {ctx.projects.filter((p) => p.sectionId === sid).length === 0 && <p className="text-sm text-muted-foreground">No projects yet.</p>}
+                  <div className="flex gap-2">
+                    <Input value={newProjectTitle} onChange={(e) => setNewProjectTitle(e.target.value)} placeholder="New project title" />
+                    <Button size="sm" onClick={addProject}>Add</Button>
+                  </div>
+                  {newProjectError && <p className="text-xs text-red-600">{newProjectError}</p>}
+                </CardContent>
               </Card>
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="size-4" /> Section events</CardTitle></CardHeader>
@@ -344,8 +455,10 @@ function ClassDetail() {
                     label="Upload attachment"
                     fileName={matName && !matUrl ? matName : ""}
                     onFileChange={(name) => { setMatName(name); setMatUrl(""); setMatSize("file"); }}
+                    onFileSelected={(file) => { if (!file) { setMatFile(null); return; } void fileToSubmissionFile(file).then(setMatFile); }}
                     hint="Upload course outline or supporting material file"
                   />
+                  {matFile && <p className="text-xs text-muted-foreground">Stored file: {matFile.name} · {matFile.mimeType} · {matFile.size} bytes</p>}
                 </div>
                 <div className="space-y-1"><Label htmlFor="mat-name">Name</Label><Input id="mat-name" value={matName} onChange={e => setMatName(e.target.value)} placeholder="Course outline / material name" /></div>
                 <div className="space-y-1"><Label htmlFor="mat-url">Link URL (optional)</Label><Input id="mat-url" value={matUrl} onChange={e => { setMatUrl(e.target.value); if (e.target.value) setMatSize(""); }} placeholder="https://..." /></div>
@@ -378,26 +491,85 @@ function ClassDetail() {
                       <>
                         <div className="space-y-2">
                           <Label>Category</Label>
-                          <Select value={act.category} onValueChange={v => { if (!v) return; setAct({ ...act, category: v }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                          <Select value={act.category} onValueChange={v => {
+                            if (!v) return;
+                            const isPaper = v === "Midterm" || v === "Final";
+                            setAct({ ...act, category: v, submissionModes: isPaper ? ["physical"] : (v === "Quizzes" ? ["online"] : ["upload"]), physicalRoom: isPaper ? act.physicalRoom : "" });
+                          }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                           <p className="text-xs text-muted-foreground">Category determines grading bucket and assessment behavior. Title is auto-numbered (e.g. {suggestTitle(act.category)}).</p>
                         </div>
                         <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
-                        <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v) => v && setAct({ ...act, submissionMode: v as "upload" | "physical", hasViva: v === "physical" ? act.hasViva : false })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
-                        <div className="space-y-2"><Label>Open date</Label><Input type="date" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
-                        <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
-                        {act.submissionMode === "physical" && <>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>Submission modes</Label>
+                          <div className="flex flex-wrap gap-4">
+                            {([["online", "Online (in-app)"], ["upload", "Upload (attachment)"], ["physical", "Physical (paper)"]] as const).map(([value, label]) => (
+                              <label key={value} className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  disabled={paperOnly && value !== "physical"}
+                                  checked={act.submissionModes.includes(value)}
+                                  onChange={(e) => setAct((prev) => ({
+                                    ...prev,
+                                    submissionModes: e.target.checked
+                                      ? [...prev.submissionModes, value]
+                                      : prev.submissionModes.filter((m) => m !== value),
+                                  }))}
+                                />
+                                {label}
+                              </label>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{paperOnly ? "Midterm and Final are paper-based: only Physical is allowed." : "Attachment-based quiz: choose Upload. In-app MCQ quiz: choose Online."}</p>
+                        </div>
+                        <div className="space-y-2"><Label>Open at</Label><Input type="datetime-local" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
+                        <div className="space-y-2"><Label>Due at</Label><Input type="datetime-local" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
+                        <div className="space-y-2"><Label>Close at</Label><Input type="datetime-local" value={act.closeAt} onChange={e => setAct({ ...act, closeAt: e.target.value })} /></div>
+                        {act.submissionModes.includes("physical") && <>
                           <div className="space-y-2"><Label>Room / location</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>
                           <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" checked={act.hasViva} onChange={e => setAct({ ...act, hasViva: e.target.checked })} />Includes viva</label>
                           <p className="text-xs text-muted-foreground md:col-span-2 -mt-2">Physical submission means in-person assessment; enable viva if students will also be assessed orally.</p>
                         </>}
+                        {act.category === "Project" && <>
+                          <div className="space-y-2">
+                            <Label>Project</Label>
+                            <Select value={act.projectId || "__none"} onValueChange={v => v && setAct({ ...act, projectId: v === "__none" ? "" : v })}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none">Standalone (no project)</SelectItem>
+                                {ctx.projects.filter(p => p.sectionId === sid).map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2"><Label>Or new project title</Label><Input value={act.newProjectTitle} onChange={e => setAct({ ...act, newProjectTitle: e.target.value })} placeholder="Creates a project for this stage" /></div>
+                          <div className="space-y-2"><Label>Stage number</Label><Input type="number" min={1} value={act.stageNumber} onChange={e => setAct({ ...act, stageNumber: e.target.value })} /></div>
+                        </>}
+                        <div className="md:col-span-2 space-y-2">
+                          <div className="flex items-center justify-between"><Label>Submission requirements</Label><Button size="sm" variant="outline" onClick={() => setAct((prev) => ({ ...prev, requirements: [...prev.requirements, { type: "text", isRequired: false }] }))}><Plus className="size-4" /> Add requirement</Button></div>
+                          {act.requirements.map((r, index) => (
+                            <div key={index} className="grid items-end gap-2 sm:grid-cols-[1fr_auto_auto]">
+                              <div className="space-y-1">
+                                <Label>Type</Label>
+                                <Select value={r.type} onValueChange={v => v && setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, type: v as RequirementType } : item) }))}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="link">Link</SelectItem><SelectItem value="attachment">Attachment</SelectItem></SelectContent>
+                                </Select>
+                              </div>
+                              <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={r.isRequired} onChange={(e) => setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, isRequired: e.target.checked } : item) }))} /> Required</label>
+                              <IconBtn title="Remove requirement" danger onClick={() => setAct((prev) => ({ ...prev, requirements: prev.requirements.filter((_, i) => i !== index) }))}><Trash2 className="size-4" /></IconBtn>
+                            </div>
+                          ))}
+                          <p className="text-xs text-muted-foreground">At least one requirement, and at least one must be required (FR8 / I7).</p>
+                        </div>
                         <div className="md:col-span-2">
                           <SubmissionFileUpload
                             id="act-doc"
                             label="Relevant document (required)"
                             fileName={act.documentName}
                             onFileChange={(name) => setAct({ ...act, documentName: name })}
+                            onFileSelected={(file) => { if (!file) { setActFile(null); return; } void fileToSubmissionFile(file).then(setActFile); }}
                             hint="Upload question paper, brief, or instructions file. Required for assignments, quizzes, projects, and exams."
                           />
+                          {actFile && <p className="text-xs text-muted-foreground">Stored file: {actFile.name} · {actFile.mimeType} · {actFile.size} bytes</p>}
                         </div>
                         <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
                         {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
@@ -441,7 +613,7 @@ function ClassDetail() {
                               <div>
                                 <p className="font-medium flex items-center gap-2">{a.title}{a.required && <Badge variant="secondary">Required</Badge>}{a.required && !a.documentName && <Badge variant="secondary" className="gap-1"><AlertCircle className="size-3" />Pending document</Badge>}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{a.hasViva ? " - Viva" : ""}
+                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.closeAt ? ` - Closes ${a.closeAt}` : ""} - Modes: {a.submissionModes.join(", ") || "none"}{a.requirements?.length ? ` - Requires: ${a.requirements.map((r) => `${r.type}${r.isRequired ? "*" : ""}`).join(", ")}` : ""}{a.projectId ? ` - Stage ${a.stageNumber ?? "?"}` : ""}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{a.hasViva ? " - Viva" : ""}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1">
@@ -474,7 +646,7 @@ function ClassDetail() {
                           type="button"
                           title="Add assessment"
                           aria-label="Add assessment"
-                          onClick={() => { setAddType("assessment"); setEditEvtId(null); setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx] })); setShowAddForm(true); }}
+                          onClick={() => { setAddType("assessment"); setEditEvtId(null); setAct((prev) => ({ ...prev, openAt: `${WEEK_STARTS[idx]}T09:00`, dueAt: `${WEEK_ENDS[idx]}T23:59`, closeAt: `${WEEK_ENDS[idx]}T23:59` })); setShowAddForm(true); }}
                           className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:text-foreground focus-visible:bg-muted/50"
                         >
                           <Plus className="size-4" />

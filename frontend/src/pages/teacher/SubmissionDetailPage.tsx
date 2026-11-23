@@ -9,7 +9,11 @@ import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { AssessmentAnswers, AssessmentReference, AttachmentCard } from "../../components/teacher/AssessmentEvidence";
-import { teacherSections } from "../../mock/teacher";
+import {
+  autoGradeMcqAnswers,
+  calculateAttemptTotal,
+  teacherSections,
+} from "../../api";
 import { students } from "../../models";
 
 function SubmissionDetailPage() {
@@ -23,6 +27,7 @@ function SubmissionDetailPage() {
     assessmentQuestions,
     assessmentAttempts,
     assessmentAnswers,
+    setAssessmentAnswers,
   } = useOutletContext<TeacherContext>();
   const act = assessments.find((a) => a.id === assessmentId);
   const sub = submissions.find((s) => s.assessmentId === assessmentId && s.studentId === studentId);
@@ -40,19 +45,39 @@ function SubmissionDetailPage() {
   const [extReason, setExtReason] = useState(sub?.extensionReason ?? "");
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const autoTotal = calculateAttemptTotal(questions, answers);
+  const hasMcq = questions.some((question) => question.type === "mcq");
+
+  function setWrittenMark(questionId: string, value: number | null) {
+    if (!attempt) return;
+    setAssessmentAnswers((previous) => previous.map((answer) =>
+      answer.attemptId === attempt.id && answer.questionId === questionId
+        ? { ...answer, marksAwarded: value ?? undefined }
+        : answer,
+    ));
+  }
+
+  function autoGradeMcq() {
+    setAssessmentAnswers((previous) => previous.map((answer) => {
+      const question = questions.find((item) => item.id === answer.questionId);
+      return question?.type === "mcq" ? autoGradeMcqAnswers([question], [answer])[0] : answer;
+    }));
+  }
 
   const canGrade = useMemo(() => sub && sub.status !== "not-submitted", [sub]);
   if (!sub || !act) return <div className="mx-auto max-w-5xl px-4 py-8">Submission not found.</div>;
 
   function saveGrade(publish: boolean) {
-    const m = Number(marks);
+    const m = hasMcq && marks.trim() === "" ? autoTotal : Number(marks);
     if (!Number.isFinite(m) || m < 0 || m > act!.maxMarks) { setErr(`Marks must be between 0 and ${act!.maxMarks}.`); return; }
+    autoGradeMcq();
     setErr(""); setMsg(publish ? "Grade published and submission locked." : "Draft grade saved.");
     setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, marks: m, feedback: feedback.trim(), status: publish ? "locked" : "graded", updatedBy: "Carol", updatedAt: "2026-11-22 12:00" } : x));
   }
   function saveCorrection() {
-    const m = Number(marks);
+    const m = hasMcq && marks.trim() === "" ? autoTotal : Number(marks);
     if (!Number.isFinite(m) || m < 0 || m > act!.maxMarks) { setErr(`Marks must be between 0 and ${act!.maxMarks}.`); return; }
+    autoGradeMcq();
     setErr(""); setMsg("Grade corrected. Current grade updated; latest updater/timestamp stored (no history).");
     setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, marks: m, feedback: feedback.trim(), status: "locked", updatedBy: "Carol", updatedAt: "2026-11-22 12:05" } : x));
   }
@@ -71,8 +96,8 @@ function SubmissionDetailPage() {
 
       <div className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <AssessmentReference assessment={act} />
-        {(act.hasMcq || act.kind === "quiz") && (
-          <AssessmentAnswers questions={questions} answers={answers} submittedAt={attempt?.submittedAt} />
+        {(questions.length > 0 || act.hasMcq || act.kind === "quiz") && (
+          <AssessmentAnswers questions={questions} answers={answers} submittedAt={attempt?.submittedAt} onWrittenMark={setWrittenMark} />
         )}
       </div>
 
@@ -95,6 +120,7 @@ function SubmissionDetailPage() {
 
         <Card><CardHeader><CardTitle className="text-base">Grade / Feedback</CardTitle></CardHeader><CardContent className="space-y-3">
           <div className="space-y-1"><Label>Marks (out of {act.maxMarks})</Label><Input type="number" value={marks} onChange={e=>setMarks(e.target.value)} disabled={!canGrade} /></div>
+          {hasMcq && <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>MCQ auto-marked: {autoTotal} / {act.maxMarks}</span><Button size="sm" variant="ghost" onClick={() => setMarks(String(autoTotal))}>Apply auto mark</Button></div>}
           <div className="space-y-1"><Label>Feedback</Label><Textarea value={feedback} onChange={e=>setFeedback(e.target.value)} disabled={!canGrade} /></div>
           {err && <p className="text-xs text-red-600">{err}</p>}
           {msg && <p className="text-xs text-emerald-600">{msg}</p>}

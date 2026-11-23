@@ -6,7 +6,7 @@ import { SearchInput } from "../../components/SearchInput";
 import FilterSelect from "../../components/FilterSelect";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { teacherSections } from "../../mock/teacher";
+import { teacherSections } from "../../api";
 
 function MyClasses() {
   const [query, setQuery] = useState("");

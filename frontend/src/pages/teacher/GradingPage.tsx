@@ -13,6 +13,10 @@ import {
   AttachmentCard,
 } from "../../components/teacher/AssessmentEvidence";
 import {
+  autoGradeMcqAnswers,
+  calculateAttemptTotal,
+} from "../../api";
+import {
   getSectionStudents,
   teacherSections,
   type AssessmentAnswer,
@@ -23,7 +27,7 @@ import {
   type TeacherAssessment,
   type TeacherSection,
   type TeacherSubmission,
-} from "../../mock/teacher";
+} from "../../api";
 import { programCurriculums, students, subjects } from "../../models";
 
 type ViewMode = "student" | "assessment";
@@ -92,9 +96,11 @@ type GradingDrawerProps = {
   answers: AssessmentAnswer[];
   onClose: () => void;
   onSave: (draft: GradeDraft) => void;
+  onWrittenMark: (questionId: string, marks: number | null) => void;
+  onAutoGradeMcq: () => void;
 };
 
-function GradingDrawer({ row, questions, attempt, answers, onClose, onSave }: GradingDrawerProps) {
+function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWrittenMark, onAutoGradeMcq }: GradingDrawerProps) {
   const [marks, setMarks] = useState(row.marks != null ? String(row.marks) : "");
   const [feedback, setFeedback] = useState(row.feedback ?? "");
   const [error, setError] = useState("");
@@ -135,14 +141,18 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave }: Gr
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
+  const autoTotal = useMemo(() => calculateAttemptTotal(questions, answers), [questions, answers]);
+  const hasMcq = questions.some((question) => question.type === "mcq");
+
   function handleSave(publish: boolean) {
     const raw = marks.trim();
-    const value = Number(raw);
-    if (raw === "" || !Number.isFinite(value) || value < 0 || value > row.maxMarks) {
+    const autoValue = hasMcq && raw === "" ? autoTotal : Number(raw);
+    if (!Number.isFinite(autoValue) || autoValue < 0 || autoValue > row.maxMarks) {
       setError(`Enter a number between 0 and ${row.maxMarks}.`);
       return;
     }
-    onSave({ marks: value, feedback: feedback.trim(), publish });
+    onAutoGradeMcq();
+    onSave({ marks: autoValue, feedback: feedback.trim(), publish });
   }
 
   return (
@@ -187,11 +197,12 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave }: Gr
 
         <AssessmentReference assessment={row.assessment} />
 
-        {(row.assessment.hasMcq || row.assessment.kind === "quiz") && (
+        {(questions.length > 0 || row.assessment.hasMcq || row.assessment.kind === "quiz") && (
           <AssessmentAnswers
             questions={questions}
             answers={answers}
             submittedAt={attempt?.submittedAt}
+            onWrittenMark={onWrittenMark}
           />
         )}
 
@@ -238,6 +249,14 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave }: Gr
                 />
                 <span className="text-sm text-slate-400">/ {row.maxMarks}</span>
               </div>
+              {hasMcq && (
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span>MCQ auto-marked: {autoTotal} / {row.maxMarks}</span>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => { setMarks(String(autoTotal)); setError(""); }}>
+                    Apply auto mark
+                  </Button>
+                </div>
+              )}
             </div>
             {error && (
               <p id="grading-marks-error" role="alert" className="text-xs text-red-600">
@@ -293,6 +312,7 @@ function GradingPage() {
     assessmentQuestions,
     assessmentAttempts,
     assessmentAnswers,
+    setAssessmentAnswers,
   } = useOutletContext<TeacherContext>();
   const [searchParams] = useSearchParams();
   const initialAssessment = searchParams.get("assessment") ?? "";
@@ -407,6 +427,22 @@ function GradingPage() {
   const drawerAnswers = drawerAttempt
     ? assessmentAnswers.filter((answer) => answer.attemptId === drawerAttempt.id)
     : [];
+
+  function setWrittenMark(questionId: string, value: number | null) {
+    if (!drawerAttempt) return;
+    setAssessmentAnswers((previous) => previous.map((answer) =>
+      answer.attemptId === drawerAttempt.id && answer.questionId === questionId
+        ? { ...answer, marksAwarded: value ?? undefined }
+        : answer,
+    ));
+  }
+
+  function autoGradeMcq() {
+    setAssessmentAnswers((previous) => previous.map((answer) => {
+      const question = drawerQuestions.find((item) => item.id === answer.questionId);
+      return question?.type === "mcq" ? autoGradeMcqAnswers([question], [answer])[0] : answer;
+    }));
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -618,6 +654,8 @@ function GradingPage() {
           answers={drawerAnswers}
           onClose={closeDrawer}
           onSave={saveGrade}
+          onWrittenMark={setWrittenMark}
+          onAutoGradeMcq={autoGradeMcq}
         />
       )}
     </div>

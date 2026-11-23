@@ -4,7 +4,7 @@ import Dashboard from "../../components/Dashboard";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { getTeacherProfile, teacherSections } from "../../mock/teacher";
+import { getTeacherProfile, teacherSections } from "../../api";
 
 function TeacherDashboard() {
   const { submissions, questions, assessments } = useOutletContext<TeacherContext>();

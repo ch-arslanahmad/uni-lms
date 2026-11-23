@@ -1,33 +1,29 @@
 import { GraduationCap, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import Footer from "../Footer";
 import { Badge } from "../ui/badge";
-import { getTeacherProfile } from "../../mock/teacher";
+import { LoadingState, ErrorState } from "../AsyncStates";
+import { useRequireRole } from "../../auth/AuthContext";
+import { Role } from "../../models";
 import {
-  gradeCategories as seedCategories,
-  sectionResultStates as seedResultStates,
-  teacherAssessments as seedAssessments,
-  teacherAnnouncements as seedAnnouncements,
-  teacherEvents as seedEvents,
-  assessmentQuestions as seedAssessmentQuestions,
-  assessmentAttempts as seedAssessmentAttempts,
-  assessmentAnswers as seedAssessmentAnswers,
-  teacherMaterials as seedMaterials,
-  teacherQuestions as seedQuestions,
-  teacherSubmissions as seedSubmissions,
+  getTeacherProfile,
+  mockApi,
+  useApiQuery,
+  type AssessmentAnswer,
+  type AssessmentAttempt,
+  type AssessmentQuestion,
   type GradeCategory,
   type SectionResultState,
-  type TeacherAssessment,
   type TeacherAnnouncement,
+  type TeacherAssessment,
   type TeacherEvent,
-  type AssessmentQuestion,
-  type AssessmentAttempt,
-  type AssessmentAnswer,
   type TeacherMaterial,
+  type TeacherProject,
   type TeacherQuestion,
+  type TeacherSnapshot,
   type TeacherSubmission,
-} from "../../mock/teacher";
+} from "../../api";
 
 export interface TeacherContext {
   assessments: TeacherAssessment[];
@@ -52,24 +48,86 @@ export interface TeacherContext {
   setCategories: React.Dispatch<React.SetStateAction<GradeCategory[]>>;
   resultStates: SectionResultState[];
   setResultStates: React.Dispatch<React.SetStateAction<SectionResultState[]>>;
+  projects: TeacherProject[];
+  setProjects: React.Dispatch<React.SetStateAction<TeacherProject[]>>;
+}
+
+const STORAGE_KEY = "uni-lms.teacher-snapshot.v1";
+
+// Phase 1 persistence: the API returns a fresh snapshot, then local edits replay
+// on top of it. Phase 2 replaces this with real API mutations.
+function hydrate(fresh: TeacherSnapshot): TeacherSnapshot {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return fresh;
+    const saved = JSON.parse(raw) as Partial<TeacherSnapshot>;
+    const merged = { ...fresh };
+    for (const key of Object.keys(fresh) as (keyof TeacherSnapshot)[]) {
+      if (Array.isArray(saved[key])) (merged[key] as unknown[]) = saved[key] as unknown[];
+    }
+    return merged;
+  } catch {
+    return fresh;
+  }
 }
 
 function TeacherLayout() {
   const teacher = getTeacherProfile();
-  const [assessments, setAssessments] = useState<TeacherAssessment[]>(seedAssessments);
-  const [submissions, setSubmissions] = useState<TeacherSubmission[]>(seedSubmissions);
-  const [questions, setQuestions] = useState<TeacherQuestion[]>(seedQuestions);
-  const [materials, setMaterials] = useState<TeacherMaterial[]>(seedMaterials);
-  const [announcements, setAnnouncements] = useState<TeacherAnnouncement[]>(seedAnnouncements);
-  const [events, setEvents] = useState<TeacherEvent[]>(seedEvents);
-  const [assessmentQuestions, setAssessmentQuestions] = useState<AssessmentQuestion[]>(seedAssessmentQuestions);
-  const [assessmentAttempts, setAssessmentAttempts] = useState<AssessmentAttempt[]>(seedAssessmentAttempts);
-  const [assessmentAnswers, setAssessmentAnswers] = useState<AssessmentAnswer[]>(seedAssessmentAnswers);
-  const [categories, setCategories] = useState<GradeCategory[]>(seedCategories);
-  const [resultStates, setResultStates] = useState<SectionResultState[]>(seedResultStates);
+  const guard = useRequireRole(Role.teacher);
+  const snapshot = useApiQuery(() => mockApi.loadTeacherSnapshot());
+
+  const [assessments, setAssessments] = useState<TeacherAssessment[]>([]);
+  const [submissions, setSubmissions] = useState<TeacherSubmission[]>([]);
+  const [questions, setQuestions] = useState<TeacherQuestion[]>([]);
+  const [materials, setMaterials] = useState<TeacherMaterial[]>([]);
+  const [announcements, setAnnouncements] = useState<TeacherAnnouncement[]>([]);
+  const [events, setEvents] = useState<TeacherEvent[]>([]);
+  const [assessmentQuestions, setAssessmentQuestions] = useState<AssessmentQuestion[]>([]);
+  const [assessmentAttempts, setAssessmentAttempts] = useState<AssessmentAttempt[]>([]);
+  const [assessmentAnswers, setAssessmentAnswers] = useState<AssessmentAnswer[]>([]);
+  const [categories, setCategories] = useState<GradeCategory[]>([]);
+  const [resultStates, setResultStates] = useState<SectionResultState[]>([]);
+  const [projects, setProjects] = useState<TeacherProject[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (!snapshot.data) return;
+    const data = hydrate(snapshot.data);
+    setAssessments(data.assessments);
+    setSubmissions(data.submissions);
+    setQuestions(data.questions);
+    setMaterials(data.materials);
+    setAnnouncements(data.announcements);
+    setEvents(data.events);
+    setAssessmentQuestions(data.assessmentQuestions);
+    setAssessmentAttempts(data.assessmentAttempts);
+    setAssessmentAnswers(data.assessmentAnswers);
+    setCategories(data.categories);
+    setResultStates(data.resultStates);
+    setProjects(data.projects);
+    setHydrated(true);
+  }, [snapshot.data]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        assessments, submissions, questions, materials, announcements, events,
+        assessmentQuestions, assessmentAttempts, assessmentAnswers,
+        categories, resultStates, projects,
+      } satisfies TeacherSnapshot));
+    } catch {
+      // Storage quota can be reached by large demo attachments; keep the in-memory session usable.
+    }
+  }, [hydrated, assessments, submissions, questions, materials, announcements, events,
+    assessmentQuestions, assessmentAttempts, assessmentAnswers, categories, resultStates, projects]);
 
   const pendingGrading = useMemo(() => submissions.filter((s) => s.status === "submitted").length, [submissions]);
   const pendingQuestions = useMemo(() => questions.filter((q) => q.status === "pending").length, [questions]);
+
+  if (guard) return <>{guard}</>;
+  if (snapshot.error) return <ErrorState message={snapshot.error} onRetry={snapshot.retry} />;
+  if (snapshot.loading || !snapshot.data || !hydrated) return <LoadingState label="Loading teacher workspace…" />;
 
   const nav = [
     { label: "Dashboard", to: "/teacher", end: true, badge: 0 },
@@ -124,6 +182,7 @@ function TeacherLayout() {
             assessmentAnswers, setAssessmentAnswers,
             categories, setCategories,
             resultStates, setResultStates,
+            projects, setProjects,
           } satisfies TeacherContext}
         />
       </main>

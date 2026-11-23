@@ -1,11 +1,12 @@
 import { Download } from "lucide-react";
 import { buttonVariants } from "../ui/button";
+import { mcqMarksFor } from "../../api";
 import type {
   AssessmentAnswer,
   AssessmentQuestion,
   SubmissionFile,
   TeacherAssessment,
-} from "../../mock/teacher";
+} from "../../api";
 
 function formatSize(size: SubmissionFile["size"]): string {
   return typeof size === "number" ? `${Math.max(1, Math.round(size / 1024))} KB` : size;
@@ -91,9 +92,10 @@ type AssessmentAnswersProps = {
   questions: AssessmentQuestion[];
   answers: AssessmentAnswer[];
   submittedAt?: string;
+  onWrittenMark?: (questionId: string, marks: number | null) => void;
 };
 
-export function AssessmentAnswers({ questions, answers, submittedAt }: AssessmentAnswersProps) {
+export function AssessmentAnswers({ questions, answers, submittedAt, onWrittenMark }: AssessmentAnswersProps) {
   const mcqQuestions = questions.filter((question) => question.type === "mcq");
   const writtenQuestions = questions.filter((question) => question.type === "written");
 
@@ -113,8 +115,8 @@ export function AssessmentAnswers({ questions, answers, submittedAt }: Assessmen
             <div key={question.id} className="space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <p className="font-medium text-slate-900">{question.text}</p>
-                <span className="shrink-0 text-xs tabular-nums text-slate-500">
-                  {answer?.marksAwarded ?? 0} / {question.marks}
+                <span className="shrink-0 text-xs tabular-nums text-slate-500" title="Calculated from the answer key">
+                  {mcqMarksFor(question, answer)} / {question.marks} (auto)
                 </span>
               </div>
               <div className="space-y-1.5">
@@ -146,8 +148,30 @@ export function AssessmentAnswers({ questions, answers, submittedAt }: Assessmen
         {writtenQuestions.map((question) => {
           const answer = answers.find((item) => item.questionId === question.id);
           return (
-            <div key={question.id} className="space-y-1">
-              <p className="font-medium text-slate-900">{question.text}</p>
+            <div key={question.id} className="space-y-2 rounded-lg border border-slate-100 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-medium text-slate-900">{question.text}</p>
+                <label className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
+                  Marks
+                  <input
+                    type="number"
+                    min={0}
+                    max={question.marks}
+                    step="any"
+                    aria-label={`Marks for: ${question.text}`}
+                    value={answer?.marksAwarded ?? ""}
+                    disabled={!onWrittenMark}
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      const value = raw === "" ? null : Number(raw);
+                      if (value != null && (!Number.isFinite(value) || value < 0 || value > question.marks)) return;
+                      onWrittenMark?.(question.id, value);
+                    }}
+                    className="h-8 w-16 rounded-lg border border-slate-200 bg-white px-2 text-right text-xs text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                  />
+                  / {question.marks}
+                </label>
+              </div>
               <p className="text-xs text-slate-500">{answer?.textAnswer ?? "No written answer recorded."}</p>
             </div>
           );

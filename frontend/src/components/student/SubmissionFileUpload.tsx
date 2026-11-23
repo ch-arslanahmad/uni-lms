@@ -6,6 +6,7 @@ type SubmissionFileUploadProps = {
   id: string;
   fileName: string;
   onFileChange: (fileName: string) => void;
+  onFileSelected?: (file: File | null) => void;
   accept?: string;
   label?: string;
   hint?: string;
@@ -16,6 +17,7 @@ export function SubmissionFileUpload({
   id,
   fileName,
   onFileChange,
+  onFileSelected,
   accept,
   label = "Upload file",
   hint,
@@ -40,7 +42,11 @@ export function SubmissionFileUpload({
         className="hidden"
         accept={accept}
         disabled={disabled}
-        onChange={(e) => onFileChange(e.target.files?.[0]?.name ?? fileName)}
+        onChange={(e) => {
+          const file = e.target.files?.[0] ?? null;
+          onFileChange(file?.name ?? fileName);
+          onFileSelected?.(file);
+        }}
       />
     </div>
   );
