@@ -335,8 +335,7 @@ function ClassDetail() {
             )}
 
             <div className="space-y-2">
-              {[11, ...WEEK_RANGES.map((_, i) => i).filter((i) => i !== 11)].map((idx) => {
-                const range = WEEK_RANGES[idx];
+              {WEEK_RANGES.map((range, idx) => {
                 const weekActs = activities.filter(a => weekIndexFor(a.dueAt || a.openAt) === idx);
                 const current = idx === 11;
                 return (
