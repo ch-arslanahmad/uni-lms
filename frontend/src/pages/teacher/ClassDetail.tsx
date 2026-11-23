@@ -1,5 +1,5 @@
 import { AlertCircle, CalendarDays, ExternalLink, FileText, HelpCircle, Pencil, Plus, Trash2, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Badge } from "../../components/ui/badge";
@@ -15,7 +15,7 @@ import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpl
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { getSectionStudents, getTeacherSection, type AssessmentQuestion, type TeacherAssessment } from "../../mock/teacher";
 
-const CATEGORY_OPTIONS = ["Assignments", "Quizzes", "Project", "Midterm", "Final", "Lab", "Participation"] as const;
+const CATEGORY_OPTIONS = ["Assignments", "Quizzes", "Project", "Midterm", "Final", "Lab"] as const;
 function inferKind(category: string): TeacherAssessment["kind"] {
   if (category === "Quizzes") return "quiz";
   if (category === "Midterm" || category === "Final") return "exam";
@@ -56,10 +56,14 @@ function ClassDetail() {
   const [annTitle, setAnnTitle] = useState(""); const [annBody, setAnnBody] = useState(""); const [annErr, setAnnErr] = useState("");
   const [editAnnId, setEditAnnId] = useState<string | null>(null);
   const [matName, setMatName] = useState(""); const [matUrl, setMatUrl] = useState(""); const [matSize, setMatSize] = useState(""); const [matErr, setMatErr] = useState("");
-  const [act, setAct] = useState({ category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
-  const [actErr, setActErr] = useState(""); const [showActForm, setShowActForm] = useState(false);
+  const [act, setAct] = useState({ category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", submissionMode: "upload" as "upload" | "physical", hasViva: false, documentName: "", physicalRoom: "" });
+  const [actErr, setActErr] = useState(""); const [showAddForm, setShowAddForm] = useState(false);
+  const [addType, setAddType] = useState<"assessment" | "class">("assessment");
+  const addFormRef = useRef<HTMLDivElement>(null);
+  function openAddForm(type: "assessment" | "class") { setAddType(type); setShowAddForm(true); setEditEvtId(null); setEvtErr(""); setActErr(""); if (type === "class") setEvt({ title: "", startAt: "", endAt: "", room: "" }); requestAnimationFrame(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }
   const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catCount, setCatCount] = useState("1"); const [catErr, setCatErr] = useState("");
-  const [evt, setEvt] = useState({ title: "", type: "class" as "class" | "exam", startAt: "", endAt: "", room: "", linkedAssessmentId: "" });
+  // One-off makeup/extra class sessions. Recurring schedule is admin-owned (FR19); exam dates come from assessments.
+  const [evt, setEvt] = useState({ title: "", startAt: "", endAt: "", room: "" });
   const [evtErr, setEvtErr] = useState(""); const [editEvtId, setEditEvtId] = useState<string | null>(null);
 
   function suggestTitle(category: string) {
@@ -99,15 +103,17 @@ function ClassDetail() {
     const e = err(evt.title, "Title is required.") || err(evt.startAt, "Start is required.") || err(evt.endAt, "End is required.");
     if (e) { setEvtErr(e); return; }
     if (evt.endAt < evt.startAt) { setEvtErr("End must be after or equal to start."); return; }
-    if (evt.linkedAssessmentId && !assessments.some((a) => a.id === evt.linkedAssessmentId)) { setEvtErr("Linked assessment must belong to this section."); return; }
+    const day = evt.startAt.slice(0, 10);
+    const examConflict = assessments.find((a) => a.sectionId === section!.id && (a.category === "Midterm" || a.category === "Final" || a.kind === "exam") && (a.dueAt || a.openAt).slice(0, 10) === day);
+    if (examConflict) { setEvtErr(`Cannot schedule a class session on exam day (${examConflict.title}, ${examConflict.dueAt || examConflict.openAt}).`); return; }
     const norm = (v: string) => v.replace("T", " ");
-    const payload = { title: evt.title.trim(), type: evt.type, startAt: norm(evt.startAt), endAt: norm(evt.endAt), room: evt.room.trim() || undefined, linkedAssessmentId: evt.linkedAssessmentId || undefined };
+    const payload = { title: evt.title.trim(), startAt: norm(evt.startAt), endAt: norm(evt.endAt), room: evt.room.trim() || undefined };
     if (editEvtId) {
       ctx.setEvents((prev) => prev.map((x) => x.id === editEvtId ? { ...x, ...payload } : x));
     } else {
       ctx.setEvents((prev) => [...prev, { id: `tev-${Date.now()}`, sectionId: section!.id, ...payload }]);
     }
-    setEvt({ title: "", type: "class", startAt: "", endAt: "", room: "", linkedAssessmentId: "" }); setEditEvtId(null); setEvtErr("");
+    setEvt({ title: "", startAt: "", endAt: "", room: "" }); setEditEvtId(null); setEvtErr(""); setShowAddForm(false);
   }
   function addAssessment() {
     const kind = inferKind(act.category);
@@ -121,13 +127,14 @@ function ClassDetail() {
       id: `act-${Date.now()}`, sectionId: section!.id, kind, title: suggestTitle(act.category), instructions: act.instructions.trim(),
       category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, submissionModes,
       physicalRoom: act.submissionMode === "physical" ? act.physicalRoom.trim() : undefined,
-      hasMcq: kind === "quiz", reviewPolicy: kind === "quiz" || kind === "exam" ? act.reviewPolicy : undefined,
+      hasViva: act.submissionMode === "physical" ? act.hasViva : undefined,
+      hasMcq: kind === "quiz",
       documentName: act.documentName.trim(), required: act.category === "Midterm" || act.category === "Final", published: true,
     };
     ctx.setAssessments((prev) => [newAct, ...prev]);
     if (newAct.kind === "quiz" || newAct.kind === "exam") setQActId(newAct.id);
-    setAct({ category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded", submissionMode: "upload", documentName: "", physicalRoom: "" });
-    setActErr(""); setShowActForm(false);
+    setAct({ category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", submissionMode: "upload", hasViva: false, documentName: "", physicalRoom: "" });
+    setActErr(""); setShowAddForm(false);
   }
   function saveCategory() {
     if (resultState?.frozenWeights) { setCatErr("Weights are frozen after publishing results."); return; }
@@ -276,36 +283,37 @@ function ClassDetail() {
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="size-4" /> Section events</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  {events.length === 0 ? <p className="text-sm text-muted-foreground">No events scheduled.</p> : events.map((ev) => {
-                    const linked = assessments.find((a) => a.id === ev.linkedAssessmentId);
-                    return (
-                      <div key={ev.id} className="rounded border p-2 text-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium">{ev.title} <Badge variant="outline" className="ml-1 capitalize">{ev.type}</Badge></p>
-                            <p className="text-xs text-muted-foreground">{ev.startAt} - {ev.endAt}{ev.room ? ` · ${ev.room}` : ""}</p>
-                            {linked && <p className="text-xs text-muted-foreground">Linked: {linked.title}</p>}
+                  {(() => {
+                    const mandatory = assessments.filter((a) => a.category === "Midterm" || a.category === "Final");
+                    return mandatory.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Mandatory assessments (dates set by admin)</p>
+                        {mandatory.map((a) => (
+                          <div key={a.id} className="rounded border border-amber-200 bg-amber-50/50 p-2 text-sm">
+                            <p className="font-medium">{a.title} <Badge variant="secondary">Required</Badge></p>
+                            <p className="text-xs text-muted-foreground">{a.dueAt}{a.physicalRoom ? ` · ${a.physicalRoom}` : ""}</p>
+                            <p className="text-xs text-muted-foreground">Posting deadline for teacher: prepare and post required document before this date.</p>
                           </div>
-                          <div className="flex items-center">
-                            <IconBtn title="Edit event" onClick={() => { setEditEvtId(ev.id); setEvt({ title: ev.title, type: ev.type, startAt: ev.startAt.slice(0,16), endAt: ev.endAt.slice(0,16), room: ev.room ?? "", linkedAssessmentId: ev.linkedAssessmentId ?? "" }); }}><Pencil className="size-4" /></IconBtn>
-                            <IconBtn title="Delete event" danger onClick={() => ctx.setEvents((prev) => prev.filter((x) => x.id !== ev.id))}><Trash2 className="size-4" /></IconBtn>
-                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
+                  {events.length === 0 ? <p className="text-sm text-muted-foreground">No makeup/extra class sessions scheduled.</p> : events.map((ev) => (
+                    <div key={ev.id} className="rounded border p-2 text-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{ev.title} <Badge variant="outline" className="ml-1">Makeup / extra class</Badge></p>
+                          <p className="text-xs text-muted-foreground">{ev.startAt} - {ev.endAt}{ev.room ? ` · ${ev.room}` : ""}</p>
+                        </div>
+                        <div className="flex items-center">
+                          <IconBtn title="Edit event" onClick={() => { setEditEvtId(ev.id); setAddType("class"); setShowAddForm(true); setEvt({ title: ev.title, startAt: ev.startAt.slice(0,16), endAt: ev.endAt.slice(0,16), room: ev.room ?? "" }); setEvtErr(""); requestAnimationFrame(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }}><Pencil className="size-4" /></IconBtn>
+                          <IconBtn title="Delete event" danger onClick={() => ctx.setEvents((prev) => prev.filter((x) => x.id !== ev.id))}><Trash2 className="size-4" /></IconBtn>
                         </div>
                       </div>
-                    );
-                  })}
-                  <div className="space-y-2 border-t pt-3">
-                    <p className="text-sm font-medium">{editEvtId ? "Edit event" : "Add event"}</p>
-                    <div className="space-y-1"><Label>Title</Label><Input value={evt.title} onChange={(e) => setEvt({ ...evt, title: e.target.value })} /></div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="space-y-1"><Label>Type</Label><Select value={evt.type} onValueChange={(v) => v && setEvt({ ...evt, type: v as "class" | "exam" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["class","exam"].map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}</SelectContent></Select></div>
-                      <div className="space-y-1"><Label>Linked assessment (optional)</Label><Select value={evt.linkedAssessmentId || "none"} onValueChange={(v) => setEvt({ ...evt, linkedAssessmentId: v === "none" ? "" : (v ?? "") })}><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{assessments.map((a) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}</SelectContent></Select></div>
-                      <div className="space-y-1"><Label>Start</Label><Input type="datetime-local" value={evt.startAt} onChange={(e) => setEvt({ ...evt, startAt: e.target.value })} /></div>
-                      <div className="space-y-1"><Label>End</Label><Input type="datetime-local" value={evt.endAt} onChange={(e) => setEvt({ ...evt, endAt: e.target.value })} /></div>
                     </div>
-                    <div className="space-y-1"><Label>Room (optional)</Label><Input value={evt.room} onChange={(e) => setEvt({ ...evt, room: e.target.value })} /></div>
-                    {evtErr && <p className="text-xs text-red-600">{evtErr}</p>}
-                    <div className="flex gap-2"><Button size="sm" onClick={saveEvent}>{editEvtId ? "Save" : "Add event"}</Button>{editEvtId && <Button size="sm" variant="ghost" onClick={() => { setEditEvtId(null); setEvt({ title: "", type: "class", startAt: "", endAt: "", room: "", linkedAssessmentId: "" }); setEvtErr(""); }}>Cancel</Button>}</div>
+                  ))}
+                  <div className="border-t pt-3">
+                    <Button size="sm" variant="outline" onClick={() => openAddForm("class")}><Plus className="size-4" /> Add makeup class</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -346,43 +354,65 @@ function ClassDetail() {
           <div>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-lg font-bold">Weekly sections</h2>
-              <Button variant="outline" size="sm" onClick={() => setShowActForm((v) => !v)}><Plus className="size-4" /> Assessment</Button>
+              <Button variant="outline" size="sm" onClick={() => { setAddType("assessment"); setEditEvtId(null); setShowAddForm((v) => !v); }}><Plus className="size-4" /> Assessment</Button>
             </div>
 
-            {showActForm && (
+            {showAddForm && (
+              <div ref={addFormRef} className="scroll-mt-4">
               <Card className="mb-3">
                 <CardHeader>
-                  <CardTitle>Create assessment</CardTitle>
-                  <p className="text-sm font-normal text-muted-foreground">Assessments are graded or required classwork items such as assignments, quizzes, projects, labs, or exams.</p>
+                  <CardTitle>{addType === "assessment" ? "Create assessment" : (editEvtId ? "Edit makeup/extra class" : "Add makeup/extra class")}</CardTitle>
+                  <p className="text-sm font-normal text-muted-foreground">{addType === "assessment" ? "Assessments are graded or required classwork items such as assignments, quizzes, projects, labs, or exams." : "One-off makeup/extra class session. Exam schedule comes from assessments."}</p>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Select value={act.category} onValueChange={v => { if (!v) return; setAct({ ...act, category: v }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
-                      <p className="text-xs text-muted-foreground">Category determines grading bucket and assessment behavior. Title is auto-numbered (e.g. {suggestTitle(act.category)}).</p>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Type</Label>
+                      <Select value={addType} onValueChange={(v) => { if (v === "assessment" || v === "class") { setAddType(v); setActErr(""); setEvtErr(""); if (v === "assessment") setEditEvtId(null); } }} disabled={!!editEvtId}><SelectTrigger><SelectValue>{addType === "assessment" ? "Assessment" : "Makeup / extra class"}</SelectValue></SelectTrigger><SelectContent><SelectItem value="assessment">Assessment</SelectItem><SelectItem value="class">Makeup / extra class</SelectItem></SelectContent></Select>
                     </div>
-                    <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v) => v && setAct({ ...act, submissionMode: v as "upload" | "physical" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
-                    <div className="space-y-2"><Label>Open date</Label><Input type="date" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
-                    {(inferKind(act.category) === "quiz" || inferKind(act.category) === "exam") && <div className="space-y-2"><Label>Review policy</Label><Select value={act.reviewPolicy} onValueChange={(v) => v && setAct({ ...act, reviewPolicy: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["immediate","after_close","after_graded","never"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>}
-                    {act.submissionMode === "physical" && <div className="space-y-2"><Label>Room / location (physical only)</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>}
-                    <div className="md:col-span-2">
-                      <SubmissionFileUpload
-                        id="act-doc"
-                        label="Relevant document (required)"
-                        fileName={act.documentName}
-                        onFileChange={(name) => setAct({ ...act, documentName: name })}
-                        hint="Upload question paper, brief, or instructions file. Required for assignments, quizzes, projects, and exams."
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
-                    {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
-                    <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addAssessment}>Create assessment</Button><Button size="sm" variant="ghost" onClick={() => setShowActForm(false)}>Cancel</Button></div>
+                    {addType === "assessment" ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Category</Label>
+                          <Select value={act.category} onValueChange={v => { if (!v) return; setAct({ ...act, category: v }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                          <p className="text-xs text-muted-foreground">Category determines grading bucket and assessment behavior. Title is auto-numbered (e.g. {suggestTitle(act.category)}).</p>
+                        </div>
+                        <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
+                        <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v) => v && setAct({ ...act, submissionMode: v as "upload" | "physical", hasViva: v === "physical" ? act.hasViva : false })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
+                        <div className="space-y-2"><Label>Open date</Label><Input type="date" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
+                        <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
+                        {act.submissionMode === "physical" && <>
+                          <div className="space-y-2"><Label>Room / location</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>
+                          <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" checked={act.hasViva} onChange={e => setAct({ ...act, hasViva: e.target.checked })} />Includes viva</label>
+                          <p className="text-xs text-muted-foreground md:col-span-2 -mt-2">Physical submission means in-person assessment; enable viva if students will also be assessed orally.</p>
+                        </>}
+                        <div className="md:col-span-2">
+                          <SubmissionFileUpload
+                            id="act-doc"
+                            label="Relevant document (required)"
+                            fileName={act.documentName}
+                            onFileChange={(name) => setAct({ ...act, documentName: name })}
+                            hint="Upload question paper, brief, or instructions file. Required for assignments, quizzes, projects, and exams."
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
+                        {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
+                        <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addAssessment}>Create assessment</Button><Button size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setActErr(""); }}>Cancel</Button></div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-2 md:col-span-2"><Label>Title</Label><Input value={evt.title} onChange={(e) => setEvt({ ...evt, title: e.target.value })} /></div>
+                        <div className="space-y-2"><Label>Start</Label><Input type="datetime-local" value={evt.startAt} onChange={(e) => setEvt({ ...evt, startAt: e.target.value })} /></div>
+                        <div className="space-y-2"><Label>End</Label><Input type="datetime-local" value={evt.endAt} onChange={(e) => setEvt({ ...evt, endAt: e.target.value })} /></div>
+                        <div className="space-y-2 md:col-span-2"><Label>Room (optional)</Label><Input value={evt.room} onChange={(e) => setEvt({ ...evt, room: e.target.value })} /></div>
+                        {evtErr && <p className="text-xs text-red-600 md:col-span-2">{evtErr}</p>}
+                        <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={saveEvent}>{editEvtId ? "Save class session" : "Add class session"}</Button><Button size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setEditEvtId(null); setEvt({ title: "", startAt: "", endAt: "", room: "" }); setEvtErr(""); }}>Cancel</Button></div>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+              </div>
             )}
 
             <div className="space-y-2">
@@ -407,7 +437,7 @@ function ClassDetail() {
                               <div>
                                 <p className="font-medium flex items-center gap-2">{a.title}{a.required && <Badge variant="secondary">Required</Badge>}{a.required && !a.documentName && <Badge variant="secondary" className="gap-1"><AlertCircle className="size-3" />Pending document</Badge>}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}
+                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{a.hasViva ? " - Viva" : ""}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1">
@@ -440,7 +470,7 @@ function ClassDetail() {
                           type="button"
                           title="Add assessment"
                           aria-label="Add assessment"
-                          onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx] })); setShowActForm(true); }}
+                          onClick={() => { setAddType("assessment"); setEditEvtId(null); setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx] })); setShowAddForm(true); }}
                           className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:text-foreground focus-visible:bg-muted/50"
                         >
                           <Plus className="size-4" />

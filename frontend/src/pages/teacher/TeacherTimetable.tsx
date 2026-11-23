@@ -104,13 +104,12 @@ function TeacherTimetable() {
                       );
                     })}
                     {dayEvents.map((ev) => {
-                      const linked = assessments.find((a) => a.id === ev.linkedAssessmentId);
                       const sec = teacherSections.find((s) => s.id === ev.sectionId);
                       return (
-                        <div key={ev.id} className="rounded border bg-amber-50 px-1.5 py-0.5 text-[11px] leading-tight text-amber-800" title={`${ev.title}${linked ? ` (Linked: ${linked.title})` : ""}`}>
+                        <div key={ev.id} className="rounded border bg-amber-50 px-1.5 py-0.5 text-[11px] leading-tight text-amber-800" title={ev.title}>
                           <div className="font-medium truncate">{ev.title}</div>
-                          <div className="text-amber-700/80 truncate">{sec ? `${sec.section.subjectCode}-${sec.section.code} · ` : ""}{fmtTime(ev.startAt)}</div>
-                          <Badge variant="outline" className="mt-0.5 h-4 px-1 text-[10px] capitalize">{ev.type}</Badge>
+                          <div className="text-amber-700/80 truncate">{sec ? `${sec.section.subjectCode}-${sec.section.code} · ` : ""}{fmtTime(ev.startAt)}{ev.room ? ` · ${ev.room}` : ""}</div>
+                          <Badge variant="outline" className="mt-0.5 h-4 px-1 text-[10px]">Makeup / extra class</Badge>
                         </div>
                       );
                     })}
