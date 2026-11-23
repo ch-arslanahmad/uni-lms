@@ -4,6 +4,7 @@ import AllUsersPage from "./pages/admin/AllUsersPage";
 import StudentsPage from "./pages/admin/StudentsPage";
 import TeachersPage from "./pages/admin/TeachersPage";
 import NotFound from "./pages/NotFound";
+import LoginPage from "./pages/LoginPage";
 import Academics from "./pages/admin/Academics";
 import ImportExportPage from "./pages/admin/ImportExportPage";
 import TimetablePage from "./pages/admin/TimetablePage";
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
       { path: "*", element: <NotFound /> },
     ],
   },
+  { path: "/login", element: <LoginPage /> },
   { path: "*", element: <NotFound /> },
 ]);
 
