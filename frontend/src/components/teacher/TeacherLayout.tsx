@@ -11,6 +11,8 @@ import {
   teacherAnnouncements as seedAnnouncements,
   teacherEvents as seedEvents,
   assessmentQuestions as seedAssessmentQuestions,
+  assessmentAttempts as seedAssessmentAttempts,
+  assessmentAnswers as seedAssessmentAnswers,
   teacherMaterials as seedMaterials,
   teacherQuestions as seedQuestions,
   teacherSubmissions as seedSubmissions,
@@ -20,6 +22,8 @@ import {
   type TeacherAnnouncement,
   type TeacherEvent,
   type AssessmentQuestion,
+  type AssessmentAttempt,
+  type AssessmentAnswer,
   type TeacherMaterial,
   type TeacherQuestion,
   type TeacherSubmission,
@@ -40,6 +44,10 @@ export interface TeacherContext {
   setEvents: React.Dispatch<React.SetStateAction<TeacherEvent[]>>;
   assessmentQuestions: AssessmentQuestion[];
   setAssessmentQuestions: React.Dispatch<React.SetStateAction<AssessmentQuestion[]>>;
+  assessmentAttempts: AssessmentAttempt[];
+  setAssessmentAttempts: React.Dispatch<React.SetStateAction<AssessmentAttempt[]>>;
+  assessmentAnswers: AssessmentAnswer[];
+  setAssessmentAnswers: React.Dispatch<React.SetStateAction<AssessmentAnswer[]>>;
   categories: GradeCategory[];
   setCategories: React.Dispatch<React.SetStateAction<GradeCategory[]>>;
   resultStates: SectionResultState[];
@@ -55,6 +63,8 @@ function TeacherLayout() {
   const [announcements, setAnnouncements] = useState<TeacherAnnouncement[]>(seedAnnouncements);
   const [events, setEvents] = useState<TeacherEvent[]>(seedEvents);
   const [assessmentQuestions, setAssessmentQuestions] = useState<AssessmentQuestion[]>(seedAssessmentQuestions);
+  const [assessmentAttempts, setAssessmentAttempts] = useState<AssessmentAttempt[]>(seedAssessmentAttempts);
+  const [assessmentAnswers, setAssessmentAnswers] = useState<AssessmentAnswer[]>(seedAssessmentAnswers);
   const [categories, setCategories] = useState<GradeCategory[]>(seedCategories);
   const [resultStates, setResultStates] = useState<SectionResultState[]>(seedResultStates);
 
@@ -110,6 +120,8 @@ function TeacherLayout() {
             announcements, setAnnouncements,
             events, setEvents,
             assessmentQuestions, setAssessmentQuestions,
+            assessmentAttempts, setAssessmentAttempts,
+            assessmentAnswers, setAssessmentAnswers,
             categories, setCategories,
             resultStates, setResultStates,
           } satisfies TeacherContext}

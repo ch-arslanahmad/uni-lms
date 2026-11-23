@@ -54,6 +54,30 @@ export interface AssessmentQuestion {
 
 export type AssessmentKind = "assignment" | "quiz" | "exam" | "project";
 export type SubmissionMode = "upload" | "physical";
+export type SubmissionType = "digital" | "physical" | null;
+
+export interface SubmissionFile {
+  name: string;
+  mimeType: string;
+  size: string | number; // bytes or a preformatted string for mocks
+  url: string;
+}
+
+export interface AssessmentAttempt {
+  id: string;
+  assessmentId: string;
+  studentId: number;
+  submittedAt: string;
+}
+
+export interface AssessmentAnswer {
+  id: string;
+  attemptId: string;
+  questionId: string;
+  selectedOption?: number;
+  textAnswer?: string;
+  marksAwarded?: number;
+}
 
 export interface TeacherAssessment {
   id: string;
@@ -70,7 +94,9 @@ export interface TeacherAssessment {
   physicalRoom?: string; // only when physical submission is required
   hasViva?: boolean;
   hasMcq?: boolean;
-  documentName?: string; // required supporting document
+  reviewPolicy?: "immediate" | "after_close" | "after_graded" | "never";
+  documentName?: string; // required supporting document label
+  document?: SubmissionFile; // teacher-uploaded reference for grading
   required?: boolean; // mandatory system/term requirement (mid/final)
   published: boolean;
 }
@@ -83,6 +109,8 @@ export interface TeacherSubmission {
   status: "not-submitted" | "submitted" | "graded" | "locked";
   marks?: number;
   feedback?: string;
+  type?: SubmissionType;
+  file?: SubmissionFile;
   fileName?: string;
   updatedBy?: string;
   updatedAt?: string;
@@ -117,7 +145,7 @@ export interface SectionResultState {
 }
 
 // Same teacher, same subject, multiple sections (typical semester assignment).
-const assignedSectionRows = sections.filter((s) => s.teacherName === "Carol" && s.subjectCode === "CS-301");
+const assignedSectionRows = sections.filter((s) => s.teacherName === "Carol" && s.subjectCode === "DBMS");
 
 function makeOfferingId(s: SectionRow): string {
   return `${s.subjectCode}-${s.termName.replace(" ", "")}-${s.programCode}-${s.code}`.replace(/[^A-Za-z0-9-]/g, "");
@@ -154,19 +182,32 @@ export const assessmentQuestions: AssessmentQuestion[] = [
   { id: "aq1", assessmentId: "ta-a2", type: "mcq", text: "Which SQL clause filters rows?", options: ["ORDER BY", "WHERE", "GROUP BY", "HAVING"], correctOption: 1, marks: 5 },
   { id: "aq2", assessmentId: "ta-a2", type: "mcq", text: "Which join returns only matching rows?", options: ["LEFT JOIN", "FULL JOIN", "INNER JOIN", "CROSS JOIN"], correctOption: 2, marks: 5 },
   { id: "aq3", assessmentId: "ta-a4", type: "written", text: "Explain 3NF with an example.", marks: 20 },
+  { id: "aq4", assessmentId: "ta-a7", type: "mcq", text: "Which SQL keyword limits returned rows?", options: ["ORDER BY", "LIMIT", "GROUP BY", "WHERE"], correctOption: 1, marks: 5 },
+  { id: "aq5", assessmentId: "ta-a7", type: "mcq", text: "Which join keeps every row from the left table?", options: ["INNER JOIN", "LEFT JOIN", "CROSS JOIN", "NATURAL JOIN"], correctOption: 1, marks: 5 },
 ];
 
+export const MOCK_ASSESSMENT_FILE_URL = "/mock-assessment-brief.svg";
+
+function referenceFile(name: string): SubmissionFile {
+  return { name, mimeType: "image/svg+xml", size: "3 KB", url: MOCK_ASSESSMENT_FILE_URL };
+}
+
+export function makeAssessmentReference(documentName: string): SubmissionFile {
+  return referenceFile(documentName.replace(/\.[^.]+$/, "") + "-reference.svg");
+}
+
 export const teacherAssessments: TeacherAssessment[] = [
-  { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
-  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, documentName: "quiz1-sql.pdf", published: true },
-  { id: "ta-a3", sectionId: 4, kind: "project", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], documentName: "project-m1-brief.pdf", published: true },
-  { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: undefined, published: true },
-  { id: "ta-a5", sectionId: 4, kind: "exam", title: "Final", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: undefined, published: true },
-  { id: "ta-a6", sectionId: 5, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
-  { id: "ta-a7", sectionId: 5, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, documentName: "quiz1-sql.pdf", published: true },
-  { id: "ta-a8", sectionId: 5, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: undefined, published: true },
-  { id: "ta-a9", sectionId: 5, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: undefined, published: true },
+  { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", document: referenceFile("assignment1-erd-reference.svg"), published: true },
+  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", published: true },
+  { id: "ta-a3", sectionId: 4, kind: "project", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], documentName: "project-m1-brief.pdf", document: referenceFile("project-m1-brief-reference.svg"), published: true },
+  { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
+  { id: "ta-a5", sectionId: 4, kind: "exam", title: "Final", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
+  { id: "ta-a7", sectionId: 5, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", published: true },
+  { id: "ta-a8", sectionId: 5, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
+  { id: "ta-a9", sectionId: 5, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
 ];
+
+const MOCK_SUBMISSION_FILE_URL = "/mock-submission.svg";
 
 function seedSubmissions(): TeacherSubmission[] {
   const out: TeacherSubmission[] = [];
@@ -180,21 +221,26 @@ function seedSubmissions(): TeacherSubmission[] {
           studentId: stu.id,
           submittedAt: i < 4 ? `${act.dueAt} 10:0${i}` : undefined,
           status: i < 3 ? "graded" : i < 4 ? "submitted" : "not-submitted",
+          // Exams are paper-based; quizzes are answered in-app with no document recorded.
+          type: act.kind === "exam" ? "physical" : null,
           marks: i < 3 ? Math.max(0, act.maxMarks - i * 3) : undefined,
           feedback: i < 3 ? "Good work." : undefined,
           updatedBy: i < 3 ? "Carol" : undefined,
           updatedAt: i < 3 ? `${act.dueAt} 18:00` : undefined,
         });
       } else {
+        const fileName = `${stu.name.split(" ")[0].toLowerCase()}-${act.id}.svg`;
         out.push({
           id: `sub-${act.id}-${stu.id}`,
           assessmentId: act.id,
           studentId: stu.id,
           submittedAt: i < 5 ? `${act.dueAt} 09:1${i}` : undefined,
           status: i < 2 ? "locked" : i < 4 ? "submitted" : i === 4 ? "graded" : "not-submitted",
+          type: "digital",
+          file: i < 5 ? { name: fileName, mimeType: "image/svg+xml", size: "2 KB", url: MOCK_SUBMISSION_FILE_URL } : undefined,
           marks: i < 2 || i === 4 ? Math.max(0, act.maxMarks - i * 5) : undefined,
           feedback: i < 2 || i === 4 ? "Reviewed." : undefined,
-          fileName: i < 5 ? `${stu.name.split(" ")[0].toLowerCase()}-${act.id}.pdf` : undefined,
+          fileName: i < 5 ? fileName : undefined,
           updatedBy: i < 2 || i === 4 ? "Carol" : undefined,
           updatedAt: i < 2 || i === 4 ? `${act.dueAt} 17:30` : undefined,
         });
@@ -205,6 +251,55 @@ function seedSubmissions(): TeacherSubmission[] {
 }
 
 export const teacherSubmissions: TeacherSubmission[] = seedSubmissions();
+
+function seedAssessmentAttempts(): AssessmentAttempt[] {
+  const out: AssessmentAttempt[] = [];
+  for (const act of teacherAssessments.filter((item) => item.hasMcq)) {
+    getSectionStudents(act.sectionId).forEach((stu, i) => {
+      out.push({
+        id: `att-${act.id}-${stu.id}`,
+        assessmentId: act.id,
+        studentId: stu.id,
+        submittedAt: `${act.dueAt} 10:${String(i).padStart(2, "0")}`,
+      });
+    });
+  }
+  return out;
+}
+
+export const assessmentAttempts: AssessmentAttempt[] = seedAssessmentAttempts();
+
+function seedAssessmentAnswers(): AssessmentAnswer[] {
+  return assessmentAttempts.flatMap((attempt) =>
+    assessmentQuestions
+      .filter((question) => question.assessmentId === attempt.assessmentId)
+      .map((question, qi) => {
+        const attemptIndex = Number(attempt.id.slice(-1));
+        const correct = (attemptIndex + qi) % 3 !== 0;
+        const optionCount = Math.max(1, question.options?.length ?? 1);
+        const selectedOption = correct
+          ? question.correctOption
+          : ((question.correctOption ?? 0) + 1) % optionCount;
+        return {
+          id: `ans-${attempt.id}-${question.id}`,
+          attemptId: attempt.id,
+          questionId: question.id,
+          selectedOption,
+          marksAwarded: correct ? question.marks : 0,
+        };
+      }),
+  );
+}
+
+export const assessmentAnswers: AssessmentAnswer[] = seedAssessmentAnswers();
+
+export function getAssessmentAttempt(assessmentId: string, studentId: number): AssessmentAttempt | undefined {
+  return assessmentAttempts.find((a) => a.assessmentId === assessmentId && a.studentId === studentId);
+}
+
+export function getAssessmentAnswers(attemptId: string): AssessmentAnswer[] {
+  return assessmentAnswers.filter((a) => a.attemptId === attemptId);
+}
 
 export const teacherQuestions: TeacherQuestion[] = [
   { id: "tq1", sectionId: 4, assessmentId: "ta-a3", studentId: 7, question: "Can we submit proposal as PDF and slides separately?", askedAt: "2026-11-20 14:10", status: "pending" },
