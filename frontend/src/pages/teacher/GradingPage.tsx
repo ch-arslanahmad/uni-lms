@@ -1,23 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
-import { BookOpen, Download, Search, X } from "lucide-react";
-import { Button, buttonVariants } from "../../components/ui/button";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import { BookOpen, Search, X } from "lucide-react";
+import { Button } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import {
+  AssessmentAnswers,
+  AssessmentReference,
+  AttachmentCard,
+} from "../../components/teacher/AssessmentEvidence";
+import {
   getSectionStudents,
   teacherSections,
+  type AssessmentAnswer,
+  type AssessmentAttempt,
+  type AssessmentQuestion,
   type SubmissionFile,
   type SubmissionType,
+  type TeacherAssessment,
   type TeacherSection,
   type TeacherSubmission,
 } from "../../mock/teacher";
 import { programCurriculums, students, subjects } from "../../models";
 
 type ViewMode = "student" | "assessment";
-type DisplayStatus = "Submitted" | "Graded" | "Pending";
+type DisplayStatus = "Submitted" | "Draft" | "Graded" | "Pending";
 
 type Row = {
   id: string;
@@ -25,6 +34,7 @@ type Row = {
   studentName: string;
   assessmentId: string;
   assessmentTitle: string;
+  assessment: TeacherAssessment;
   submittedAt?: string;
   status: DisplayStatus;
   marks?: number;
@@ -35,16 +45,13 @@ type Row = {
   locked: boolean;
 };
 
-const STATUS_OPTIONS = ["All statuses", "Submitted", "Graded", "Pending"] as const;
+const STATUS_OPTIONS = ["All statuses", "Submitted", "Draft", "Graded", "Pending"] as const;
 
 function displayStatus(raw: TeacherSubmission["status"]): DisplayStatus {
-  if (raw === "graded" || raw === "locked") return "Graded";
+  if (raw === "locked") return "Graded";
+  if (raw === "graded") return "Draft";
   if (raw === "not-submitted") return "Pending";
   return "Submitted";
-}
-
-function formatSize(size: SubmissionFile["size"]): string {
-  return typeof size === "number" ? `${Math.max(1, Math.round(size / 1024))} KB` : size;
 }
 
 function courseLabel(section: TeacherSection): string {
@@ -59,12 +66,17 @@ function courseLabel(section: TeacherSection): string {
 }
 
 function StatusText({ status }: { status: DisplayStatus }) {
+  const tone =
+    status === "Submitted"
+      ? "bg-blue-400"
+      : status === "Graded"
+        ? "bg-emerald-500"
+        : status === "Draft"
+          ? "bg-amber-400"
+          : "bg-slate-300";
   return (
     <span className="inline-flex items-center gap-2 text-slate-700">
-      <span
-        aria-hidden="true"
-        className={`size-1.5 rounded-full ${status === "Graded" ? "bg-emerald-500" : "bg-slate-400"}`}
-      />
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${tone}`} />
       {status}
     </span>
   );
@@ -74,11 +86,14 @@ type GradeDraft = { marks: number; feedback: string; publish: boolean };
 
 type GradingDrawerProps = {
   row: Row;
+  questions: AssessmentQuestion[];
+  attempt?: AssessmentAttempt;
+  answers: AssessmentAnswer[];
   onClose: () => void;
   onSave: (draft: GradeDraft) => void;
 };
 
-function GradingDrawer({ row, onClose, onSave }: GradingDrawerProps) {
+function GradingDrawer({ row, questions, attempt, answers, onClose, onSave }: GradingDrawerProps) {
   const [marks, setMarks] = useState(row.marks != null ? String(row.marks) : "");
   const [feedback, setFeedback] = useState(row.feedback ?? "");
   const [error, setError] = useState("");
@@ -147,8 +162,15 @@ function GradingDrawer({ row, onClose, onSave }: GradingDrawerProps) {
               {row.studentName} · #{row.studentId}
             </h2>
             <p className="mt-1 text-sm text-slate-500">{row.assessmentTitle}</p>
-            <div className="mt-2 text-xs">
+            <div className="mt-2 flex items-center gap-3 text-xs">
               <StatusText status={row.status} />
+              <Link
+                to={`/teacher/grading/${row.id}`}
+                className="text-blue-600 hover:underline"
+                onClick={onClose}
+              >
+                Open full page
+              </Link>
             </div>
           </div>
           <button
@@ -162,51 +184,31 @@ function GradingDrawer({ row, onClose, onSave }: GradingDrawerProps) {
           </button>
         </header>
 
+        <AssessmentReference assessment={row.assessment} />
+
+        {(row.assessment.hasMcq || row.assessment.kind === "quiz") && (
+          <AssessmentAnswers
+            questions={questions}
+            answers={answers}
+            submittedAt={attempt?.submittedAt}
+          />
+        )}
+
         <section className="px-6 py-6">
-          <h3 className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Submission</h3>
+          <h3 className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Student submission</h3>
           <div className="mt-3 border-t border-slate-100 pt-4 text-sm">
-            {row.submissionType === "digital" ? (
+            {row.assessment.hasMcq || row.assessment.kind === "quiz" ? (
+              <p className="text-slate-500">Answered in-app. See assessment answers above.</p>
+            ) : row.submissionType === "digital" ? (
               row.file ? (
-                <div className="space-y-4">
-                  <div>
-                    <p className="font-medium text-slate-900">{row.file.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {row.file.mimeType} · {formatSize(row.file.size)}
-                    </p>
-                  </div>
-                  {row.file.url ? (
-                    <div className="flex flex-wrap gap-2">
-                      <a
-                        href={row.file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={buttonVariants({ size: "sm", variant: "outline" })}
-                      >
-                        View
-                      </a>
-                      <a
-                        href={row.file.url}
-                        download={row.file.name}
-                        className={buttonVariants({ size: "sm", variant: "outline" })}
-                      >
-                        <Download aria-hidden="true" className="size-4" />
-                        Download
-                      </a>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500">File URL not recorded.</p>
-                  )}
-                  <p className="text-xs text-slate-500">
-                    If the file doesn&apos;t open, use Download.
-                  </p>
-                </div>
+                <AttachmentCard file={row.file} />
               ) : (
                 <p className="text-slate-500">No file recorded for this digital submission.</p>
               )
             ) : row.submissionType === "physical" ? (
               <p className="text-slate-500">Physical submission. No document attached.</p>
             ) : (
-              <p className="text-slate-500">Submission type not recorded</p>
+              <p className="text-slate-500">Submission type not recorded.</p>
             )}
           </div>
         </section>
@@ -283,7 +285,14 @@ function GradingDrawer({ row, onClose, onSave }: GradingDrawerProps) {
 }
 
 function GradingPage() {
-  const { submissions, assessments, setSubmissions } = useOutletContext<TeacherContext>();
+  const {
+    submissions,
+    assessments,
+    setSubmissions,
+    assessmentQuestions,
+    assessmentAttempts,
+    assessmentAnswers,
+  } = useOutletContext<TeacherContext>();
   const [searchParams] = useSearchParams();
   const initialAssessment = searchParams.get("assessment") ?? "";
 
@@ -327,6 +336,7 @@ function GradingPage() {
           studentName: students.find((student) => student.id === submission.studentId)?.name ?? String(submission.studentId),
           assessmentId: submission.assessmentId,
           assessmentTitle: assessment?.title ?? submission.assessmentId,
+          assessment: assessment ?? courseAssessments[0],
           submittedAt: submission.submittedAt,
           status: displayStatus(submission.status),
           marks: submission.marks,
@@ -383,6 +393,19 @@ function GradingPage() {
     );
     closeDrawer();
   }
+
+  const drawerQuestions = drawerRow
+    ? assessmentQuestions.filter((question) => question.assessmentId === drawerRow.assessmentId)
+    : [];
+  const drawerAttempt = drawerRow
+    ? assessmentAttempts.find(
+        (attempt) =>
+          attempt.assessmentId === drawerRow.assessmentId && attempt.studentId === drawerRow.studentId,
+      )
+    : undefined;
+  const drawerAnswers = drawerAttempt
+    ? assessmentAnswers.filter((answer) => answer.attemptId === drawerAttempt.id)
+    : [];
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -586,7 +609,16 @@ function GradingPage() {
         </table>
       </div>
 
-      {drawerRow && <GradingDrawer row={drawerRow} onClose={closeDrawer} onSave={saveGrade} />}
+      {drawerRow && (
+        <GradingDrawer
+          row={drawerRow}
+          questions={drawerQuestions}
+          attempt={drawerAttempt}
+          answers={drawerAnswers}
+          onClose={closeDrawer}
+          onSave={saveGrade}
+        />
+      )}
     </div>
   );
 }

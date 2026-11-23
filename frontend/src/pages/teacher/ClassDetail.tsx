@@ -13,7 +13,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable } from "../../components/SimpleTable";
 import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { getSectionStudents, getTeacherSection, type AssessmentQuestion, type TeacherAssessment } from "../../mock/teacher";
+import { getSectionStudents, getTeacherSection, makeAssessmentReference, type AssessmentQuestion, type TeacherAssessment } from "../../mock/teacher";
 
 const CATEGORY_OPTIONS = ["Assignments", "Quizzes", "Project", "Midterm", "Final", "Lab", "Participation"] as const;
 function inferKind(category: string): TeacherAssessment["kind"] {
@@ -112,7 +112,8 @@ function ClassDetail() {
   function addAssessment() {
     const kind = inferKind(act.category);
     const e = err(act.openAt, "Open date is required.") || err(act.dueAt, "Due date is required.")
-      || err(act.instructions, "Instructions are required.") || err(act.documentName, "A relevant document is required.")
+      || err(act.instructions, "Instructions are required.")
+      || (kind !== "quiz" ? err(act.documentName, "A relevant document is required.") : "")
       || ((!Number(act.maxMarks) || Number(act.maxMarks) <= 0) ? "Max marks must be > 0." : "")
       || (act.submissionMode === "physical" ? err(act.physicalRoom, "Room/location is required for physical assessments.") : "");
     if (e) { setActErr(e); return; }
@@ -122,7 +123,9 @@ function ClassDetail() {
       category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, submissionModes,
       physicalRoom: act.submissionMode === "physical" ? act.physicalRoom.trim() : undefined,
       hasMcq: kind === "quiz", reviewPolicy: kind === "quiz" || kind === "exam" ? act.reviewPolicy : undefined,
-      documentName: act.documentName.trim(), required: act.category === "Midterm" || act.category === "Final", published: true,
+      documentName: act.documentName.trim() || undefined,
+      document: act.documentName.trim() ? makeAssessmentReference(act.documentName.trim()) : undefined,
+      required: act.category === "Midterm" || act.category === "Final", published: true,
     };
     ctx.setAssessments((prev) => [newAct, ...prev]);
     if (newAct.kind === "quiz" || newAct.kind === "exam") setQActId(newAct.id);

@@ -7,16 +7,29 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
+import { AssessmentAnswers, AssessmentReference, AttachmentCard } from "../../components/teacher/AssessmentEvidence";
 import { teacherSections } from "../../mock/teacher";
 import { students } from "../../models";
 
 function SubmissionDetailPage() {
   const { submissionId } = useParams();
-  const { submissions, setSubmissions, assessments } = useOutletContext<TeacherContext>();
+  const {
+    submissions,
+    setSubmissions,
+    assessments,
+    assessmentQuestions,
+    assessmentAttempts,
+    assessmentAnswers,
+  } = useOutletContext<TeacherContext>();
   const sub = submissions.find((s) => s.id === submissionId);
   const act = assessments.find((a) => a.id === sub?.assessmentId);
   const section = teacherSections.find((s) => s.id === act?.sectionId);
   const student = students.find((s) => s.id === sub?.studentId);
+  const questions = assessmentQuestions.filter((question) => question.assessmentId === act?.id);
+  const attempt = assessmentAttempts.find(
+    (item) => item.assessmentId === act?.id && item.studentId === sub?.studentId,
+  );
+  const answers = attempt ? assessmentAnswers.filter((answer) => answer.attemptId === attempt.id) : [];
 
   const [marks, setMarks] = useState(sub?.marks?.toString() ?? "");
   const [feedback, setFeedback] = useState(sub?.feedback ?? "");
@@ -53,12 +66,26 @@ function SubmissionDetailPage() {
       <Breadcrumbs items={[{ label: "Grading", to: "/teacher/grading" }, { label: `${student?.name ?? "Student"} - ${act.title}` }]} />
       <div><h1 className="text-2xl font-bold">{act.title}</h1><p className="text-sm text-muted-foreground">{student?.name} · {section ? `${section.section.subjectCode}-${section.section.code}` : ""} · Status: <span className="capitalize">{sub.status}</span></p></div>
 
+      <div className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <AssessmentReference assessment={act} />
+        {(act.hasMcq || act.kind === "quiz") && (
+          <AssessmentAnswers questions={questions} answers={answers} submittedAt={attempt?.submittedAt} />
+        )}
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <Card><CardHeader><CardTitle className="text-base">Submission</CardTitle></CardHeader><CardContent className="space-y-2 text-sm">
           <p><span className="font-medium">Submitted:</span> {sub.submittedAt ?? "Not submitted"}</p>
           <p><span className="font-medium">Original due:</span> {act.dueAt}</p>
           <p><span className="font-medium">Effective due:</span> {sub.extensionDueAt ?? act.dueAt}</p>
           <p><span className="font-medium">File:</span> {sub.fileName ?? "—"}</p>
+          {sub.file ? (
+            <AttachmentCard file={sub.file} />
+          ) : act.hasMcq || act.kind === "quiz" ? (
+            <p className="text-xs text-slate-500">Answered in-app. See assessment answers above.</p>
+          ) : sub.type === "physical" ? (
+            <p className="text-xs text-slate-500">Physical submission. No document attached.</p>
+          ) : null}
           <p><span className="font-medium">Latest grade update:</span> {sub.updatedBy ? `${sub.updatedBy} at ${sub.updatedAt}` : "—"}</p>
           {sub.extensionReason && <p><span className="font-medium">Extension reason:</span> {sub.extensionReason}</p>}
         </CardContent></Card>
