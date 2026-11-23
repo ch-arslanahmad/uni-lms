@@ -390,7 +390,7 @@ function ClassDetail() {
                           title="Add activity"
                           aria-label="Add activity"
                           onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx], title: prev.title || suggestTitle(prev.kind, prev.category) })); setShowActForm(true); }}
-                          className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground opacity-0 transition-opacity hover:bg-muted/50 hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+                          className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:text-foreground focus-visible:bg-muted/50"
                         >
                           <Plus className="size-4" />
                         </button>
