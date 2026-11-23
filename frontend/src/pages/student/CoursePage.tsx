@@ -8,7 +8,7 @@ import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import { findOffering, grades, type GradeRow } from "../../mock/student";
+import { activityLabel, activityPath, findOffering, grades, type GradeRow } from "../../mock/student";
 import { students } from "../../models";
 
 const gradeColumns: Column<GradeRow>[] = [
@@ -215,7 +215,7 @@ function CoursePage() {
                     {week.activities.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No activities this week.</p>
                     ) : week.activities.map((a) => {
-                      const to = a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`;
+                      const to = activityPath(a);
                       const hasResponse = questions.some((q) => q.contextTo === to && q.answer && !q.readAt);
                       const tone = a.submitted
                         ? "text-emerald-600"
@@ -234,7 +234,7 @@ function CoursePage() {
                           <div>
                             <p className="font-medium">{a.title}</p>
                             <p className="text-xs text-muted-foreground">
-                              {a.kind} - Opened {a.opened} - Due {a.due}{a.closed ? ` - Closes ${a.closed}` : ""}
+                              {activityLabel(a)} - Opened {a.opened} - Due {a.due}{a.closed ? ` - Closes ${a.closed}` : ""}
                             </p>
                             {hasResponse && (
                               <p className="mt-0.5 flex items-center gap-1 text-xs text-blue-600">

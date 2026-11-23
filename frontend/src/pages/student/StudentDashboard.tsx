@@ -8,6 +8,8 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import {
+  activityLabel,
+  activityPath,
   allActivities,
   calculateCgpa,
   currentStudentId,
@@ -130,7 +132,7 @@ function StudentDashboard() {
               <>
                 <ul className="space-y-2">
                   {(showAll ? activities : activities.slice(0, 5)).map((a) => {
-                    const to = a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`;
+                    const to = activityPath(a);
                     const hasResponse = questions.some((q) => q.contextTo === to && q.answer && !q.readAt);
                     return (
                       <li key={a.id}>
@@ -140,6 +142,7 @@ function StudentDashboard() {
                         >
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">{a.title}</p>
+                            <p className="text-xs text-muted-foreground">{activityLabel(a)}</p>
                             <p className={`flex items-center gap-1 text-xs ${dueTone(a).className}`}>
                               <Clock className="size-3" /> {dueTone(a).label}
                             </p>
@@ -226,7 +229,7 @@ function StudentDashboard() {
                     {(calendarView === "month" ? visible.slice(0, 2) : visible).map((a) => (
                       <Link
                         key={a.id}
-                        to={a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`}
+                        to={activityPath(a)}
                         title={a.title}
                         className="mt-0.5 block truncate rounded bg-blue-500/15 px-1 text-[10px] text-blue-700"
                       >
