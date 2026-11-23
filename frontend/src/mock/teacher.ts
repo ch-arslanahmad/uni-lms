@@ -113,7 +113,6 @@ export interface TeacherAssessment {
   physicalRoom?: string; // only when physical submission is required
   hasViva?: boolean;
   hasMcq?: boolean;
-  reviewPolicy?: "immediate" | "after_close" | "after_graded" | "never";
   documentName?: string; // required supporting document label
   document?: SubmissionFile; // teacher-uploaded reference for grading
   required?: boolean; // mandatory system/term requirement (mid/final)
@@ -217,11 +216,11 @@ export function makeAssessmentReference(documentName: string): SubmissionFile {
 
 const seededAssessments: Omit<TeacherAssessment, "requirements">[] = [
   { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", document: referenceFile("assignment1-erd-reference.svg"), published: true },
-  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionModes: ["online"], hasMcq: true, reviewPolicy: "after_close", published: true },
+  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionModes: ["online"], hasMcq: true, published: true },
   { id: "ta-a3", sectionId: 4, kind: "project", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], projectId: "proj-1", stageNumber: 1, documentName: "project-m1-brief.pdf", document: referenceFile("project-m1-brief-reference.svg"), published: true },
   { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
   { id: "ta-a5", sectionId: 4, kind: "exam", title: "Final", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
-  { id: "ta-a7", sectionId: 5, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionModes: ["online"], hasMcq: true, reviewPolicy: "after_close", published: true },
+  { id: "ta-a7", sectionId: 5, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionModes: ["online"], hasMcq: true, published: true },
   { id: "ta-a8", sectionId: 5, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
   { id: "ta-a9", sectionId: 5, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
 ];

@@ -86,7 +86,7 @@ function ClassDetail() {
   const [actFile, setActFile] = useState<SubmissionFile | null>(null);
   const emptyAct = () => ({
     category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", closeAt: "",
-    instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never",
+    instructions: "",
     submissionModes: ["upload"] as SubmissionMode[],
     requirements: [{ type: "attachment" as RequirementType, isRequired: true }],
     hasViva: false, documentName: "", physicalRoom: "", projectId: "", stageNumber: "1", newProjectTitle: "",
@@ -177,7 +177,6 @@ function ClassDetail() {
       dueAt: toLocalInput(assessment.dueAt),
       closeAt: toLocalInput(assessment.closeAt),
       instructions: assessment.instructions,
-      reviewPolicy: assessment.reviewPolicy ?? "after_graded",
       submissionModes: assessment.submissionModes,
       requirements: assessment.requirements?.length ? assessment.requirements : [{ type: "attachment", isRequired: true }],
       hasViva: assessment.hasViva ?? false,
@@ -231,7 +230,6 @@ function ClassDetail() {
       physicalRoom: submissionModes.includes("physical") ? act.physicalRoom.trim() : undefined,
       hasViva: submissionModes.includes("physical") ? act.hasViva : undefined,
       hasMcq: kind === "quiz" && submissionModes.includes("online"),
-      reviewPolicy: kind === "quiz" || kind === "exam" ? act.reviewPolicy : undefined,
       documentName,
       document: actFile ?? (documentName ? makeAssessmentReference(documentName) : undefined),
       required: paperOnly,

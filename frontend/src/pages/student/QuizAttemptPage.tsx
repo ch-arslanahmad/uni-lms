@@ -5,8 +5,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Textarea } from "../../components/ui/textarea";
-import { getStudentQuizzes, isWrittenQuestion, type QuizAnswerValue } from "../../api";
-import { canReviewQuiz } from "../../mock/student";
+import { getStudentQuizzes, isWrittenQuestion, QUIZ_SCORES_MESSAGE, type QuizAnswerValue } from "../../api";
 
 function QuizAttemptPage() {
   const { quizId } = useParams();
@@ -31,8 +30,7 @@ function QuizAttemptPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // Written answers are graded by the teacher, so they are excluded from the
-  // provisional score shown at submission time.
+  // Written answers are excluded from the auto-graded score passed to review.
   const score = useMemo(
     () => quiz?.questions.reduce((sum, q) =>
       sum + (!isWrittenQuestion(q) && answers[q.id] === q.answer ? q.points : 0), 0) ?? 0,
@@ -45,7 +43,6 @@ function QuizAttemptPage() {
   const answeredCount = Object.values(answers).filter((value) =>
     typeof value === "number" || (typeof value === "string" && value.trim().length > 0),
   ).length;
-  const hasWritten = quiz.questions.some(isWrittenQuestion);
   const minutes = Math.floor(remaining / 60);
   const seconds = String(remaining % 60).padStart(2, "0");
   const timerTone = remaining === 0 ? "bg-red-500/10 text-red-600" : remaining <= 60 ? "bg-red-500/10 text-red-600" : remaining <= 300 ? "bg-amber-500/10 text-amber-600" : "bg-blue-500/10 text-blue-600";
@@ -132,12 +129,7 @@ function QuizAttemptPage() {
           <DialogHeader>
             <DialogTitle>Submit this attempt?</DialogTitle>
             <DialogDescription>
-              You answered {answeredCount} of {quiz.questions.length} questions.
-              {canReviewQuiz(quiz)
-                ? hasWritten
-                  ? ` Your auto-graded score is ${score}/${quiz.max}; written answers await teacher grading.`
-                  : ` Your provisional score is ${score}/${quiz.max}.`
-                : " Your score will be available according to the review policy."}
+              You answered {answeredCount} of {quiz.questions.length} questions. {QUIZ_SCORES_MESSAGE}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

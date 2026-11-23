@@ -3,22 +3,37 @@
 // the teacher edits, so a reload after editing reflects immediately on quizzes.
 
 import { quizzes, type Quiz, type QuizQuestion } from "../mock/student";
-import type { AssessmentQuestion } from "../mock/teacher";
+import type { AssessmentQuestion, SectionResultState, TeacherAssessment } from "../mock/teacher";
 import { TEACHER_SNAPSHOT_KEY } from "./client";
 
-interface TeacherSnapshotQuestions {
+interface TeacherSnapshotForQuizzes {
   assessmentQuestions?: AssessmentQuestion[];
+  assessments?: TeacherAssessment[];
+  resultStates?: SectionResultState[];
+}
+
+function readTeacherSnapshot(): TeacherSnapshotForQuizzes {
+  try {
+    const raw = localStorage.getItem(TEACHER_SNAPSHOT_KEY);
+    return raw ? JSON.parse(raw) as TeacherSnapshotForQuizzes : {};
+  } catch {
+    return {};
+  }
 }
 
 function readTeacherQuestions(): AssessmentQuestion[] {
-  try {
-    const raw = localStorage.getItem(TEACHER_SNAPSHOT_KEY);
-    if (!raw) return [];
-    const saved = JSON.parse(raw) as TeacherSnapshotQuestions;
-    return Array.isArray(saved.assessmentQuestions) ? saved.assessmentQuestions : [];
-  } catch {
-    return [];
-  }
+  const saved = readTeacherSnapshot();
+  return Array.isArray(saved.assessmentQuestions) ? saved.assessmentQuestions : [];
+}
+
+// FR4: MCQ scores stay hidden until the section's results are published.
+export const QUIZ_SCORES_MESSAGE = "MCQ scores are available after results are published.";
+
+export function areQuizScoresPublished(quiz: Quiz): boolean {
+  const saved = readTeacherSnapshot();
+  const assessment = saved.assessments?.find((a) => a.id === quiz.sourceAssessmentId);
+  if (!assessment) return false;
+  return saved.resultStates?.some((r) => r.sectionId === assessment.sectionId && r.published) ?? false;
 }
 
 function toQuizQuestion(question: AssessmentQuestion): QuizQuestion {

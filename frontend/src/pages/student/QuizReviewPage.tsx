@@ -2,8 +2,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { getStudentQuizzes, isWrittenQuestion, type QuizAnswerValue } from "../../api";
-import { canReviewQuiz, quizReviewMessage } from "../../mock/student";
+import { areQuizScoresPublished, getStudentQuizzes, isWrittenQuestion, QUIZ_SCORES_MESSAGE, type QuizAnswerValue } from "../../api";
 
 function QuizReviewPage() {
   const { quizId } = useParams();
@@ -11,7 +10,7 @@ function QuizReviewPage() {
   const quiz = getStudentQuizzes().find((q) => q.id === quizId);
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
-  const reviewAllowed = canReviewQuiz(quiz);
+  const scoresPublished = areQuizScoresPublished(quiz);
   const hasWritten = quiz.questions.some(isWrittenQuestion);
   const answers = state?.answers ?? Object.fromEntries(
     quiz.questions.map((q) => [q.id, isWrittenQuestion(q) ? "" : q.answer]),
@@ -25,21 +24,21 @@ function QuizReviewPage() {
         <div>
           <h1 className="text-2xl font-bold">{quiz.title} - Review</h1>
           <p className="text-sm text-muted-foreground">
-            {reviewAllowed
+            {scoresPublished
               ? hasWritten
                 ? `Auto-graded score: ${score.toFixed(2)} / ${quiz.max.toFixed(2)} (written answers graded by teacher)`
                 : `Score: ${score.toFixed(2)} / ${quiz.max.toFixed(2)}`
-              : quizReviewMessage(quiz)}
+              : QUIZ_SCORES_MESSAGE}
           </p>
         </div>
         <Link to={`/student/quizzes/${quiz.id}`}><Button variant="outline" size="sm">Back to summary</Button></Link>
       </div>
 
-      {!reviewAllowed ? (
+      {!scoresPublished ? (
         <Card>
-          <CardHeader><CardTitle>Review not available yet</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Scores not published yet</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Your answers were submitted. {quizReviewMessage(quiz)}
+            Your answers were submitted. {QUIZ_SCORES_MESSAGE}
           </CardContent>
         </Card>
       ) : (
