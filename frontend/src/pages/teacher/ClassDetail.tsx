@@ -1,4 +1,4 @@
-import { AlertCircle, ExternalLink, FileText, HelpCircle, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { AlertCircle, CalendarDays, ExternalLink, FileText, HelpCircle, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
@@ -42,6 +42,7 @@ function ClassDetail() {
   const activities = useMemo(() => ctx.activities.filter((a) => a.sectionId === sid), [ctx.activities, sid]);
   const materials = useMemo(() => ctx.materials.filter((m) => m.sectionId === sid), [ctx.materials, sid]);
   const announcements = useMemo(() => ctx.announcements.filter((a) => a.sectionId === sid), [ctx.announcements, sid]);
+  const events = useMemo(() => ctx.events.filter((e) => e.sectionId === sid).sort((a, b) => a.startAt.localeCompare(b.startAt)), [ctx.events, sid]);
 
   const categories = useMemo(() => ctx.categories.filter((c) => c.sectionId === sid), [ctx.categories, sid]);
   const resultState = ctx.resultStates.find((r) => r.sectionId === sid);
@@ -53,6 +54,8 @@ function ClassDetail() {
   const [act, setAct] = useState({ title: "", kind: "assignment" as TeacherActivity["kind"], category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
   const [actErr, setActErr] = useState(""); const [showActForm, setShowActForm] = useState(false);
   const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catCount, setCatCount] = useState("1"); const [catErr, setCatErr] = useState("");
+  const [evt, setEvt] = useState({ title: "", type: "class" as "class" | "exam" | "deadline" | "other", startAt: "", endAt: "", room: "", linkedActivityId: "" });
+  const [evtErr, setEvtErr] = useState(""); const [editEvtId, setEditEvtId] = useState<string | null>(null);
 
   function suggestTitle(kind: TeacherActivity["kind"], category: string) {
     const sameCat = activities.filter((a) => a.category === category);
@@ -88,6 +91,20 @@ function ClassDetail() {
     const e = err(matName, "Material name is required."); if (e) { setMatErr(e); return; }
     ctx.setMaterials((prev) => [{ id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(), type: matUrl ? "link" : "file", size: matUrl ? undefined : (matSize || "file"), url: matUrl.trim() || undefined, uploadedAt: "2026-09-03" }, ...prev]);
     setMatName(""); setMatUrl(""); setMatSize(""); setMatErr("");
+  }
+  function saveEvent() {
+    const e = err(evt.title, "Title is required.") || err(evt.startAt, "Start is required.") || err(evt.endAt, "End is required.");
+    if (e) { setEvtErr(e); return; }
+    if (evt.endAt < evt.startAt) { setEvtErr("End must be after or equal to start."); return; }
+    if (evt.linkedActivityId && !activities.some((a) => a.id === evt.linkedActivityId)) { setEvtErr("Linked activity must belong to this section."); return; }
+    const norm = (v: string) => v.replace("T", " ");
+    const payload = { title: evt.title.trim(), type: evt.type, startAt: norm(evt.startAt), endAt: norm(evt.endAt), room: evt.room.trim() || undefined, linkedActivityId: evt.linkedActivityId || undefined };
+    if (editEvtId) {
+      ctx.setEvents((prev) => prev.map((x) => x.id === editEvtId ? { ...x, ...payload } : x));
+    } else {
+      ctx.setEvents((prev) => [...prev, { id: `tev-${Date.now()}`, sectionId: section!.id, ...payload }]);
+    }
+    setEvt({ title: "", type: "class", startAt: "", endAt: "", room: "", linkedActivityId: "" }); setEditEvtId(null); setEvtErr("");
   }
   function addActivity() {
     const e = err(act.title, "Title is required.") || err(act.openAt, "Open date is required.") || err(act.dueAt, "Due date is required.")
@@ -251,6 +268,42 @@ function ClassDetail() {
               <Card>
                 <CardHeader><CardTitle>Time Table</CardTitle></CardHeader>
                 <CardContent className="text-sm">{section.schedule}</CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="size-4" /> Section events</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  {events.length === 0 ? <p className="text-sm text-muted-foreground">No events scheduled.</p> : events.map((ev) => {
+                    const linked = activities.find((a) => a.id === ev.linkedActivityId);
+                    return (
+                      <div key={ev.id} className="rounded border p-2 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-medium">{ev.title} <Badge variant="outline" className="ml-1 capitalize">{ev.type}</Badge></p>
+                            <p className="text-xs text-muted-foreground">{ev.startAt} - {ev.endAt}{ev.room ? ` · ${ev.room}` : ""}</p>
+                            {linked && <p className="text-xs text-muted-foreground">Linked: {linked.title}</p>}
+                          </div>
+                          <div className="flex items-center">
+                            <IconBtn title="Edit event" onClick={() => { setEditEvtId(ev.id); setEvt({ title: ev.title, type: ev.type, startAt: ev.startAt.slice(0,16), endAt: ev.endAt.slice(0,16), room: ev.room ?? "", linkedActivityId: ev.linkedActivityId ?? "" }); }}><Pencil className="size-4" /></IconBtn>
+                            <IconBtn title="Delete event" danger onClick={() => ctx.setEvents((prev) => prev.filter((x) => x.id !== ev.id))}><Trash2 className="size-4" /></IconBtn>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="space-y-2 border-t pt-3">
+                    <p className="text-sm font-medium">{editEvtId ? "Edit event" : "Add event"}</p>
+                    <div className="space-y-1"><Label>Title</Label><Input value={evt.title} onChange={(e) => setEvt({ ...evt, title: e.target.value })} /></div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="space-y-1"><Label>Type</Label><Select value={evt.type} onValueChange={(v) => v && setEvt({ ...evt, type: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["class","exam","deadline","other"].map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="space-y-1"><Label>Linked activity (optional)</Label><Select value={evt.linkedActivityId || "none"} onValueChange={(v) => setEvt({ ...evt, linkedActivityId: v === "none" ? "" : (v ?? "") })}><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{activities.map((a) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="space-y-1"><Label>Start</Label><Input type="datetime-local" value={evt.startAt} onChange={(e) => setEvt({ ...evt, startAt: e.target.value })} /></div>
+                      <div className="space-y-1"><Label>End</Label><Input type="datetime-local" value={evt.endAt} onChange={(e) => setEvt({ ...evt, endAt: e.target.value })} /></div>
+                    </div>
+                    <div className="space-y-1"><Label>Room (optional)</Label><Input value={evt.room} onChange={(e) => setEvt({ ...evt, room: e.target.value })} /></div>
+                    {evtErr && <p className="text-xs text-red-600">{evtErr}</p>}
+                    <div className="flex gap-2"><Button size="sm" onClick={saveEvent}>{editEvtId ? "Save" : "Add event"}</Button>{editEvtId && <Button size="sm" variant="ghost" onClick={() => { setEditEvtId(null); setEvt({ title: "", type: "class", startAt: "", endAt: "", room: "", linkedActivityId: "" }); setEvtErr(""); }}>Cancel</Button>}</div>
+                  </div>
+                </CardContent>
               </Card>
             </div>
           </div>
