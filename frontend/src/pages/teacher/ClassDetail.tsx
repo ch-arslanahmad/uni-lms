@@ -70,6 +70,7 @@ function ClassDetail() {
   const [aq, setAq] = useState({ type: "mcq" as AssessmentQuestion["type"], text: "", options: "A,B,C,D", correctOption: "0", marks: "5" });
   const [aqErr, setAqErr] = useState("");
 
+
   if (!section || !sid) return <div className="mx-auto max-w-5xl px-4 py-8">Class not found.</div>;
 
   const base = `/teacher/classes/${sectionId}`;
