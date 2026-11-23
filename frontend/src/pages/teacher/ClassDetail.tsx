@@ -80,13 +80,13 @@ function ClassDetail() {
     if (editAnnId) {
       ctx.setAnnouncements((prev) => prev.map((a) => a.id === editAnnId ? { ...a, title: annTitle.trim(), body: annBody.trim() } : a));
     } else {
-      ctx.setAnnouncements((prev) => [{ id: `tan-${Date.now()}`, sectionId: section!.id, title: annTitle.trim(), body: annBody.trim(), date: "2026-11-22" }, ...prev]);
+      ctx.setAnnouncements((prev) => [{ id: `tan-${Date.now()}`, sectionId: section!.id, title: annTitle.trim(), body: annBody.trim(), date: "2026-09-03" }, ...prev]);
     }
     setAnnTitle(""); setAnnBody(""); setAnnErr(""); setEditAnnId(null);
   }
   function addMaterial() {
     const e = err(matName, "Material name is required."); if (e) { setMatErr(e); return; }
-    ctx.setMaterials((prev) => [{ id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(), type: matUrl ? "link" : "file", size: matUrl ? undefined : (matSize || "file"), url: matUrl.trim() || undefined, uploadedAt: "2026-11-22" }, ...prev]);
+    ctx.setMaterials((prev) => [{ id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(), type: matUrl ? "link" : "file", size: matUrl ? undefined : (matSize || "file"), url: matUrl.trim() || undefined, uploadedAt: "2026-09-03" }, ...prev]);
     setMatName(""); setMatUrl(""); setMatSize(""); setMatErr("");
   }
   function addActivity() {
@@ -337,14 +337,14 @@ function ClassDetail() {
             <div className="space-y-2">
               {WEEK_RANGES.map((range, idx) => {
                 const weekActs = activities.filter(a => weekIndexFor(a.dueAt || a.openAt) === idx);
-                const current = idx === 11;
+                const current = idx === 1;
                 return (
                   <details key={range} open={current} className={`group rounded-lg border px-4 py-3 ${current ? "border-blue-300 bg-blue-500/5" : ""}`}>
                     <summary className="cursor-pointer font-medium">
                       {range} {current && <span className="ml-2 rounded bg-blue-500 px-2 py-0.5 text-xs text-white">Current week</span>}
                     </summary>
                     <div className="mt-3 space-y-2">
-                      {weekActs.length === 0 && WEEK_ENDS[idx] < "2026-11-22" && (
+                      {weekActs.length === 0 && WEEK_ENDS[idx] < "2026-09-03" && (
                         <p className="text-sm text-muted-foreground">No activities this week.</p>
                       )}
                       {weekActs.map((a) => {
@@ -384,7 +384,7 @@ function ClassDetail() {
                           </div>
                         );
                       })}
-                      {WEEK_ENDS[idx] >= "2026-11-22" && (
+                      {WEEK_ENDS[idx] >= "2026-09-03" && (
                         <button
                           type="button"
                           title="Add activity"
