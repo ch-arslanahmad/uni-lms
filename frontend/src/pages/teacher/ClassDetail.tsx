@@ -56,7 +56,7 @@ function ClassDetail() {
   const [annTitle, setAnnTitle] = useState(""); const [annBody, setAnnBody] = useState(""); const [annErr, setAnnErr] = useState("");
   const [editAnnId, setEditAnnId] = useState<string | null>(null);
   const [matName, setMatName] = useState(""); const [matUrl, setMatUrl] = useState(""); const [matSize, setMatSize] = useState(""); const [matErr, setMatErr] = useState("");
-  const [act, setAct] = useState({ title: "", category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
+  const [act, setAct] = useState({ category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
   const [actErr, setActErr] = useState(""); const [showActForm, setShowActForm] = useState(false);
   const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catCount, setCatCount] = useState("1"); const [catErr, setCatErr] = useState("");
   const [evt, setEvt] = useState({ title: "", type: "class" as "class" | "exam", startAt: "", endAt: "", room: "", linkedAssessmentId: "" });
@@ -111,14 +111,14 @@ function ClassDetail() {
   }
   function addAssessment() {
     const kind = inferKind(act.category);
-    const e = err(act.title, "Title is required.") || err(act.openAt, "Open date is required.") || err(act.dueAt, "Due date is required.")
+    const e = err(act.openAt, "Open date is required.") || err(act.dueAt, "Due date is required.")
       || err(act.instructions, "Instructions are required.") || err(act.documentName, "A relevant document is required.")
       || ((!Number(act.maxMarks) || Number(act.maxMarks) <= 0) ? "Max marks must be > 0." : "")
       || (act.submissionMode === "physical" ? err(act.physicalRoom, "Room/location is required for physical assessments.") : "");
     if (e) { setActErr(e); return; }
     const submissionModes = kind === "quiz" || kind === "exam" ? (act.submissionMode === "physical" ? ["physical"] as ("upload" | "physical")[] : []) : [act.submissionMode];
     const newAct: TeacherAssessment = {
-      id: `act-${Date.now()}`, sectionId: section!.id, kind, title: act.title.trim(), instructions: act.instructions.trim(),
+      id: `act-${Date.now()}`, sectionId: section!.id, kind, title: suggestTitle(act.category), instructions: act.instructions.trim(),
       category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, submissionModes,
       physicalRoom: act.submissionMode === "physical" ? act.physicalRoom.trim() : undefined,
       hasMcq: kind === "quiz", reviewPolicy: kind === "quiz" || kind === "exam" ? act.reviewPolicy : undefined,
@@ -126,7 +126,7 @@ function ClassDetail() {
     };
     ctx.setAssessments((prev) => [newAct, ...prev]);
     if (newAct.kind === "quiz" || newAct.kind === "exam") setQActId(newAct.id);
-    setAct({ title: "", category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded", submissionMode: "upload", documentName: "", physicalRoom: "" });
+    setAct({ category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded", submissionMode: "upload", documentName: "", physicalRoom: "" });
     setActErr(""); setShowActForm(false);
   }
   function saveCategory() {
@@ -357,11 +357,10 @@ function ClassDetail() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2 md:col-span-2"><Label>Title</Label><Input value={act.title} onChange={e => setAct({ ...act, title: e.target.value })} /></div>
                     <div className="space-y-2">
                       <Label>Category</Label>
-                      <Select value={act.category} onValueChange={v => { if (!v) return; setAct({ ...act, category: v, title: act.title || suggestTitle(v) }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
-                      <p className="text-xs text-muted-foreground">Category determines grading bucket and assessment behavior.</p>
+                      <Select value={act.category} onValueChange={v => { if (!v) return; setAct({ ...act, category: v }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                      <p className="text-xs text-muted-foreground">Category determines grading bucket and assessment behavior. Title is auto-numbered (e.g. {suggestTitle(act.category)}).</p>
                     </div>
                     <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
                     <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v) => v && setAct({ ...act, submissionMode: v as "upload" | "physical" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
@@ -441,7 +440,7 @@ function ClassDetail() {
                           type="button"
                           title="Add assessment"
                           aria-label="Add assessment"
-                          onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx], title: prev.title || suggestTitle(prev.category) })); setShowActForm(true); }}
+                          onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx] })); setShowActForm(true); }}
                           className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:text-foreground focus-visible:bg-muted/50"
                         >
                           <Plus className="size-4" />

@@ -54,7 +54,7 @@ function TeacherTimetable() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Timetable</h1>
-          <p className="text-sm text-muted-foreground">Monthly schedule. Recurring class slots repeat on their weekdays; section events appear on their dates.</p>
+          <p className="text-sm text-muted-foreground">Monthly schedule. Recurring class slots repeat on weekdays; assessments and section events appear on their dates.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" aria-label="Previous month" onClick={() => setCursor(new Date(year, month - 1, 1))}><ChevronLeft className="size-4" /></Button>
@@ -78,6 +78,11 @@ function TeacherTimetable() {
                 const d = parseDate(e.startAt);
                 return d ? sameDate(d, date) : false;
               });
+              const dayAssessments = assessments.filter((a) => {
+                if (!teacherSections.some((s) => s.id === a.sectionId)) return false;
+                const d = parseDate(a.dueAt);
+                return d ? sameDate(d, date) : false;
+              });
               return (
                 <div key={date.toISOString()} className={`min-h-28 border-b border-r p-1.5 ${inMonth ? "bg-background" : "bg-muted/10 text-muted-foreground"}`}>
                   <div className={`mb-1 text-xs font-medium ${inMonth ? "" : "opacity-50"}`}>{date.getDate()}</div>
@@ -88,6 +93,16 @@ function TeacherTimetable() {
                         <span className="hidden sm:inline"> · {s.schedule.split(" ")[1]}</span>
                       </div>
                     ))}
+                    {dayAssessments.map((a) => {
+                      const sec = teacherSections.find((s) => s.id === a.sectionId);
+                      return (
+                        <div key={a.id} className="rounded border bg-emerald-50 px-1.5 py-0.5 text-[11px] leading-tight text-emerald-800" title={`${a.title}${a.physicalRoom ? ` (${a.physicalRoom})` : ""}`}>
+                          <div className="font-medium truncate">{a.title}</div>
+                          <div className="text-emerald-700/80 truncate">{sec ? `${sec.section.subjectCode}-${sec.section.code}` : ""}{a.physicalRoom ? ` · ${a.physicalRoom}` : ""}</div>
+                          <Badge variant="outline" className="mt-0.5 h-4 px-1 text-[10px] capitalize">{a.category}</Badge>
+                        </div>
+                      );
+                    })}
                     {dayEvents.map((ev) => {
                       const linked = assessments.find((a) => a.id === ev.linkedAssessmentId);
                       const sec = teacherSections.find((s) => s.id === ev.sectionId);
@@ -99,6 +114,7 @@ function TeacherTimetable() {
                         </div>
                       );
                     })}
+                    {slots.length === 0 && dayEvents.length === 0 && dayAssessments.length === 0 && <span className="text-[11px] text-muted-foreground">-</span>}
                   </div>
                 </div>
               );
