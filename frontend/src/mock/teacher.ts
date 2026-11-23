@@ -56,6 +56,14 @@ export interface AssessmentQuestion {
 
 export type AssessmentKind = "assignment" | "quiz" | "exam" | "project";
 export type SubmissionMode = "upload" | "physical";
+export type SubmissionType = "digital" | "physical" | null;
+
+export interface SubmissionFile {
+  name: string;
+  mimeType: string;
+  size: string | number; // bytes or a preformatted string for mocks
+  url: string;
+}
 
 export interface TeacherAssessment {
   id: string;
@@ -85,6 +93,8 @@ export interface TeacherSubmission {
   status: "not-submitted" | "submitted" | "graded" | "locked";
   marks?: number;
   feedback?: string;
+  type?: SubmissionType;
+  file?: SubmissionFile;
   fileName?: string;
   updatedBy?: string;
   updatedAt?: string;
@@ -119,7 +129,7 @@ export interface SectionResultState {
 }
 
 // Same teacher, same subject, multiple sections (typical semester assignment).
-const assignedSectionRows = sections.filter((s) => s.teacherName === "Carol" && s.subjectCode === "CS-301");
+const assignedSectionRows = sections.filter((s) => s.teacherName === "Carol" && s.subjectCode === "DBMS");
 
 function makeOfferingId(s: SectionRow): string {
   return `${s.subjectCode}-${s.termName.replace(" ", "")}-${s.programCode}-${s.code}`.replace(/[^A-Za-z0-9-]/g, "");
@@ -170,6 +180,8 @@ export const teacherAssessments: TeacherAssessment[] = [
   { id: "ta-a9", sectionId: 5, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: undefined, published: true },
 ];
 
+const MOCK_SUBMISSION_FILE_URL = "/mock-submission.svg";
+
 function seedSubmissions(): TeacherSubmission[] {
   const out: TeacherSubmission[] = [];
   for (const act of teacherAssessments) {
@@ -182,21 +194,26 @@ function seedSubmissions(): TeacherSubmission[] {
           studentId: stu.id,
           submittedAt: i < 4 ? `${act.dueAt} 10:0${i}` : undefined,
           status: i < 3 ? "graded" : i < 4 ? "submitted" : "not-submitted",
+          // Exams are paper-based; quizzes are answered in-app with no document recorded.
+          type: act.kind === "exam" ? "physical" : null,
           marks: i < 3 ? Math.max(0, act.maxMarks - i * 3) : undefined,
           feedback: i < 3 ? "Good work." : undefined,
           updatedBy: i < 3 ? "Carol" : undefined,
           updatedAt: i < 3 ? `${act.dueAt} 18:00` : undefined,
         });
       } else {
+        const fileName = `${stu.name.split(" ")[0].toLowerCase()}-${act.id}.svg`;
         out.push({
           id: `sub-${act.id}-${stu.id}`,
           assessmentId: act.id,
           studentId: stu.id,
           submittedAt: i < 5 ? `${act.dueAt} 09:1${i}` : undefined,
           status: i < 2 ? "locked" : i < 4 ? "submitted" : i === 4 ? "graded" : "not-submitted",
+          type: "digital",
+          file: i < 5 ? { name: fileName, mimeType: "image/svg+xml", size: "2 KB", url: MOCK_SUBMISSION_FILE_URL } : undefined,
           marks: i < 2 || i === 4 ? Math.max(0, act.maxMarks - i * 5) : undefined,
           feedback: i < 2 || i === 4 ? "Reviewed." : undefined,
-          fileName: i < 5 ? `${stu.name.split(" ")[0].toLowerCase()}-${act.id}.pdf` : undefined,
+          fileName: i < 5 ? fileName : undefined,
           updatedBy: i < 2 || i === 4 ? "Carol" : undefined,
           updatedAt: i < 2 || i === 4 ? `${act.dueAt} 17:30` : undefined,
         });

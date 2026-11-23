@@ -1,269 +1,592 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import { Search, X } from "lucide-react";
-import Breadcrumbs from "../../components/student/Breadcrumbs";
-import { SimpleTable, type Column } from "../../components/SimpleTable";
-import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
-import { Card } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
+import { BookOpen, Download, Search, X } from "lucide-react";
+import { Button, buttonVariants } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { teacherSections, getSectionStudents } from "../../mock/teacher";
-import { students } from "../../models";
+import {
+  getSectionStudents,
+  teacherSections,
+  type SubmissionFile,
+  type SubmissionType,
+  type TeacherSection,
+  type TeacherSubmission,
+} from "../../mock/teacher";
+import { programCurriculums, students, subjects } from "../../models";
 
 type ViewMode = "student" | "assessment";
-type DisplayStatus = "Submitted" | "Graded" | "Pending" | "Late";
+type DisplayStatus = "Submitted" | "Graded" | "Pending";
 
 type Row = {
   id: string;
   studentId: number;
   studentName: string;
-  studentLabel: string;
   assessmentId: string;
-  activityTitle: string;
-  category: string;
-  sectionLabel: string;
-  dueAt: string;
-  submittedAt: string;
+  assessmentTitle: string;
+  submittedAt?: string;
   status: DisplayStatus;
-  rawStatus: string;
-  marks: number | undefined;
+  marks?: number;
+  feedback?: string;
   maxMarks: number;
-  feedback: string;
+  submissionType: SubmissionType;
+  file?: SubmissionFile;
+  locked: boolean;
 };
 
-const TODAY = "2026-11-22";
+const STATUS_OPTIONS = ["All statuses", "Submitted", "Graded", "Pending"] as const;
 
-function displayStatus(raw: string, dueAt: string): DisplayStatus {
+function displayStatus(raw: TeacherSubmission["status"]): DisplayStatus {
   if (raw === "graded" || raw === "locked") return "Graded";
-  if (raw === "submitted") return "Submitted";
-  return dueAt < TODAY ? "Late" : "Pending";
+  if (raw === "not-submitted") return "Pending";
+  return "Submitted";
 }
 
-function statusBadgeClass(s: DisplayStatus) {
-  if (s === "Graded") return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (s === "Submitted") return "bg-blue-100 text-blue-800 border-blue-200";
-  if (s === "Late") return "bg-red-100 text-red-800 border-red-200";
-  return "bg-amber-100 text-amber-800 border-amber-200";
+function formatSize(size: SubmissionFile["size"]): string {
+  return typeof size === "number" ? `${Math.max(1, Math.round(size / 1024))} KB` : size;
+}
+
+function courseLabel(section: TeacherSection): string {
+  const subject = subjects.find((item) => item.code === section.section.subjectCode);
+  const curriculum = programCurriculums.find(
+    (item) =>
+      item.programCode === section.section.programCode &&
+      item.subjectCode === section.section.subjectCode,
+  );
+  const course = subject?.departmentCode ?? section.section.programCode;
+  return `${course} ${section.section.subjectCode}-${curriculum?.semesterNumber ?? "?"}${section.section.code}`;
+}
+
+function StatusText({ status }: { status: DisplayStatus }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-slate-700">
+      <span
+        aria-hidden="true"
+        className={`size-1.5 rounded-full ${status === "Graded" ? "bg-emerald-500" : "bg-slate-400"}`}
+      />
+      {status}
+    </span>
+  );
+}
+
+type GradeDraft = { marks: number; feedback: string; publish: boolean };
+
+type GradingDrawerProps = {
+  row: Row;
+  onClose: () => void;
+  onSave: (draft: GradeDraft) => void;
+};
+
+function GradingDrawer({ row, onClose, onSave }: GradingDrawerProps) {
+  const [marks, setMarks] = useState(row.marks != null ? String(row.marks) : "");
+  const [feedback, setFeedback] = useState(row.feedback ?? "");
+  const [error, setError] = useState("");
+  const panelRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+
+      const focusable = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  function handleSave(publish: boolean) {
+    const raw = marks.trim();
+    const value = Number(raw);
+    if (raw === "" || !Number.isFinite(value) || value < 0 || value > row.maxMarks) {
+      setError(`Enter a number between 0 and ${row.maxMarks}.`);
+      return;
+    }
+    onSave({ marks: value, feedback: feedback.trim(), publish });
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60]">
+      <div className="absolute inset-0 bg-slate-900/10" aria-hidden="true" onClick={onClose} />
+
+      <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="grading-drawer-title"
+        onClick={(event) => event.stopPropagation()}
+        className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white shadow-xl sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none sm:border-l sm:border-t-0"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 id="grading-drawer-title" className="text-base font-semibold text-slate-900">
+              {row.studentName} · #{row.studentId}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">{row.assessmentTitle}</p>
+            <div className="mt-2 text-xs">
+              <StatusText status={row.status} />
+            </div>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            aria-label="Close grading panel"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+          >
+            <X className="size-4" />
+          </button>
+        </header>
+
+        <section className="px-6 py-6">
+          <h3 className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Submission</h3>
+          <div className="mt-3 border-t border-slate-100 pt-4 text-sm">
+            {row.submissionType === "digital" ? (
+              row.file ? (
+                <div className="space-y-4">
+                  <div>
+                    <p className="font-medium text-slate-900">{row.file.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {row.file.mimeType} · {formatSize(row.file.size)}
+                    </p>
+                  </div>
+                  {row.file.url ? (
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={row.file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={buttonVariants({ size: "sm", variant: "outline" })}
+                      >
+                        View
+                      </a>
+                      <a
+                        href={row.file.url}
+                        download={row.file.name}
+                        className={buttonVariants({ size: "sm", variant: "outline" })}
+                      >
+                        <Download aria-hidden="true" className="size-4" />
+                        Download
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">File URL not recorded.</p>
+                  )}
+                  <p className="text-xs text-slate-500">
+                    If the file doesn&apos;t open, use Download.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-slate-500">No file recorded for this digital submission.</p>
+              )
+            ) : row.submissionType === "physical" ? (
+              <p className="text-slate-500">Physical submission. No document attached.</p>
+            ) : (
+              <p className="text-slate-500">Submission type not recorded</p>
+            )}
+          </div>
+        </section>
+
+        <section className="px-6 pb-8">
+          <h3 className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Grading</h3>
+          <div className="mt-3 space-y-4 border-t border-slate-100 pt-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="grading-marks">Marks</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="grading-marks"
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  min={0}
+                  max={row.maxMarks}
+                  value={marks}
+                  onChange={(event) => {
+                    setMarks(event.target.value);
+                    setError("");
+                  }}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "grading-marks-error" : undefined}
+                  className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                />
+                <span className="text-sm text-slate-400">/ {row.maxMarks}</span>
+              </div>
+            </div>
+            {error && (
+              <p id="grading-marks-error" role="alert" className="text-xs text-red-600">
+                {error}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="grading-feedback">Feedback</Label>
+              <Textarea
+                id="grading-feedback"
+                value={feedback}
+                onChange={(event) => setFeedback(event.target.value)}
+                placeholder="Optional feedback for the student"
+                className="min-h-20 rounded-lg border-slate-200 bg-white text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {row.locked ? (
+                <Button size="sm" onClick={() => handleSave(true)}>
+                  Save correction
+                </Button>
+              ) : (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => handleSave(false)}>
+                    Save draft
+                  </Button>
+                  <Button size="sm" onClick={() => handleSave(true)}>
+                    Publish &amp; lock
+                  </Button>
+                </>
+              )}
+              <Button size="sm" variant="ghost" onClick={onClose}>
+                Cancel
+              </Button>
+            </div>
+            <p className="text-xs text-slate-500">
+              {row.locked
+                ? "Corrections update the current grade and latest update metadata."
+                : "Drafts stay editable; publishing locks the submission."}
+            </p>
+          </div>
+        </section>
+      </aside>
+    </div>
+  );
 }
 
 function GradingPage() {
   const { submissions, assessments, setSubmissions } = useOutletContext<TeacherContext>();
   const [searchParams] = useSearchParams();
-  const initialActivity = searchParams.get("assessment") ?? "";
+  const initialAssessment = searchParams.get("assessment") ?? "";
 
-  const [view, setView] = useState<ViewMode>(initialActivity ? "assessment" : "student");
-  const [selectedStudent, setSelectedStudent] = useState(String(students[0]?.id ?? ""));
-  const [selectedActivity, setSelectedActivity] = useState(initialActivity || assessments[0]?.id || "");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [courseId, setCourseId] = useState(teacherSections[0]?.id ?? 0);
+  const [view, setView] = useState<ViewMode>("assessment");
+  const [assessmentId, setAssessmentId] = useState(initialAssessment);
+  const [studentId, setStudentId] = useState(students[0]?.id ?? 0);
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]>("All statuses");
   const [query, setQuery] = useState("");
-  const [drawer, setDrawer] = useState<Row | null>(null);
-  const [draftMarks, setDraftMarks] = useState("");
-  const [draftFeedback, setDraftFeedback] = useState("");
-  const [drawerErr, setDrawerErr] = useState("");
+  const [drawerRow, setDrawerRow] = useState<Row | null>(null);
+  const triggerRef = useRef<HTMLTableRowElement | null>(null);
 
-  const rows: Row[] = useMemo(() => submissions.map((sub) => {
-    const act = assessments.find((a) => a.id === sub.assessmentId);
-    const section = teacherSections.find((s) => s.id === act?.sectionId);
-    const stu = students.find((s) => s.id === sub.studentId);
-    const dueAt = sub.extensionDueAt ?? act?.dueAt ?? "—";
-    return {
-      id: sub.id,
-      studentId: sub.studentId,
-      studentName: stu?.name ?? String(sub.studentId),
-      studentLabel: `#${sub.studentId} — ${stu?.name ?? sub.studentId} (${section?.section.subjectCode ?? "—"})`,
-      assessmentId: sub.assessmentId,
-      activityTitle: act?.title ?? sub.assessmentId,
-      category: act?.category ?? "—",
-      sectionLabel: section ? `${section.section.subjectCode}-${section.section.code}` : "—",
-      dueAt,
-      submittedAt: sub.submittedAt ?? "—",
-      status: displayStatus(sub.status, dueAt),
-      rawStatus: sub.status,
-      marks: sub.marks,
-      maxMarks: act?.maxMarks ?? 100,
-      feedback: sub.feedback ?? "",
-    };
-  }), [submissions, assessments]);
+  const courseAssessments = useMemo(
+    () => assessments.filter((assessment) => assessment.sectionId === courseId),
+    [assessments, courseId],
+  );
+  const courseStudents = useMemo(() => getSectionStudents(courseId), [courseId]);
 
-  const scoped = rows.filter((r) => view === "student"
-    ? String(r.studentId) === selectedStudent
-    : r.assessmentId === selectedActivity);
+  // Derive the effective selection during render so changing the course cannot
+  // leave the selectors pointing at a section they no longer belong to.
+  const effectiveAssessmentId = courseAssessments.some((assessment) => assessment.id === assessmentId)
+    ? assessmentId
+    : courseAssessments.some((assessment) => assessment.id === initialAssessment)
+      ? initialAssessment
+      : courseAssessments[0]?.id ?? "";
+  const effectiveStudentId = courseStudents.some((student) => student.id === studentId)
+    ? studentId
+    : courseStudents[0]?.id ?? 0;
+  const selectedCourse = teacherSections.find((section) => section.id === courseId);
+  const selectedStudent = courseStudents.find((student) => student.id === effectiveStudentId);
 
-  const filtered = scoped.filter((r) => {
-    const statusOk = statusFilter === "All" || r.status === statusFilter;
-    const q = query.toLowerCase().trim();
-    const qOk = !q || (view === "student"
-      ? `${r.activityTitle} ${r.sectionLabel} ${r.category}`.toLowerCase().includes(q)
-      : `${r.studentName} ${r.studentId}`.toLowerCase().includes(q));
-    return statusOk && qOk;
+  const rows = useMemo<Row[]>(() => {
+    const courseAssessmentIds = new Set(courseAssessments.map((assessment) => assessment.id));
+    return submissions
+      .filter((submission) => courseAssessmentIds.has(submission.assessmentId))
+      .map((submission) => {
+        const assessment = courseAssessments.find((item) => item.id === submission.assessmentId);
+        return {
+          id: submission.id,
+          studentId: submission.studentId,
+          studentName: students.find((student) => student.id === submission.studentId)?.name ?? String(submission.studentId),
+          assessmentId: submission.assessmentId,
+          assessmentTitle: assessment?.title ?? submission.assessmentId,
+          submittedAt: submission.submittedAt,
+          status: displayStatus(submission.status),
+          marks: submission.marks,
+          feedback: submission.feedback,
+          maxMarks: assessment?.maxMarks ?? 100,
+          submissionType: submission.type ?? null,
+          file: submission.file,
+          locked: submission.status === "locked",
+        };
+      });
+  }, [submissions, courseAssessments]);
+
+  const scoped = rows.filter((row) =>
+    view === "assessment" ? row.assessmentId === effectiveAssessmentId : row.studentId === effectiveStudentId,
+  );
+  const q = query.trim().toLowerCase().replace(/^#/, "");
+  const filtered = scoped.filter((row) => {
+    const statusOk = statusFilter === "All statuses" || row.status === statusFilter;
+    const queryOk = !q || (view === "student"
+      ? row.assessmentTitle.toLowerCase().includes(q)
+      : row.studentName.toLowerCase().includes(q) || String(row.studentId).includes(q));
+    return statusOk && queryOk;
   });
 
-  function openDrawer(row: Row) {
-    setDrawer(row);
-    setDraftMarks(row.marks != null ? String(row.marks) : "");
-    setDraftFeedback(row.feedback);
-    setDrawerErr("");
+  const selectedAssessment = courseAssessments.find((assessment) => assessment.id === effectiveAssessmentId);
+  const marksMax = view === "assessment" ? selectedAssessment?.maxMarks ?? 100 : 100;
+
+  const closeDrawer = useCallback(() => {
+    setDrawerRow(null);
+    triggerRef.current?.focus();
+  }, []);
+
+  function openDrawer(row: Row, trigger: HTMLTableRowElement) {
+    triggerRef.current = trigger;
+    setDrawerRow(row);
   }
 
-  function saveGrade() {
-    if (!drawer) return;
-    const marks = Number(draftMarks);
-    if (draftMarks.trim() === "" || Number.isNaN(marks) || marks < 0 || marks > drawer.maxMarks) {
-      setDrawerErr(`Marks must be between 0 and ${drawer.maxMarks}.`);
-      return;
-    }
-    setSubmissions((prev) => prev.map((s) => s.id === drawer.id ? {
-      ...s,
-      marks,
-      feedback: draftFeedback.trim() || undefined,
-      status: "graded",
-      updatedBy: "Carol",
-      updatedAt: "2026-11-22 18:00",
-    } : s));
-    setDrawer(null);
+  function saveGrade({ marks, feedback, publish }: GradeDraft) {
+    if (!drawerRow) return;
+    const updatedAt = new Date().toISOString().slice(0, 16).replace("T", " ");
+    setSubmissions((previous) =>
+      previous.map((submission) =>
+        submission.id === drawerRow.id
+          ? {
+              ...submission,
+              marks,
+              feedback: feedback || undefined,
+              status: publish ? "locked" : "graded",
+              updatedBy: "Carol",
+              updatedAt,
+            }
+          : submission,
+      ),
+    );
+    closeDrawer();
   }
-
-  const cols: Column<Row>[] = view === "student"
-    ? [
-      { key: "activityTitle", label: "Assessment" },
-      { key: "category", label: "Category", render: (r) => <Badge variant="outline">{r.category}</Badge> },
-      { key: "sectionLabel", label: "Class" },
-      { key: "dueAt", label: "Effective Due" },
-      { key: "status", label: "Status", render: (r) => <Badge variant="outline" className={statusBadgeClass(r.status)}>{r.status}</Badge> },
-      { key: "marks", label: "Marks", render: (r) => <span className="tabular-nums">{r.marks != null ? r.marks : "—"} / {r.maxMarks}</span> },
-      { key: "id", label: "Action", sortable: false, headerClassName: "text-right", cellClassName: "text-right", render: (r) => (
-        <Button size="sm" variant={r.status === "Graded" ? "ghost" : "outline"} onClick={() => openDrawer(r)}>{r.status === "Graded" ? "Edit" : "Grade"}</Button>
-      ) },
-    ]
-    : [
-      { key: "studentName", label: "Student", render: (r) => <div><div className="font-medium">{r.studentName}</div><div className="text-xs text-muted-foreground">#{r.studentId}</div></div> },
-      { key: "submittedAt", label: "Submitted At" },
-      { key: "dueAt", label: "Effective Due" },
-      { key: "status", label: "Status", render: (r) => <Badge variant="outline" className={statusBadgeClass(r.status)}>{r.status}</Badge> },
-      { key: "marks", label: "Marks", render: (r) => <span className="tabular-nums">{r.marks != null ? r.marks : "—"} / {r.maxMarks}</span> },
-      { key: "id", label: "Action", sortable: false, headerClassName: "text-right", cellClassName: "text-right", render: (r) => (
-        <Button size="sm" variant={r.status === "Graded" ? "ghost" : "outline"} onClick={() => openDrawer(r)}>{r.status === "Graded" ? "Edit" : "Grade"}</Button>
-      ) },
-    ];
-
-  const entityLabel = view === "student" ? "Student" : "Assessment";
-  const searchPlaceholder = view === "student" ? "Search assessments or classes..." : "Search students by name or ID...";
-  const selectedEntityText = view === "student"
-    ? (students.find((s) => String(s.id) === selectedStudent)?.name ?? "student")
-    : (assessments.find((a) => a.id === selectedActivity)?.title ?? "assessment");
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
-      <Breadcrumbs items={[{ label: "Grading" }]} />
-      <div>
-        <h1 className="text-2xl font-bold">Grading</h1>
-        <p className="text-sm text-muted-foreground">View one assessment across all students, or all assessments for one student.</p>
+    <div className="mx-auto max-w-6xl px-6 py-10">
+      <div className="flex flex-wrap items-start justify-between gap-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Grading</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            View one assessment across all students, or all assessments for one student.
+          </p>
+        </div>
+        <div className="flex flex-col items-start gap-1.5">
+          <span className="flex items-center gap-1.5 text-xs text-slate-500">
+            <BookOpen aria-hidden="true" className="size-3.5" />
+            Course
+          </span>
+          <Select value={String(courseId)} onValueChange={(value) => value && setCourseId(Number(value))}>
+            <SelectTrigger className="h-9 w-64 rounded-lg border-slate-200 bg-white">
+              <SelectValue>{selectedCourse ? courseLabel(selectedCourse) : "Course"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {teacherSections.map((section) => (
+                <SelectItem key={section.id} value={String(section.id)}>
+                  {courseLabel(section)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <Label>View</Label>
-          <div className="flex h-10 rounded-md border p-1 gap-1">
-            <Button size="sm" variant={view === "student" ? "secondary" : "ghost"} onClick={() => setView("student")}>By Student</Button>
-            <Button size="sm" variant={view === "assessment" ? "secondary" : "ghost"} onClick={() => setView("assessment")}>By Assessment</Button>
-          </div>
+      <div className="mt-10 flex flex-wrap items-end gap-4">
+        <div role="group" aria-label="Grading view" className="inline-flex rounded-xl bg-slate-100 p-1">
+          {(["student", "assessment"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={view === mode}
+              onClick={() => setView(mode)}
+              className={`rounded-lg px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 ${
+                view === mode
+                  ? "bg-white font-medium text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {mode === "student" ? "By Student" : "By Assessment"}
+            </button>
+          ))}
         </div>
 
-        <div className="space-y-1">
-          <Label>{entityLabel}</Label>
-          {view === "student" ? (
-            <Select value={selectedStudent} onValueChange={(v) => v && setSelectedStudent(v)}>
-              <SelectTrigger className="h-10 w-72"><SelectValue /></SelectTrigger>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-slate-500">{view === "assessment" ? "Assessment" : "Student"}</span>
+          {view === "assessment" ? (
+            <Select value={effectiveAssessmentId} onValueChange={(value) => value && setAssessmentId(value)}>
+              <SelectTrigger className="h-9 w-64 rounded-lg border-slate-200 bg-white">
+                <SelectValue>{selectedAssessment?.title ?? "Assessment"}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
-                {students.map((s) => {
-                  const sec = teacherSections.find((ts) => getSectionStudents(ts.id).some((x) => x.id === s.id));
-                  return <SelectItem key={s.id} value={String(s.id)}>#{s.id} — {s.name} ({sec?.section.subjectCode ?? "—"})</SelectItem>;
-                })}
+                {courseAssessments.map((assessment) => (
+                  <SelectItem key={assessment.id} value={assessment.id}>
+                    {assessment.title}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           ) : (
-            <Select value={selectedActivity} onValueChange={(v) => v && setSelectedActivity(v)}>
-              <SelectTrigger className="h-10 w-72"><SelectValue /></SelectTrigger>
+            <Select value={String(effectiveStudentId)} onValueChange={(value) => value && setStudentId(Number(value))}>
+              <SelectTrigger className="h-9 w-64 rounded-lg border-slate-200 bg-white">
+                <SelectValue>
+                  {selectedStudent ? `#${selectedStudent.id} — ${selectedStudent.name}` : "Student"}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
-                {assessments.map((a) => {
-                  const sec = teacherSections.find((s) => s.id === a.sectionId);
-                  return <SelectItem key={a.id} value={a.id}>{a.title} ({sec?.section.subjectCode ?? "—"})</SelectItem>;
-                })}
+                {courseStudents.map((student) => (
+                  <SelectItem key={student.id} value={String(student.id)}>
+                    #{student.id} — {student.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}
         </div>
+      </div>
 
-        <div className="space-y-1">
-          <Label>Status</Label>
-          <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-            <SelectTrigger className="h-10 w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>{["All", "Submitted", "Graded", "Pending", "Late"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+      <div className="mt-4 flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-slate-500">Status</span>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => value && setStatusFilter(value as (typeof STATUS_OPTIONS)[number])}
+          >
+            <SelectTrigger className="h-9 w-44 rounded-lg border-slate-200 bg-white">
+              <SelectValue>{statusFilter}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
 
-        <div className="space-y-1 flex-1 min-w-64">
-          <Label>Search</Label>
+        <div className="flex min-w-64 flex-1 flex-col gap-1.5">
+          <Label htmlFor="grading-search" className="text-xs font-normal text-slate-500">
+            Search
+          </Label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="h-10 pl-9 pr-9" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={searchPlaceholder} />
-            {query && <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground" onClick={() => setQuery("")}><X className="size-4" /></button>}
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <input
+              id="grading-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={view === "student" ? "Search assessments..." : "Search students by name or #ID..."}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+            />
           </div>
         </div>
       </div>
 
-      <Card className="overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <Search className="size-8 text-muted-foreground/60" />
-            <p className="text-sm text-muted-foreground">No {statusFilter === "All" ? "" : statusFilter.toLowerCase() + " "}assessments found for {selectedEntityText}.</p>
-            <Button variant="outline" size="sm" onClick={() => { setQuery(""); setStatusFilter("All"); }}>Clear filters</Button>
-          </div>
-        ) : (
-          <SimpleTable columns={cols} data={filtered} searchable={false} />
-        )}
-      </Card>
+      <div className="mt-8">
+        <table className="w-full border-collapse text-sm">
+          <caption className="sr-only">Grading results</caption>
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              <th scope="col" className="hidden px-3 py-3 font-medium sm:table-cell">ID</th>
+              <th scope="col" className="hidden px-3 py-3 font-medium sm:table-cell">Student</th>
+              <th scope="col" className="px-3 py-3 font-medium sm:hidden">Student</th>
+              {view === "student" && (
+                <th scope="col" className="px-3 py-3 font-medium">Assessment</th>
+              )}
+              <th scope="col" className="hidden px-3 py-3 font-medium md:table-cell">Submitted</th>
+              <th scope="col" className="px-3 py-3 font-medium">Status</th>
+              <th scope="col" className="px-3 py-3 text-right font-medium">
+                Marks{view === "assessment" ? ` (out of ${marksMax})` : ""}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={view === "student" ? 7 : 6} className="px-3 py-16 text-center text-sm text-slate-500">
+                  No results for the selected filters.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery("");
+                      setStatusFilter("All statuses");
+                    }}
+                    className="ml-2 text-blue-600 hover:underline"
+                  >
+                    Clear filters
+                  </button>
+                </td>
+              </tr>
+            ) : (
+              filtered.map((row) => (
+                <tr
+                  key={row.id}
+                  tabIndex={0}
+                  aria-label={`Open grading for ${row.studentName}, student #${row.studentId}${view === "student" ? `, ${row.assessmentTitle}` : ""}`}
+                  onClick={(event) => openDrawer(row, event.currentTarget)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openDrawer(row, event.currentTarget);
+                    }
+                  }}
+                  className="h-14 cursor-pointer border-b border-slate-100 outline-none transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-slate-300"
+                >
+                  <td className="hidden px-3 py-3 font-mono text-xs text-slate-400 sm:table-cell">#{row.studentId}</td>
+                  <td className="hidden px-3 py-3 font-medium text-slate-900 sm:table-cell">{row.studentName}</td>
+                  <td className="px-3 py-3 font-medium text-slate-900 sm:hidden">
+                    {row.studentName}
+                    <span className="ml-2 font-mono text-xs font-normal text-slate-400">#{row.studentId}</span>
+                  </td>
+                  {view === "student" && (
+                    <td className="px-3 py-3 text-slate-700">{row.assessmentTitle}</td>
+                  )}
+                  <td className="hidden px-3 py-3 font-mono text-xs text-slate-400 md:table-cell">
+                    {row.submittedAt ?? "—"}
+                  </td>
+                  <td className="px-3 py-3">
+                    <StatusText status={row.status} />
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-slate-900">
+                    {row.marks != null ? (
+                      <>
+                        {row.marks}
+                        <span className="ml-1 text-slate-400">/ {row.maxMarks}</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {drawer && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setDrawer(null)} />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-md border-l bg-background p-6 shadow-xl overflow-y-auto">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold">Grade submission</h2>
-                <p className="text-sm text-muted-foreground">{drawer.studentName} · {drawer.activityTitle}</p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setDrawer(null)}><X className="size-4" /></Button>
-            </div>
-            <div className="mt-6 space-y-4 text-sm">
-              <div className="rounded-md border p-3 space-y-1">
-                <p><span className="font-medium">Student:</span> {drawer.studentLabel}</p>
-                <p><span className="font-medium">Assessment:</span> {drawer.activityTitle}</p>
-                <p><span className="font-medium">Class:</span> {drawer.sectionLabel}</p>
-                <p><span className="font-medium">Submitted:</span> {drawer.submittedAt}</p>
-                <p><span className="font-medium">Due:</span> {drawer.dueAt}</p>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="drawer-marks">Marks (0 - {drawer.maxMarks})</Label>
-                <Input id="drawer-marks" type="number" min={0} max={drawer.maxMarks} value={draftMarks} onChange={(e) => setDraftMarks(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="drawer-feedback">Feedback (optional)</Label>
-                <Textarea id="drawer-feedback" value={draftFeedback} onChange={(e) => setDraftFeedback(e.target.value)} placeholder="Optional feedback for student" />
-              </div>
-              {drawerErr && <p className="text-xs text-red-600">{drawerErr}</p>}
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setDrawer(null)}>Cancel</Button>
-                <Button onClick={saveGrade}>Save Grade</Button>
-              </div>
-            </div>
-          </aside>
-        </div>
-      )}
+      {drawerRow && <GradingDrawer row={drawerRow} onClose={closeDrawer} onSave={saveGrade} />}
     </div>
   );
 }
