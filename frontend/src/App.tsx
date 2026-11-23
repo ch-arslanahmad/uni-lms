@@ -83,7 +83,7 @@ const router = createBrowserRouter([
       { path: "classes", element: <MyClasses /> },
       { path: "classes/:sectionId", element: <ClassDetail /> },
       { path: "grading", element: <GradingPage /> },
-      { path: "grading/:submissionId", element: <SubmissionDetailPage /> },
+      { path: "grading/:studentRef/:assessmentRef", element: <SubmissionDetailPage /> },
       { path: "questions", element: <QuestionsPage /> },
       { path: "timetable", element: <TeacherTimetable /> },
       { path: "*", element: <NotFound /> },

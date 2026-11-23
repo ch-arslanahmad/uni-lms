@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
+import { parseAssessmentId, parseStudentId } from "../../lib/slugs";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -12,7 +13,9 @@ import { teacherSections } from "../../mock/teacher";
 import { students } from "../../models";
 
 function SubmissionDetailPage() {
-  const { submissionId } = useParams();
+  const { studentRef, assessmentRef } = useParams();
+  const studentId = parseStudentId(studentRef);
+  const assessmentId = parseAssessmentId(assessmentRef);
   const {
     submissions,
     setSubmissions,
@@ -21,10 +24,10 @@ function SubmissionDetailPage() {
     assessmentAttempts,
     assessmentAnswers,
   } = useOutletContext<TeacherContext>();
-  const sub = submissions.find((s) => s.id === submissionId);
-  const act = assessments.find((a) => a.id === sub?.assessmentId);
+  const act = assessments.find((a) => a.id === assessmentId);
+  const sub = submissions.find((s) => s.assessmentId === assessmentId && s.studentId === studentId);
   const section = teacherSections.find((s) => s.id === act?.sectionId);
-  const student = students.find((s) => s.id === sub?.studentId);
+  const student = students.find((s) => s.id === studentId);
   const questions = assessmentQuestions.filter((question) => question.assessmentId === act?.id);
   const attempt = assessmentAttempts.find(
     (item) => item.assessmentId === act?.id && item.studentId === sub?.studentId,

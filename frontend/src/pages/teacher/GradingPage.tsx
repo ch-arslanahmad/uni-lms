@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import { assessmentSlug, studentSlug } from "../../lib/slugs";
 import { BookOpen, Search, X } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
@@ -165,7 +166,7 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave }: Gr
             <div className="mt-2 flex items-center gap-3 text-xs">
               <StatusText status={row.status} />
               <Link
-                to={`/teacher/grading/${row.id}`}
+                to={`/teacher/grading/${studentSlug(row.studentId, row.studentName)}/${assessmentSlug(row.assessmentId, row.assessmentTitle)}`}
                 className="text-blue-600 hover:underline"
                 onClick={onClose}
               >
