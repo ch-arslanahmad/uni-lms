@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
-import { canReviewQuiz, quizzes } from "../../mock/student";
+import { quizzes } from "../../mock/student";
 
 function QuizAttemptPage() {
   const { quizId } = useParams();
@@ -29,11 +29,6 @@ function QuizAttemptPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const score = useMemo(
-    () => quiz?.questions.reduce((sum, q) => sum + (answers[q.id] === q.answer ? q.points : 0), 0) ?? 0,
-    [answers, quiz],
-  );
-
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
   const expired = remaining === 0;
   const question = quiz.questions[index];
@@ -55,7 +50,7 @@ function QuizAttemptPage() {
       </div>
       {expired && (
         <div className="rounded-lg border border-red-200 bg-red-500/10 px-4 py-3 text-sm text-red-700">
-          Time expired. Answers are locked. Submit your attempt to view results.
+          Time expired. Answers are locked. Submit your attempt. Results will be available after publication.
         </div>
       )}
 
@@ -110,12 +105,12 @@ function QuizAttemptPage() {
             <DialogTitle>Submit this attempt?</DialogTitle>
             <DialogDescription>
               You answered {Object.keys(answers).length} of {quiz.questions.length} questions.
-              {canReviewQuiz(quiz) ? ` Your provisional score is ${score}/${quiz.max}.` : " Your score will be available according to the review policy."}
+              Your score will be available after results are published.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirm(false)}>Keep working</Button>
-            <Button onClick={() => navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers, score } })}>Submit</Button>
+            <Button onClick={() => navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers } })}>Submit</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
