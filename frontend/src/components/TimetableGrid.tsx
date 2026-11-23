@@ -4,16 +4,18 @@ import {
   TIME_SLOTS,
   type ScheduleSlot,
 } from "../mock/timetable";
-import { subjects } from "../models";
+import type { SubjectRow } from "../models";
 
 export interface TimetableGridProps {
   slots: ScheduleSlot[];
+  subjects: SubjectRow[];
   onCellClick: (day: string, time: string) => void;
   onSlotClick: (slot: ScheduleSlot) => void;
 }
 
 export function TimetableGrid({
   slots,
+  subjects,
   onCellClick,
   onSlotClick,
 }: TimetableGridProps) {
@@ -70,6 +72,7 @@ export function TimetableGrid({
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
                           <UserIcon size={10} />
                           <span>{slot.teacherName}</span>
+                          <span className="ml-auto font-medium">{slot.room}</span>
                         </div>
                       </div>
                     ) : (

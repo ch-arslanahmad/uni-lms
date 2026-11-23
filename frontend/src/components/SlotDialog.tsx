@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,12 +9,14 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
+import { Input } from "./ui/input";
 import {
   DAYS_OF_WEEK,
   TIME_SLOTS,
   type ScheduleSlot,
 } from "../mock/timetable";
-import { subjects, teachers } from "../models";
+import { useAdminStore } from "../lib/adminStore";
+import type { SubjectRow } from "../models";
 
 export interface SlotDialogProps {
   open: boolean;
@@ -22,6 +25,11 @@ export interface SlotDialogProps {
   initialDay?: string;
   initialTime?: string;
   editSlot?: ScheduleSlot | null;
+  /** Subjects offered to this class (curriculum-filtered by the page). */
+  subjectOptions: SubjectRow[];
+  /** Store action: returns an error string (e.g. overlap conflict) or null. */
+  onSave: (slot: Omit<ScheduleSlot, "id">, id?: number) => string | null;
+  onDelete: (id: number) => string | null;
 }
 
 export function SlotDialog({
@@ -31,8 +39,56 @@ export function SlotDialog({
   initialDay,
   initialTime,
   editSlot,
+  subjectOptions,
+  onSave,
+  onDelete,
 }: SlotDialogProps) {
   const isEditing = !!editSlot;
+  const { users } = useAdminStore();
+  const teachers = users.filter((u) => u.role === "teacher");
+
+  const [day, setDay] = useState<string>(DAYS_OF_WEEK[0]);
+  const [time, setTime] = useState<string>(TIME_SLOTS[0]);
+  const [subjectCode, setSubjectCode] = useState("");
+  const [teacherName, setTeacherName] = useState("");
+  const [room, setRoom] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset the form whenever the dialog opens for a cell or an existing slot.
+  useEffect(() => {
+    if (open) {
+      setDay(editSlot?.dayOfWeek ?? initialDay ?? DAYS_OF_WEEK[0]);
+      setTime(editSlot?.timeSlot ?? initialTime ?? TIME_SLOTS[0]);
+      setSubjectCode(editSlot?.subjectCode ?? subjectOptions[0]?.code ?? "");
+      setTeacherName(editSlot?.teacherName ?? teachers[0]?.name ?? "");
+      setRoom(editSlot?.room ?? "");
+      setError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editSlot, initialDay, initialTime]);
+
+  const handleSave = () => {
+    const result = onSave(
+      {
+        sectionCode,
+        subjectCode,
+        teacherName,
+        room,
+        dayOfWeek: day as ScheduleSlot["dayOfWeek"],
+        timeSlot: time,
+      },
+      editSlot?.id,
+    );
+    if (result) setError(result);
+    else onOpenChange(false);
+  };
+
+  const handleDelete = () => {
+    if (!editSlot) return;
+    const result = onDelete(editSlot.id);
+    if (result) setError(result);
+    else onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -47,7 +103,6 @@ export function SlotDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Presentational Form (No functionality for now as requested) */}
         <div className="grid gap-3.5 py-2 text-sm">
           <div className="grid grid-cols-4 items-center gap-3">
             <Label htmlFor="day" className="text-right text-xs">
@@ -55,12 +110,13 @@ export function SlotDialog({
             </Label>
             <select
               id="day"
-              defaultValue={editSlot?.dayOfWeek ?? initialDay ?? DAYS_OF_WEEK[0]}
+              value={day}
+              onChange={(e) => setDay(e.target.value)}
               className="col-span-3 flex h-8 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs"
             >
-              {DAYS_OF_WEEK.map((day) => (
-                <option key={day} value={day}>
-                  {day}
+              {DAYS_OF_WEEK.map((d) => (
+                <option key={d} value={d}>
+                  {d}
                 </option>
               ))}
             </select>
@@ -72,7 +128,8 @@ export function SlotDialog({
             </Label>
             <select
               id="time"
-              defaultValue={editSlot?.timeSlot ?? initialTime ?? TIME_SLOTS[0]}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
               className="col-span-3 flex h-8 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs"
             >
               {TIME_SLOTS.map((slot) => (
@@ -89,10 +146,14 @@ export function SlotDialog({
             </Label>
             <select
               id="subject"
-              defaultValue={editSlot?.subjectCode ?? subjects[0]?.code}
+              value={subjectCode}
+              onChange={(e) => setSubjectCode(e.target.value)}
               className="col-span-3 flex h-8 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs"
             >
-              {subjects.slice(0, 15).map((sub) => (
+              {subjectOptions.length === 0 && (
+                <option value="">No curriculum subjects for this class</option>
+              )}
+              {subjectOptions.map((sub) => (
                 <option key={sub.code} value={sub.code}>
                   {sub.code} — {sub.title}
                 </option>
@@ -106,7 +167,8 @@ export function SlotDialog({
             </Label>
             <select
               id="teacher"
-              defaultValue={editSlot?.teacherName ?? teachers[0]?.name}
+              value={teacherName}
+              onChange={(e) => setTeacherName(e.target.value)}
               className="col-span-3 flex h-8 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs"
             >
               {teachers.map((t) => (
@@ -116,6 +178,25 @@ export function SlotDialog({
               ))}
             </select>
           </div>
+
+          <div className="grid grid-cols-4 items-center gap-3">
+            <Label htmlFor="room" className="text-right text-xs">
+              Room
+            </Label>
+            <Input
+              id="room"
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              placeholder="CS-Lab-1 / Room-204"
+              className="col-span-3 h-8 text-xs"
+            />
+          </div>
+
+          {error && (
+            <div className="p-2.5 text-xs rounded-md border border-destructive/30 bg-destructive/10 text-destructive">
+              {error}
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -124,7 +205,7 @@ export function SlotDialog({
               type="button"
               variant="destructive"
               size="sm"
-              onClick={() => onOpenChange(false)}
+              onClick={handleDelete}
               className="mr-auto"
             >
               Remove
@@ -141,7 +222,8 @@ export function SlotDialog({
           <Button
             type="button"
             size="sm"
-            onClick={() => onOpenChange(false)}
+            onClick={handleSave}
+            disabled={subjectOptions.length === 0}
           >
             {isEditing ? "Save Changes" : "Create Slot"}
           </Button>

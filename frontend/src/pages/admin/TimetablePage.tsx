@@ -7,13 +7,9 @@ import { Button } from "../../components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Plus, FileSpreadsheet, Calendar as CalendarIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { departments, programs } from "../../models";
+import { useAdminStore, saveSlot, deleteSlot } from "../../lib/adminStore";
+import { type ScheduleSlot } from "../../mock/timetable";
 import {
-  initialScheduleSlots,
-  type ScheduleSlot,
-} from "../../mock/timetable";
-import {
-  mockExamDatesheet,
   academicCalendarMilestones,
   type ExamDatesheetEntry,
 } from "../../mock/calendar";
@@ -31,11 +27,14 @@ const datesheetCols: Column<ExamDatesheetEntry>[] = [
 ];
 
 export default function TimetablePage() {
+  const store = useAdminStore();
+  const { departments, programs } = store;
+
   const [activeTab, setActiveTab] = useState<"timetable" | "datesheet" | "milestones">("timetable");
   const [dept, setDept] = useState(departments[0]?.code ?? "CS");
   const filteredPrograms = useMemo(
     () => programs.filter((p) => p.departmentCode === dept),
-    [dept],
+    [dept, programs],
   );
   const [prog, setProg] = useState(filteredPrograms[0]?.code ?? "BSCS");
   const [semester, setSemester] = useState("5");
@@ -45,8 +44,24 @@ export default function TimetablePage() {
   const [datesheetSearch, setDatesheetSearch] = useState("");
   const [examTypeFilter, setExamTypeFilter] = useState("ALL");
 
-  // Slots state (preloaded with realistic sample data)
-  const [slots] = useState<ScheduleSlot[]>(initialScheduleSlots);
+  // Slots come from the shared store, filtered to the selected class.
+  const classCode = `${prog}-${semester}${section}`;
+  const slots = useMemo(
+    () => store.scheduleSlots.filter((s) => s.sectionCode === classCode),
+    [store.scheduleSlots, classCode],
+  );
+
+  // Subjects offered to this class: its curriculum semester, plus any
+  // subject already scheduled (so existing slots stay editable).
+  const subjectOptions = useMemo(() => {
+    const curriculumCodes = new Set(
+      store.programCurriculums
+        .filter((c) => c.programCode === prog && c.semesterNumber === Number(semester))
+        .map((c) => c.subjectCode),
+    );
+    slots.forEach((s) => curriculumCodes.add(s.subjectCode));
+    return store.subjects.filter((s) => curriculumCodes.has(s.code));
+  }, [store.programCurriculums, store.subjects, prog, semester, slots]);
 
   // Modal State
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -54,10 +69,8 @@ export default function TimetablePage() {
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
   const [editingSlot, setEditingSlot] = useState<ScheduleSlot | null>(null);
 
-  const classCode = `${prog}-${semester}${section}`;
-
   const filteredDatesheet = useMemo(() => {
-    return mockExamDatesheet
+    return store.examDatesheet
       .filter((entry) => examTypeFilter === "ALL" || entry.examType.toUpperCase() === examTypeFilter.toUpperCase())
       .filter(
         (entry) =>
@@ -65,7 +78,7 @@ export default function TimetablePage() {
           entry.subjectTitle.toLowerCase().includes(datesheetSearch.toLowerCase()) ||
           entry.classSection.toLowerCase().includes(datesheetSearch.toLowerCase()),
       );
-  }, [examTypeFilter, datesheetSearch]);
+  }, [examTypeFilter, datesheetSearch, store.examDatesheet]);
 
   const handleCellClick = (day: string, time: string) => {
     setEditingSlot(null);
@@ -185,12 +198,15 @@ export default function TimetablePage() {
                       Weekly Schedule Matrix
                     </span>
                     <span className="text-[11px] text-muted-foreground">
-                      Click on any empty cell or slot card to manage schedules
+                      {slots.length === 0
+                        ? `No classes scheduled for ${classCode} yet — click a cell to add one`
+                        : "Click on any empty cell or slot card to manage schedules"}
                     </span>
                   </div>
 
                   <TimetableGrid
                     slots={slots}
+                    subjects={store.subjects}
                     onCellClick={handleCellClick}
                     onSlotClick={handleSlotClick}
                   />
@@ -270,6 +286,9 @@ export default function TimetablePage() {
         initialDay={selectedDay}
         initialTime={selectedTime}
         editSlot={editingSlot}
+        subjectOptions={subjectOptions}
+        onSave={saveSlot}
+        onDelete={deleteSlot}
       />
     </div>
   );
