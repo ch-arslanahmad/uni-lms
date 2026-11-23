@@ -15,6 +15,8 @@ import {
 import {
   autoGradeMcqAnswers,
   calculateAttemptTotal,
+  currentTeacherName,
+  nowTimestamp,
 } from "../../api";
 import {
   getSectionStudents,
@@ -397,7 +399,6 @@ function GradingPage() {
 
   function saveGrade({ marks, feedback, publish }: GradeDraft) {
     if (!drawerRow) return;
-    const updatedAt = new Date().toISOString().slice(0, 16).replace("T", " ");
     setSubmissions((previous) =>
       previous.map((submission) =>
         submission.id === drawerRow.id
@@ -406,8 +407,8 @@ function GradingPage() {
               marks,
               feedback: feedback || undefined,
               status: publish ? "locked" : "graded",
-              updatedBy: "Carol",
-              updatedAt,
+              updatedBy: currentTeacherName(),
+              updatedAt: nowTimestamp(),
             }
           : submission,
       ),

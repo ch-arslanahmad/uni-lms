@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { teacherSections } from "../../api";
+import { nowTimestamp, teacherSections } from "../../api";
 import { students } from "../../models";
 
 type StatusFilter = "All" | "pending" | "answered" | "resolved";
@@ -60,7 +60,7 @@ function QuestionsPage() {
     if (!answer) return;
     setQuestions((prev) =>
       prev.map((q) =>
-        q.id === id ? { ...q, answer, answeredAt: "2026-11-22 12:00", status: "answered" } : q,
+        q.id === id ? { ...q, answer, answeredAt: nowTimestamp(), status: "answered" } : q,
       ),
     );
     setDrafts((d) => ({ ...d, [id]: "" }));

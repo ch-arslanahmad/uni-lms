@@ -12,6 +12,8 @@ import { AssessmentAnswers, AssessmentReference, AttachmentCard } from "../../co
 import {
   autoGradeMcqAnswers,
   calculateAttemptTotal,
+  currentTeacherName,
+  nowTimestamp,
   teacherSections,
 } from "../../api";
 import { students } from "../../models";
@@ -72,14 +74,14 @@ function SubmissionDetailPage() {
     if (!Number.isFinite(m) || m < 0 || m > act!.maxMarks) { setErr(`Marks must be between 0 and ${act!.maxMarks}.`); return; }
     autoGradeMcq();
     setErr(""); setMsg(publish ? "Grade published and submission locked." : "Draft grade saved.");
-    setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, marks: m, feedback: feedback.trim(), status: publish ? "locked" : "graded", updatedBy: "Carol", updatedAt: "2026-11-22 12:00" } : x));
+    setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, marks: m, feedback: feedback.trim(), status: publish ? "locked" : "graded", updatedBy: currentTeacherName(), updatedAt: nowTimestamp() } : x));
   }
   function saveCorrection() {
     const m = hasMcq && marks.trim() === "" ? autoTotal : Number(marks);
     if (!Number.isFinite(m) || m < 0 || m > act!.maxMarks) { setErr(`Marks must be between 0 and ${act!.maxMarks}.`); return; }
     autoGradeMcq();
     setErr(""); setMsg("Grade corrected. Current grade updated; latest updater/timestamp stored (no history).");
-    setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, marks: m, feedback: feedback.trim(), status: "locked", updatedBy: "Carol", updatedAt: "2026-11-22 12:05" } : x));
+    setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, marks: m, feedback: feedback.trim(), status: "locked", updatedBy: currentTeacherName(), updatedAt: nowTimestamp() } : x));
   }
   function grantExtension() {
     if (!extDate) { setErr("Extension date is required."); return; }

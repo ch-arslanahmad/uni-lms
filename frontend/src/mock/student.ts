@@ -63,6 +63,8 @@ export interface QuizQuestion {
   options: string[];
   answer: number;
   points: number;
+  // Written questions are answered with free text and graded by the teacher.
+  type?: "mcq" | "written";
 }
 
 export type QuizReviewPolicy = "immediate" | "after_close" | "after_graded" | "never";
@@ -70,6 +72,9 @@ export type QuizReviewPolicy = "immediate" | "after_close" | "after_graded" | "n
 export interface Quiz {
   id: string;
   offeringId: string;
+  // Links a seeded student quiz to a teacher-created assessment so its
+  // questions come from the teacher workspace snapshot in Phase 1.
+  sourceAssessmentId?: string;
   title: string;
   opened: string;
   closed: string;
@@ -243,6 +248,7 @@ export const quizzes: Quiz[] = [
   {
     id: "q1",
     offeringId: "CS301-5-A",
+    sourceAssessmentId: "ta-a2",
     title: "Quiz #1",
     opened: "2026-09-15 09:00",
     closed: "2026-09-21 23:59",
@@ -260,6 +266,7 @@ export const quizzes: Quiz[] = [
   {
     id: "q2",
     offeringId: "CS301-5-A",
+    sourceAssessmentId: "ta-a7",
     title: "Quiz #2",
     opened: "2026-11-18 09:00",
     closed: "2026-11-24 23:59",
@@ -277,6 +284,7 @@ export const quizzes: Quiz[] = [
   {
     id: "q4",
     offeringId: "CS201-5-B",
+    sourceAssessmentId: "ta-a4",
     title: "Quiz: Trees",
     opened: "2026-09-22 09:00",
     closed: "2026-09-22 09:30",

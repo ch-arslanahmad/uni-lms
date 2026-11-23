@@ -2,4 +2,5 @@
 
 export * from "./client";
 export * from "./results";
+export * from "./studentQuizzes";
 export * from "../mock/teacher";

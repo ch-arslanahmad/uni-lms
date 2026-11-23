@@ -15,6 +15,7 @@ import {
   gradeCategories,
   sectionResultStates,
   teacherProjects,
+  getTeacherProfile,
   type AssessmentAnswer,
   type AssessmentAttempt,
   type AssessmentQuestion,
@@ -47,6 +48,19 @@ export interface TeacherSnapshot {
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// Shared by every localStorage-backed workspace so keys never drift.
+export const TEACHER_SNAPSHOT_KEY = "uni-lms.teacher-snapshot.v1";
+
+// Phase 1 identity/time helpers: mutations record the signed-in teacher and the
+// real time instead of seed values.
+export function currentTeacherName(): string {
+  return getTeacherProfile()?.name ?? "Teacher";
+}
+
+export function nowTimestamp(): string {
+  return new Date().toISOString().slice(0, 16).replace("T", " ");
+}
 
 export const mockApi = {
   async loadTeacherSnapshot(): Promise<TeacherSnapshot> {

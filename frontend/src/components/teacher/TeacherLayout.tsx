@@ -9,6 +9,7 @@ import { Role } from "../../models";
 import {
   getTeacherProfile,
   mockApi,
+  TEACHER_SNAPSHOT_KEY,
   useApiQuery,
   type AssessmentAnswer,
   type AssessmentAttempt,
@@ -52,13 +53,12 @@ export interface TeacherContext {
   setProjects: React.Dispatch<React.SetStateAction<TeacherProject[]>>;
 }
 
-const STORAGE_KEY = "uni-lms.teacher-snapshot.v1";
 
 // Phase 1 persistence: the API returns a fresh snapshot, then local edits replay
 // on top of it. Phase 2 replaces this with real API mutations.
 function hydrate(fresh: TeacherSnapshot): TeacherSnapshot {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(TEACHER_SNAPSHOT_KEY);
     if (!raw) return fresh;
     const saved = JSON.parse(raw) as Partial<TeacherSnapshot>;
     const merged = { ...fresh };
@@ -111,7 +111,7 @@ function TeacherLayout() {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(TEACHER_SNAPSHOT_KEY, JSON.stringify({
         assessments, submissions, questions, materials, announcements, events,
         assessmentQuestions, assessmentAttempts, assessmentAnswers,
         categories, resultStates, projects,

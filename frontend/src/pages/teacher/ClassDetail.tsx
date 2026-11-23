@@ -16,6 +16,7 @@ import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import {
   calculateCourseResults,
   fileToSubmissionFile,
+  nowTimestamp,
   getSectionStudents,
   getTeacherSection,
   makeAssessmentReference,
@@ -43,6 +44,11 @@ const WEEK_ENDS   = ["2026-08-31","2026-09-07","2026-09-14","2026-09-21","2026-0
 function weekIndexFor(date: string) { const d = date.slice(0, 10); const i = WEEK_STARTS.findIndex((s, idx) => d >= s && d <= WEEK_ENDS[idx]); return i === -1 ? WEEK_RANGES.length - 1 : i; }
 
 function err(v: string, msg: string) { return v.trim() ? "" : msg; }
+function toLocalInput(value?: string) {
+  if (!value) return "";
+  const normalized = value.replace(" ", "T");
+  return normalized.length === 10 ? `${normalized}T09:00` : normalized.slice(0, 16);
+}
 function IconBtn({ title, onClick, children, danger }: { title: string; onClick: () => void; children: React.ReactNode; danger?: boolean }) {
   return <Button variant="ghost" size="icon" className={danger ? "text-red-600 hover:text-red-700" : "text-muted-foreground hover:text-foreground"} title={title} aria-label={title} onClick={onClick}>{children}</Button>;
 }
@@ -88,16 +94,20 @@ function ClassDetail() {
   const [act, setAct] = useState(emptyAct);
   const paperOnly = act.category === "Midterm" || act.category === "Final";
   const [actErr, setActErr] = useState(""); const [showAddForm, setShowAddForm] = useState(false);
+  const [editActId, setEditActId] = useState<string | null>(null);
   const [addType, setAddType] = useState<"assessment" | "class">("assessment");
   const addFormRef = useRef<HTMLDivElement>(null);
   function openAddForm(type: "assessment" | "class") { setAddType(type); setShowAddForm(true); setEditEvtId(null); setEvtErr(""); setActErr(""); if (type === "class") setEvt({ title: "", startAt: "", endAt: "", room: "" }); requestAnimationFrame(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }
   const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catCount, setCatCount] = useState("1"); const [catErr, setCatErr] = useState("");
+  const [editCatId, setEditCatId] = useState<string | null>(null);
   // One-off makeup/extra class sessions. Recurring schedule is admin-owned (FR19); exam dates come from assessments.
   const [evt, setEvt] = useState({ title: "", startAt: "", endAt: "", room: "" });
   const [evtErr, setEvtErr] = useState(""); const [editEvtId, setEditEvtId] = useState<string | null>(null);
   const [publishErr, setPublishErr] = useState("");
   const [newProjectTitle, setNewProjectTitle] = useState("");
   const [newProjectError, setNewProjectError] = useState("");
+  const [editProjectId, setEditProjectId] = useState<string | null>(null);
+  const [projectDraft, setProjectDraft] = useState("");
 
   function suggestTitle(category: string) {
     const sameCat = assessments.filter((a) => a.category === category);
@@ -123,7 +133,7 @@ function ClassDetail() {
     if (editAnnId) {
       ctx.setAnnouncements((prev) => prev.map((a) => a.id === editAnnId ? { ...a, title: annTitle.trim(), body: annBody.trim() } : a));
     } else {
-      ctx.setAnnouncements((prev) => [{ id: `tan-${Date.now()}`, sectionId: section!.id, title: annTitle.trim(), body: annBody.trim(), date: "2026-09-03" }, ...prev]);
+      ctx.setAnnouncements((prev) => [{ id: `tan-${Date.now()}`, sectionId: section!.id, title: annTitle.trim(), body: annBody.trim(), date: nowTimestamp().slice(0, 10) }, ...prev]);
     }
     setAnnTitle(""); setAnnBody(""); setAnnErr(""); setEditAnnId(null);
   }
@@ -134,7 +144,7 @@ function ClassDetail() {
       id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(),
       type: matUrl ? "link" : "file", size: matUrl ? undefined : (matFile ? String(matFile.size) : matSize || "file"),
       url: matUrl.trim() || matFile?.url, fileName: matFile?.name, mimeType: matFile?.mimeType,
-      uploadedAt: "2026-09-03",
+      uploadedAt: nowTimestamp().slice(0, 10),
     }, ...prev]);
     setMatName(""); setMatUrl(""); setMatSize(""); setMatErr(""); setMatFile(null);
   }
@@ -154,7 +164,42 @@ function ClassDetail() {
     }
     setEvt({ title: "", startAt: "", endAt: "", room: "" }); setEditEvtId(null); setEvtErr(""); setShowAddForm(false);
   }
-  function addAssessment() {
+  function openEditAssessment(assessment: TeacherAssessment) {
+    setAddType("assessment");
+    setEditEvtId(null);
+    setEditActId(assessment.id);
+    setShowAddForm(true);
+    setActErr("");
+    setAct({
+      category: assessment.category,
+      maxMarks: String(assessment.maxMarks),
+      openAt: toLocalInput(assessment.openAt),
+      dueAt: toLocalInput(assessment.dueAt),
+      closeAt: toLocalInput(assessment.closeAt),
+      instructions: assessment.instructions,
+      reviewPolicy: assessment.reviewPolicy ?? "after_graded",
+      submissionModes: assessment.submissionModes,
+      requirements: assessment.requirements?.length ? assessment.requirements : [{ type: "attachment", isRequired: true }],
+      hasViva: assessment.hasViva ?? false,
+      documentName: assessment.documentName ?? "",
+      physicalRoom: assessment.physicalRoom ?? "",
+      projectId: assessment.projectId ?? "",
+      stageNumber: String(assessment.stageNumber ?? 1),
+      newProjectTitle: "",
+    });
+    setActFile(assessment.document ?? null);
+    requestAnimationFrame(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function closeAssessmentForm() {
+    setShowAddForm(false);
+    setEditActId(null);
+    setAct(emptyAct());
+    setActFile(null);
+    setActErr("");
+  }
+
+  function saveAssessment() {
     const kind = inferKind(act.category);
     const submissionModes: SubmissionMode[] = paperOnly ? ["physical"] : act.submissionModes;
     const e = err(act.openAt, "Open date/time is required.") || err(act.dueAt, "Due date/time is required.")
@@ -178,8 +223,8 @@ function ClassDetail() {
       ctx.setProjects((prev) => [...prev, { id: projectId!, sectionId: section!.id, title: act.newProjectTitle.trim() }]);
     }
     const documentName = act.documentName.trim() || actFile?.name || undefined;
-    const newAct: TeacherAssessment = {
-      id: `act-${Date.now()}`, sectionId: section!.id, kind, title: suggestTitle(act.category), instructions: act.instructions.trim(),
+    const patch = {
+      kind, instructions: act.instructions.trim(),
       category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, closeAt: act.closeAt,
       submissionModes, requirements: act.requirements,
       projectId, stageNumber: act.category === "Project" ? Number(act.stageNumber) : undefined,
@@ -189,22 +234,42 @@ function ClassDetail() {
       reviewPolicy: kind === "quiz" || kind === "exam" ? act.reviewPolicy : undefined,
       documentName,
       document: actFile ?? (documentName ? makeAssessmentReference(documentName) : undefined),
-      required: paperOnly, published: true,
+      required: paperOnly,
     };
-    ctx.setAssessments((prev) => [newAct, ...prev]);
-    if (newAct.kind === "quiz" || newAct.kind === "exam") setQActId(newAct.id);
-    setAct(emptyAct()); setActFile(null);
-    setActErr(""); setShowAddForm(false);
+    if (editActId) {
+      ctx.setAssessments((prev) => prev.map((item) => item.id === editActId ? { ...item, ...patch } : item));
+      if (kind === "quiz" || kind === "exam") setQActId(editActId);
+    } else {
+      const newAct: TeacherAssessment = {
+        id: `act-${Date.now()}`, sectionId: section!.id,
+        title: suggestTitle(act.category), published: true, ...patch,
+      };
+      ctx.setAssessments((prev) => [newAct, ...prev]);
+      if (newAct.kind === "quiz" || newAct.kind === "exam") setQActId(newAct.id);
+    }
+    closeAssessmentForm();
   }
+
   function saveCategory() {
     if (resultState?.frozenWeights) { setCatErr("Weights are frozen after publishing results."); return; }
     const w = Number(catWeight);
     const count = (catName === "Midterm" || catName === "Final") ? 1 : Number(catCount);
     if (!catName.trim() || !w || w <= 0 || w > 100) { setCatErr("Pick a category and weight 1-100."); return; }
     if (!Number.isInteger(count) || count < 1) { setCatErr("Count must be at least 1."); return; }
-    if (categories.some((c) => c.name.toLowerCase() === catName.trim().toLowerCase())) { setCatErr("Category already exists."); return; }
-    ctx.setCategories((prev) => [...prev, { id: `gc-${Date.now()}`, sectionId: section!.id, name: catName.trim(), weight: w, count }]);
-    setCatName("Assignments"); setCatWeight(""); setCatCount("1"); setCatErr("");
+    if (categories.some((c) => c.id !== editCatId && c.name.toLowerCase() === catName.trim().toLowerCase())) { setCatErr("Category already exists."); return; }
+    if (editCatId) {
+      ctx.setCategories((prev) => prev.map((c) => c.id === editCatId ? { ...c, name: catName.trim(), weight: w, count } : c));
+    } else {
+      ctx.setCategories((prev) => [...prev, { id: `gc-${Date.now()}`, sectionId: section!.id, name: catName.trim(), weight: w, count }]);
+    }
+    setEditCatId(null); setCatName("Assignments"); setCatWeight(""); setCatCount("1"); setCatErr("");
+  }
+
+  function saveProjectTitle(projectId: string) {
+    if (!projectDraft.trim()) return;
+    ctx.setProjects((prev) => prev.map((p) => p.id === projectId ? { ...p, title: projectDraft.trim() } : p));
+    setEditProjectId(null);
+    setProjectDraft("");
   }
   function publishResults() {
     const total = categories.reduce((s, c) => s + c.weight, 0);
@@ -285,12 +350,23 @@ function ClassDetail() {
             <Card><CardHeader><CardTitle className="text-sm">Results</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-sm">{resultState?.published ? "Published" : "Not published"}</p><Button size="sm" onClick={publishResults} disabled={resultState?.published}>Publish results</Button>{publishErr && <p role="alert" className="text-xs text-red-600">{publishErr}</p>}</CardContent></Card>
           </div>
           <Card><CardHeader><CardTitle>Category weights</CardTitle></CardHeader><CardContent className="space-y-3">
-            {categories.map(c => <div key={c.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm"><span>{c.name} <span className="text-muted-foreground">({c.count} {c.count === 1 ? "item" : "items"})</span></span><span className="font-medium">{c.weight}%</span></div>)}
+            {categories.map(c => (
+              <div key={c.id} className={`flex items-center justify-between rounded border px-3 py-2 text-sm ${editCatId === c.id ? "border-blue-300 bg-blue-500/5" : ""}`}>
+                <span>{c.name} <span className="text-muted-foreground">({c.count} {c.count === 1 ? "item" : "items"})</span></span>
+                <span className="flex items-center gap-2">
+                  <span className="font-medium">{c.weight}%</span>
+                  {!resultState?.frozenWeights && <IconBtn title="Edit category" onClick={() => { setEditCatId(c.id); setCatName(c.name); setCatWeight(String(c.weight)); setCatCount(String(c.count)); setCatErr(""); }}><Pencil className="size-4" /></IconBtn>}
+                </span>
+              </div>
+            ))}
             {!resultState?.frozenWeights && <div className="grid gap-2 md:grid-cols-4 rounded border p-3">
               <div className="space-y-1"><Label>Category</Label><Select value={catName} onValueChange={(v) => { if (!v) return; setCatName(v); if (v === "Midterm" || v === "Final") setCatCount("1"); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-1"><Label>Weight %</Label><Input type="number" value={catWeight} onChange={e => setCatWeight(e.target.value)} /></div>
               <div className="space-y-1"><Label>Count</Label><Input type="number" min={1} value={catName === "Midterm" || catName === "Final" ? "1" : catCount} disabled={catName === "Midterm" || catName === "Final"} onChange={e => setCatCount(e.target.value)} /></div>
-              <div className="flex items-end"><Button size="sm" onClick={saveCategory}>Add category</Button></div>
+              <div className="flex items-end gap-2">
+                <Button size="sm" onClick={saveCategory}>{editCatId ? "Save category" : "Add category"}</Button>
+                {editCatId && <Button size="sm" variant="ghost" onClick={() => { setEditCatId(null); setCatName("Assignments"); setCatWeight(""); setCatCount("1"); setCatErr(""); }}>Cancel</Button>}
+              </div>
               {catErr && <p className="text-xs text-red-600 md:col-span-4">{catErr}</p>}
             </div>}
             <p className="text-xs text-muted-foreground">Define category weight and how many items in that category. Midterm and Final are fixed to 1 item. Total weight must be 100% before publish; weights freeze after publish.</p>
@@ -380,10 +456,31 @@ function ClassDetail() {
                     return (
                       <div key={project.id} className="rounded border p-2 text-sm">
                         <div className="flex items-start justify-between gap-2">
-                          <div><p className="font-medium">{project.title}</p>{project.description && <p className="text-xs text-muted-foreground">{project.description}</p>}</div>
+                          <div>
+                            {editProjectId === project.id ? (
+                              <div className="flex gap-2">
+                                <Input value={projectDraft} onChange={(e) => setProjectDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveProjectTitle(project.id); }} />
+                                <Button size="sm" onClick={() => saveProjectTitle(project.id)}>Save</Button>
+                                <Button size="sm" variant="ghost" onClick={() => { setEditProjectId(null); setProjectDraft(""); }}>Cancel</Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{project.title}</p>
+                                <IconBtn title="Rename project" onClick={() => { setEditProjectId(project.id); setProjectDraft(project.title); }}><Pencil className="size-4" /></IconBtn>
+                              </div>
+                            )}
+                            {project.description && <p className="text-xs text-muted-foreground">{project.description}</p>}
+                          </div>
                           <IconBtn title="Delete project" danger onClick={() => ctx.setProjects((prev) => prev.filter((p) => p.id !== project.id))}><Trash2 className="size-4" /></IconBtn>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">Stages: {stages.length ? stages.map((a) => `${a.stageNumber ?? "?"}. ${a.title}`).join(" · ") : "none yet"}</p>
+                        {stages.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {stages.map((stage) => (
+                              <Button key={stage.id} size="sm" variant="outline" onClick={() => openEditAssessment(stage)}><Pencil className="size-3" /> Edit stage {stage.stageNumber ?? "?"}</Button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -471,14 +568,14 @@ function ClassDetail() {
           <div>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-lg font-bold">Weekly sections</h2>
-              <Button variant="outline" size="sm" onClick={() => { setAddType("assessment"); setEditEvtId(null); setShowAddForm((v) => !v); }}><Plus className="size-4" /> Assessment</Button>
+              <Button variant="outline" size="sm" onClick={() => { setAddType("assessment"); setEditEvtId(null); setEditActId(null); setAct(emptyAct()); setActErr(""); setShowAddForm((v) => !v); }}><Plus className="size-4" /> Assessment</Button>
             </div>
 
             {showAddForm && (
               <div ref={addFormRef} className="scroll-mt-4">
               <Card className="mb-3">
                 <CardHeader>
-                  <CardTitle>{addType === "assessment" ? "Create assessment" : (editEvtId ? "Edit makeup/extra class" : "Add makeup/extra class")}</CardTitle>
+                  <CardTitle>{addType === "assessment" ? (editActId ? "Edit assessment" : "Create assessment") : (editEvtId ? "Edit makeup/extra class" : "Add makeup/extra class")}</CardTitle>
                   <p className="text-sm font-normal text-muted-foreground">{addType === "assessment" ? "Assessments are graded or required classwork items such as assignments, quizzes, projects, labs, or exams." : "One-off makeup/extra class session. Exam schedule comes from assessments."}</p>
                 </CardHeader>
                 <CardContent>
@@ -573,7 +670,7 @@ function ClassDetail() {
                         </div>
                         <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
                         {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
-                        <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addAssessment}>Create assessment</Button><Button size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setActErr(""); }}>Cancel</Button></div>
+                        <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={saveAssessment}>{editActId ? "Save assessment" : "Create assessment"}</Button><Button size="sm" variant="ghost" onClick={closeAssessmentForm}>Cancel</Button></div>
                       </>
                     ) : (
                       <>
@@ -619,6 +716,7 @@ function ClassDetail() {
                               <div className="flex items-center gap-1">
                                 <Link to={`/teacher/grading?assessment=${a.id}`} title="Open grading queue" aria-label="Open grading queue" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><ExternalLink className="size-4" /></Link>
                                 {isQuizExam && <IconBtn title="Manage assessment questions" onClick={() => setQActId(qActId === a.id ? "" : a.id)}><HelpCircle className="size-4" /></IconBtn>}
+                                <IconBtn title="Edit assessment" onClick={() => openEditAssessment(a)}><Pencil className="size-4" /></IconBtn>
                                 <IconBtn title="Delete assessment" danger onClick={() => ctx.setAssessments((prev) => prev.filter((x) => x.id !== a.id))}><Trash2 className="size-4" /></IconBtn>
                               </div>
                             </div>
@@ -646,7 +744,7 @@ function ClassDetail() {
                           type="button"
                           title="Add assessment"
                           aria-label="Add assessment"
-                          onClick={() => { setAddType("assessment"); setEditEvtId(null); setAct((prev) => ({ ...prev, openAt: `${WEEK_STARTS[idx]}T09:00`, dueAt: `${WEEK_ENDS[idx]}T23:59`, closeAt: `${WEEK_ENDS[idx]}T23:59` })); setShowAddForm(true); }}
+                          onClick={() => { setAddType("assessment"); setEditEvtId(null); setEditActId(null); setAct({ ...emptyAct(), openAt: `${WEEK_STARTS[idx]}T09:00`, dueAt: `${WEEK_ENDS[idx]}T23:59`, closeAt: `${WEEK_ENDS[idx]}T23:59` }); setActErr(""); setShowAddForm(true); }}
                           className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:text-foreground focus-visible:bg-muted/50"
                         >
                           <Plus className="size-4" />

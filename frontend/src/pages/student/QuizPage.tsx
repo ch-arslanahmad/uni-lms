@@ -9,8 +9,8 @@ import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import { canReviewQuiz, findActivity, findOffering, offerings, quizReviewMessage, quizzes, type Quiz } from "../../mock/student";
-import { fileToSubmissionFile, type SubmissionFile } from "../../api";
+import { canReviewQuiz, findActivity, findOffering, offerings, quizReviewMessage, type Quiz } from "../../mock/student";
+import { fileToSubmissionFile, getStudentQuizzes, type SubmissionFile } from "../../api";
 
 type AttemptRow = Quiz["attempts"][number];
 const attemptColumns: Column<AttemptRow>[] = [
@@ -101,7 +101,7 @@ function QuizPage() {
   const { quizId } = useParams();
   const [params] = useSearchParams();
   const { questions, saveQuestion } = useOutletContext<StudentQuestionsContext>();
-  const quiz = quizzes.find((q) => q.id === quizId);
+  const quiz = getStudentQuizzes().find((q) => q.id === quizId);
   const activity = findActivity(quizId);
   const offeringByActivity = offerings.find((o) => o.weeks.some((w) => w.activities.some((a) => a.id === quizId)));
   const offering = findOffering(quiz?.offeringId ?? offeringByActivity?.offeringId);
