@@ -6,7 +6,14 @@ import { Label } from "../components/ui/label";
 
 const roles = [
   { id: "admin", label: "Admin", description: "Manage academic structure, users and schedules.", to: "/" },
-  { id: "teacher", label: "Teacher", description: "Manage classes, grading and course content.", to: "/teacher" },
+  {
+    id: "teacher",
+    label: "Teacher",
+    description: "Manage classes, grading and course content.",
+    to: "/teacher",
+    available: false,
+    note: "Teacher UI is on the feat/teacher-pages branch and not merged here yet.",
+  },
   { id: "student", label: "Student", description: "View courses, submit work and track results.", to: "/student" },
 ] as const;
 
@@ -44,7 +51,18 @@ export default function LoginPage() {
             {selected.description}
           </div>
 
-          <Button onClick={() => navigate(selected.to)}>Continue as {selected.label}</Button>
+          {"note" in selected && selected.note && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400">
+              {selected.note}
+            </div>
+          )}
+
+          <Button
+            onClick={() => navigate(selected.to)}
+            disabled={"available" in selected && selected.available === false}
+          >
+            Continue as {selected.label}
+          </Button>
         </CardContent>
       </Card>
     </div>
