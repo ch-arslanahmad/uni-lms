@@ -1,5 +1,7 @@
 // This is a holder file to hold the data models of the frontend
-// but also holds dummy data as well
+// but also holds dummy data as well.
+// NOTE: for the admin area these arrays are SEEDS only — live mutable
+// data lives in src/lib/adminStore.ts (CRUD + CSV ingest update it).
 
 import type { LucideIcon } from "lucide-react";
 import {
