@@ -20,6 +20,8 @@ export interface Column<T> {
   key: keyof T & string;
   label: string;
   render?: (row: T) => React.ReactNode;
+  /** Unique React key when two columns share a field key (e.g. row actions). */
+  id?: string;
 }
 
 export function SimpleTable<T>({
@@ -102,7 +104,7 @@ export function SimpleTable<T>({
           <TableHeader className="bg-muted/50">
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={column.key}>
+                <TableHead key={column.id ?? column.key}>
                   <Button
                     variant="ghost"
                     onClick={() => toggleSort(column.key)}
@@ -131,7 +133,7 @@ export function SimpleTable<T>({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                   {columns.map((column) => (
-                    <TableCell key={column.key}>
+                    <TableCell key={column.id ?? column.key}>
                       {column.render
                         ? column.render(row)
                         : String(row[column.key] ?? "")}
