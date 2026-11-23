@@ -1,13 +1,8 @@
 // Admin dashboard — composes the generic Dashboard shell with admin-specific data.
 
 import Dashboard from "../../components/Dashboard";
-import type { QuickAction } from "../../models";
-import {
-  adminStats,
-  users,
-  departments,
-  type DepartmentRow,
-} from "../../models";
+import type { QuickAction, StatCardInfo, DepartmentRow } from "../../models";
+import { useAdminStore, departmentRowsWithCounts, teacherRows, studentRows } from "../../lib/adminStore";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import { Building2, BookOpen, Upload, Users } from "lucide-react";
 
@@ -19,8 +14,6 @@ const quickActions: QuickAction[] = [
   { label: "Import & Export", icon: Upload, href: "/admin/data-transfer" },
 ];
 
-const admin = users.find((u) => u.role === "admin") ?? users[0];
-
 // Department table columns — declared here since only this page uses them
 const departmentColumns: Column<DepartmentRow>[] = [
   { key: "code", label: "Department Code" },
@@ -31,11 +24,22 @@ const departmentColumns: Column<DepartmentRow>[] = [
 ];
 
 function AdminDashboard() {
+  const store = useAdminStore();
+  const departments = departmentRowsWithCounts(store);
+  const admin = store.users.find((u) => u.role === "admin") ?? store.users[0];
+
+  const stats: StatCardInfo[] = [
+    { value: departments.length, label: "Departments", href: "/admin/academics?tab=departments" },
+    { value: store.subjects.length, label: "Courses", href: "/admin/academics?tab=courses" },
+    { value: teacherRows(store).length, label: "Teachers", href: "/admin/teachers" },
+    { value: studentRows(store).length, label: "Students", href: "/admin/students" },
+  ];
+
   return (
     <Dashboard
       name={admin.name}
       subtitle="Admin Dashboard"
-      stats={adminStats}
+      stats={stats}
       quickActions={quickActions}
       tableSlot={
         <>

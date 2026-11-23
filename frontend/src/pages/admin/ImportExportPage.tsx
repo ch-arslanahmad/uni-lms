@@ -2,32 +2,145 @@ import { useState } from "react";
 import Tabs from "../../components/Tabs";
 import { Button } from "../../components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet, AlertTriangle } from "lucide-react";
 import { UploadBox } from "../../components/UploadBox";
 import {
   csvDataOptions,
   type CsvDataType,
   type DataOption,
 } from "../../mock/csvTemplates";
+import { parseCsv, toCsv, downloadCsv, type ParsedCsv } from "../../lib/csv";
+import {
+  validateIngest,
+  applyIngest,
+  exportIngestData,
+  type IngestError,
+} from "../../lib/adminStore";
+
+const PREVIEW_ROWS = 8;
 
 export default function ImportExportPage() {
   const [tab, setTab] = useState<"import" | "export">("import");
   const [selectedType, setSelectedType] = useState<CsvDataType>("users");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle");
+  const [parsed, setParsed] = useState<ParsedCsv | null>(null);
+  const [errors, setErrors] = useState<IngestError[]>([]);
+  const [appliedCount, setAppliedCount] = useState(0);
 
   const activeOption = csvDataOptions.find((opt) => opt.id === selectedType) ?? csvDataOptions[0];
 
-  const handleDownloadSample = (option: DataOption) => {
-    const csvContent = "data:text/csv;charset=utf-8," + option.columns.join(",") + "\n";
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", option.sampleFilename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const resetImport = () => {
+    setSelectedFile(null);
+    setParsed(null);
+    setErrors([]);
+    setUploadStatus("idle");
+    setAppliedCount(0);
   };
+
+  // Parse + validate the whole file client-side before anything is applied.
+  const handleFileChange = async (file: File | null) => {
+    resetImport();
+    if (!file) return;
+    setSelectedFile(file);
+    const text = await file.text();
+    const result = parseCsv(text);
+    const rowErrors = validateIngest(selectedType, result.headers, result.rows);
+    setParsed(result);
+    setErrors(rowErrors);
+    if (rowErrors.length) setUploadStatus("error");
+  };
+
+  // All-or-nothing: applyIngest re-validates and commits only if every row passes.
+  const handleRunIngest = () => {
+    if (!parsed) return;
+    const rowErrors = applyIngest(selectedType, parsed.headers, parsed.rows);
+    if (rowErrors.length) {
+      setErrors(rowErrors);
+      setUploadStatus("error");
+      return;
+    }
+    setAppliedCount(parsed.rows.length);
+    setUploadStatus("success");
+  };
+
+  const handleDownloadTemplate = (option: DataOption) => {
+    downloadCsv(option.sampleFilename, toCsv(option.columns, []));
+  };
+
+  const handleExport = (option: DataOption) => {
+    const { headers, rows } = exportIngestData(option.id);
+    downloadCsv(`${option.id}_export.csv`, toCsv(headers, rows));
+  };
+
+  const preview = parsed && (
+    <div className="flex flex-col gap-2">
+      {errors.length > 0 ? (
+        <div className="flex flex-col gap-1.5 p-3 text-xs rounded-md border border-destructive/30 bg-destructive/10 text-destructive">
+          <span className="font-semibold flex items-center gap-1.5">
+            <AlertTriangle size={14} />
+            {errors.length} problem{errors.length === 1 ? "" : "s"} found — nothing will be imported until every row is valid.
+          </span>
+          <ul className="list-disc pl-5 space-y-0.5 max-h-40 overflow-y-auto">
+            {errors.map((err, idx) => (
+              <li key={idx}>
+                {err.row === 0 ? err.message : `Row ${err.row}: ${err.message}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        uploadStatus !== "success" && (
+          <div className="p-2.5 text-xs rounded-md border bg-muted/30 text-muted-foreground">
+            {parsed.rows.length} row{parsed.rows.length === 1 ? "" : "s"} parsed and valid. Review the preview, then run the ingest.
+          </div>
+        )
+      )}
+
+      {uploadStatus === "success" && (
+        <div className="p-2.5 text-xs rounded-md border bg-muted/30 text-muted-foreground">
+          {appliedCount} row{appliedCount === 1 ? "" : "s"} added to the mock store. Check the Users / Academics / Timetable pages.
+        </div>
+      )}
+
+      {parsed.rows.length > 0 && (
+        <div className="overflow-x-auto border rounded-md bg-card">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b bg-muted/50 text-muted-foreground">
+                <th className="p-2 text-left font-semibold">#</th>
+                {parsed.headers.map((h, idx) => (
+                  <th key={idx} className="p-2 text-left font-semibold whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {parsed.rows.slice(0, PREVIEW_ROWS).map((row, rowIdx) => {
+                const rowHasError = errors.some((e) => e.row === rowIdx + 1);
+                return (
+                  <tr key={rowIdx} className={rowHasError ? "bg-destructive/5" : undefined}>
+                    <td className={`p-2 font-mono ${rowHasError ? "text-destructive font-bold" : "text-muted-foreground"}`}>
+                      {rowIdx + 1}
+                    </td>
+                    {parsed.headers.map((_, colIdx) => (
+                      <td key={colIdx} className="p-2 whitespace-nowrap max-w-48 truncate">
+                        {row[colIdx] ?? ""}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {parsed.rows.length > PREVIEW_ROWS && (
+            <div className="p-2 text-[11px] text-muted-foreground border-t">
+              Showing first {PREVIEW_ROWS} of {parsed.rows.length} rows.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex flex-col min-h-screen p-4 gap-4 max-w-5xl mx-auto w-full">
@@ -44,8 +157,7 @@ export default function ImportExportPage() {
         activeTab={tab}
         onChange={(next) => {
           setTab(next);
-          setSelectedFile(null);
-          setUploadStatus("idle");
+          resetImport();
         }}
         tabs={[
           {
@@ -67,8 +179,7 @@ export default function ImportExportPage() {
                           size="sm"
                           onClick={() => {
                             setSelectedType(opt.id);
-                            setSelectedFile(null);
-                            setUploadStatus("idle");
+                            resetImport();
                           }}
                           className={`cursor-pointer transition-all ${
                             isSelected
@@ -99,9 +210,11 @@ export default function ImportExportPage() {
                   activeOption={activeOption}
                   selectedFile={selectedFile}
                   uploadStatus={uploadStatus}
-                  onFileChange={setSelectedFile}
-                  onRunIngest={() => setUploadStatus("success")}
-                  onDownloadTemplate={handleDownloadSample}
+                  onFileChange={handleFileChange}
+                  onRunIngest={handleRunIngest}
+                  onDownloadTemplate={handleDownloadTemplate}
+                  preview={preview}
+                  canIngest={!!parsed && errors.length === 0 && uploadStatus !== "success"}
                 />
               </div>
             ),
@@ -124,7 +237,7 @@ export default function ImportExportPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDownloadSample(opt)}
+                            onClick={() => handleExport(opt)}
                           >
                             <Download size={14} className="mr-1.5" />
                             Export
