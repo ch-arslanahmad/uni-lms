@@ -37,16 +37,16 @@ export interface TeacherEvent {
   id: string;
   sectionId: number;
   title: string;
-  type: "class" | "exam" | "deadline" | "other";
+  type: "class" | "exam";
   startAt: string;
   endAt: string;
   room?: string;
-  linkedActivityId?: string;
+  linkedAssessmentId?: string;
 }
 
 export interface AssessmentQuestion {
   id: string;
-  activityId: string;
+  assessmentId: string;
   type: "mcq" | "written";
   text: string;
   options?: string[];
@@ -54,13 +54,13 @@ export interface AssessmentQuestion {
   marks: number;
 }
 
-export type ActivityKind = "assignment" | "quiz" | "project" | "exam";
+export type AssessmentKind = "assignment" | "quiz" | "exam" | "project";
 export type SubmissionMode = "upload" | "physical";
 
-export interface TeacherActivity {
+export interface TeacherAssessment {
   id: string;
   sectionId: number;
-  kind: ActivityKind;
+  kind: AssessmentKind;
   title: string;
   instructions: string;
   category: string;
@@ -79,7 +79,7 @@ export interface TeacherActivity {
 
 export interface TeacherSubmission {
   id: string;
-  activityId: string;
+  assessmentId: string;
   studentId: number;
   submittedAt?: string;
   status: "not-submitted" | "submitted" | "graded" | "locked";
@@ -95,7 +95,7 @@ export interface TeacherSubmission {
 export interface TeacherQuestion {
   id: string;
   sectionId: number;
-  activityId?: string;
+  assessmentId?: string;
   studentId: number;
   question: string;
   askedAt: string;
@@ -150,18 +150,15 @@ export const teacherAnnouncements: TeacherAnnouncement[] = [
 ];
 
 export const teacherEvents: TeacherEvent[] = [
-  { id: "te1", sectionId: 4, title: "Project Milestone 1 deadline", type: "deadline", startAt: "2026-11-25 23:59", endAt: "2026-11-25 23:59", linkedActivityId: "ta-a3" },
-  { id: "te2", sectionId: 4, title: "Midterm Exam", type: "exam", startAt: "2026-11-12 09:00", endAt: "2026-11-12 11:00", linkedActivityId: "ta-a4" },
-  { id: "te3", sectionId: 5, title: "Midterm Exam", type: "exam", startAt: "2026-11-12 09:00", endAt: "2026-11-12 11:00", linkedActivityId: "ta-a8" },
 ];
 
 export const assessmentQuestions: AssessmentQuestion[] = [
-  { id: "aq1", activityId: "ta-a2", type: "mcq", text: "Which SQL clause filters rows?", options: ["ORDER BY", "WHERE", "GROUP BY", "HAVING"], correctOption: 1, marks: 5 },
-  { id: "aq2", activityId: "ta-a2", type: "mcq", text: "Which join returns only matching rows?", options: ["LEFT JOIN", "FULL JOIN", "INNER JOIN", "CROSS JOIN"], correctOption: 2, marks: 5 },
-  { id: "aq3", activityId: "ta-a4", type: "written", text: "Explain 3NF with an example.", marks: 20 },
+  { id: "aq1", assessmentId: "ta-a2", type: "mcq", text: "Which SQL clause filters rows?", options: ["ORDER BY", "WHERE", "GROUP BY", "HAVING"], correctOption: 1, marks: 5 },
+  { id: "aq2", assessmentId: "ta-a2", type: "mcq", text: "Which join returns only matching rows?", options: ["LEFT JOIN", "FULL JOIN", "INNER JOIN", "CROSS JOIN"], correctOption: 2, marks: 5 },
+  { id: "aq3", assessmentId: "ta-a4", type: "written", text: "Explain 3NF with an example.", marks: 20 },
 ];
 
-export const teacherActivities: TeacherActivity[] = [
+export const teacherAssessments: TeacherAssessment[] = [
   { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", published: true },
   { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20", dueAt: "2026-09-20", submissionModes: [], hasMcq: true, reviewPolicy: "after_close", documentName: "quiz1-sql.pdf", published: true },
   { id: "ta-a3", sectionId: 4, kind: "project", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], documentName: "project-m1-brief.pdf", published: true },
@@ -175,13 +172,13 @@ export const teacherActivities: TeacherActivity[] = [
 
 function seedSubmissions(): TeacherSubmission[] {
   const out: TeacherSubmission[] = [];
-  for (const act of teacherActivities) {
+  for (const act of teacherAssessments) {
     const roster = getSectionStudents(act.sectionId).slice(0, 6);
     roster.forEach((stu, i) => {
       if (act.kind === "quiz" || act.kind === "exam") {
         out.push({
           id: `sub-${act.id}-${stu.id}`,
-          activityId: act.id,
+          assessmentId: act.id,
           studentId: stu.id,
           submittedAt: i < 4 ? `${act.dueAt} 10:0${i}` : undefined,
           status: i < 3 ? "graded" : i < 4 ? "submitted" : "not-submitted",
@@ -193,7 +190,7 @@ function seedSubmissions(): TeacherSubmission[] {
       } else {
         out.push({
           id: `sub-${act.id}-${stu.id}`,
-          activityId: act.id,
+          assessmentId: act.id,
           studentId: stu.id,
           submittedAt: i < 5 ? `${act.dueAt} 09:1${i}` : undefined,
           status: i < 2 ? "locked" : i < 4 ? "submitted" : i === 4 ? "graded" : "not-submitted",
@@ -212,7 +209,7 @@ function seedSubmissions(): TeacherSubmission[] {
 export const teacherSubmissions: TeacherSubmission[] = seedSubmissions();
 
 export const teacherQuestions: TeacherQuestion[] = [
-  { id: "tq1", sectionId: 4, activityId: "ta-a3", studentId: 7, question: "Can we submit proposal as PDF and slides separately?", askedAt: "2026-11-20 14:10", status: "pending" },
+  { id: "tq1", sectionId: 4, assessmentId: "ta-a3", studentId: 7, question: "Can we submit proposal as PDF and slides separately?", askedAt: "2026-11-20 14:10", status: "pending" },
   { id: "tq2", sectionId: 4, studentId: 9, question: "Will normalization beyond 3NF be in midterm?", askedAt: "2026-11-19 10:00", answer: "Midterm is up to 3NF; BCNF is good to know but not required.", answeredAt: "2026-11-19 12:30", status: "answered" },
   { id: "tq3", sectionId: 5, studentId: 16, question: "Is Quiz 1 the same format for section B?", askedAt: "2026-11-21 09:20", status: "pending" },
 ];
@@ -243,12 +240,12 @@ export function getSectionStudents(sectionId: number) {
   return students.slice(start, start + 6);
 }
 
-export function getSectionActivities(sectionId: number) {
-  return teacherActivities.filter((a) => a.sectionId === sectionId);
+export function getSectionAssessments(sectionId: number) {
+  return teacherAssessments.filter((a) => a.sectionId === sectionId);
 }
 
-export function getActivitySubmissions(activityId: string) {
-  return teacherSubmissions.filter((s) => s.activityId === activityId);
+export function getAssessmentSubmissions(assessmentId: string) {
+  return teacherSubmissions.filter((s) => s.assessmentId === assessmentId);
 }
 
 export function getSectionQuestions(sectionId: number) {

@@ -12,7 +12,7 @@ import { teacherSections } from "../../mock/teacher";
 import { students } from "../../models";
 
 function QuestionsPage() {
-  const { questions, setQuestions, activities } = useOutletContext<TeacherContext>();
+  const { questions, setQuestions, assessments } = useOutletContext<TeacherContext>();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("pending");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -42,7 +42,7 @@ function QuestionsPage() {
         {filtered.length === 0 ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No questions in this view.</CardContent></Card> : filtered.map((q) => {
           const stu = students.find((s) => s.id === q.studentId);
           const section = teacherSections.find((s) => s.id === q.sectionId);
-          const act = activities.find((a) => a.id === q.activityId);
+          const act = assessments.find((a) => a.id === q.assessmentId);
           return (
             <Card key={q.id}>
               <CardHeader className="pb-2">

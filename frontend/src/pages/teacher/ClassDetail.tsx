@@ -13,10 +13,15 @@ import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable } from "../../components/SimpleTable";
 import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
-import { getSectionStudents, getTeacherSection, type AssessmentQuestion, type TeacherActivity } from "../../mock/teacher";
+import { getSectionStudents, getTeacherSection, type AssessmentQuestion, type TeacherAssessment } from "../../mock/teacher";
 
 const CATEGORY_OPTIONS = ["Assignments", "Quizzes", "Project", "Midterm", "Final", "Lab", "Participation"] as const;
-const KIND_CATEGORY: Record<TeacherActivity["kind"], string> = { assignment: "Assignments", quiz: "Quizzes", project: "Project", exam: "Midterm" };
+function inferKind(category: string): TeacherAssessment["kind"] {
+  if (category === "Quizzes") return "quiz";
+  if (category === "Midterm" || category === "Final") return "exam";
+  if (category === "Project") return "project";
+  return "assignment";
+}
 const WEEK_RANGES = [
   "25 August - 31 August", "1 September - 7 September", "8 September - 14 September", "15 September - 21 September",
   "22 September - 28 September", "29 September - 5 October", "6 October - 12 October", "13 October - 19 October",
@@ -39,7 +44,7 @@ function ClassDetail() {
   const view = params.get("view") ?? "course";
 
   const sid = section?.id;
-  const activities = useMemo(() => ctx.activities.filter((a) => a.sectionId === sid), [ctx.activities, sid]);
+  const assessments = useMemo(() => ctx.assessments.filter((a) => a.sectionId === sid), [ctx.assessments, sid]);
   const materials = useMemo(() => ctx.materials.filter((m) => m.sectionId === sid), [ctx.materials, sid]);
   const announcements = useMemo(() => ctx.announcements.filter((a) => a.sectionId === sid), [ctx.announcements, sid]);
   const events = useMemo(() => ctx.events.filter((e) => e.sectionId === sid).sort((a, b) => a.startAt.localeCompare(b.startAt)), [ctx.events, sid]);
@@ -51,20 +56,18 @@ function ClassDetail() {
   const [annTitle, setAnnTitle] = useState(""); const [annBody, setAnnBody] = useState(""); const [annErr, setAnnErr] = useState("");
   const [editAnnId, setEditAnnId] = useState<string | null>(null);
   const [matName, setMatName] = useState(""); const [matUrl, setMatUrl] = useState(""); const [matSize, setMatSize] = useState(""); const [matErr, setMatErr] = useState("");
-  const [act, setAct] = useState({ title: "", kind: "assignment" as TeacherActivity["kind"], category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
+  const [act, setAct] = useState({ title: "", category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded" as "immediate" | "after_close" | "after_graded" | "never", submissionMode: "upload" as "upload" | "physical", documentName: "", physicalRoom: "" });
   const [actErr, setActErr] = useState(""); const [showActForm, setShowActForm] = useState(false);
   const [catName, setCatName] = useState("Assignments"); const [catWeight, setCatWeight] = useState(""); const [catCount, setCatCount] = useState("1"); const [catErr, setCatErr] = useState("");
-  const [evt, setEvt] = useState({ title: "", type: "class" as "class" | "exam" | "deadline" | "other", startAt: "", endAt: "", room: "", linkedActivityId: "" });
+  const [evt, setEvt] = useState({ title: "", type: "class" as "class" | "exam", startAt: "", endAt: "", room: "", linkedAssessmentId: "" });
   const [evtErr, setEvtErr] = useState(""); const [editEvtId, setEditEvtId] = useState<string | null>(null);
 
-  function suggestTitle(kind: TeacherActivity["kind"], category: string) {
-    const sameCat = activities.filter((a) => a.category === category);
+  function suggestTitle(category: string) {
+    const sameCat = assessments.filter((a) => a.category === category);
     const n = sameCat.length + 1;
     if (category === "Midterm") return "Midterm";
     if (category === "Final") return "Final";
     if (category === "Project") return (categories.find((c) => c.name === "Project")?.count === 1 ? "Final Project" : `Project ${n}`);
-    if (kind === "assignment") return `Assignment ${n}`;
-    if (kind === "quiz") return `Quiz ${n}`;
     return `${category} ${n}`;
   }
 
@@ -96,33 +99,34 @@ function ClassDetail() {
     const e = err(evt.title, "Title is required.") || err(evt.startAt, "Start is required.") || err(evt.endAt, "End is required.");
     if (e) { setEvtErr(e); return; }
     if (evt.endAt < evt.startAt) { setEvtErr("End must be after or equal to start."); return; }
-    if (evt.linkedActivityId && !activities.some((a) => a.id === evt.linkedActivityId)) { setEvtErr("Linked activity must belong to this section."); return; }
+    if (evt.linkedAssessmentId && !assessments.some((a) => a.id === evt.linkedAssessmentId)) { setEvtErr("Linked assessment must belong to this section."); return; }
     const norm = (v: string) => v.replace("T", " ");
-    const payload = { title: evt.title.trim(), type: evt.type, startAt: norm(evt.startAt), endAt: norm(evt.endAt), room: evt.room.trim() || undefined, linkedActivityId: evt.linkedActivityId || undefined };
+    const payload = { title: evt.title.trim(), type: evt.type, startAt: norm(evt.startAt), endAt: norm(evt.endAt), room: evt.room.trim() || undefined, linkedAssessmentId: evt.linkedAssessmentId || undefined };
     if (editEvtId) {
       ctx.setEvents((prev) => prev.map((x) => x.id === editEvtId ? { ...x, ...payload } : x));
     } else {
       ctx.setEvents((prev) => [...prev, { id: `tev-${Date.now()}`, sectionId: section!.id, ...payload }]);
     }
-    setEvt({ title: "", type: "class", startAt: "", endAt: "", room: "", linkedActivityId: "" }); setEditEvtId(null); setEvtErr("");
+    setEvt({ title: "", type: "class", startAt: "", endAt: "", room: "", linkedAssessmentId: "" }); setEditEvtId(null); setEvtErr("");
   }
-  function addActivity() {
+  function addAssessment() {
+    const kind = inferKind(act.category);
     const e = err(act.title, "Title is required.") || err(act.openAt, "Open date is required.") || err(act.dueAt, "Due date is required.")
       || err(act.instructions, "Instructions are required.") || err(act.documentName, "A relevant document is required.")
       || ((!Number(act.maxMarks) || Number(act.maxMarks) <= 0) ? "Max marks must be > 0." : "")
-      || (act.submissionMode === "physical" ? err(act.physicalRoom, "Room/location is required for physical activities.") : "");
+      || (act.submissionMode === "physical" ? err(act.physicalRoom, "Room/location is required for physical assessments.") : "");
     if (e) { setActErr(e); return; }
-    const submissionModes = act.kind === "quiz" || act.kind === "exam" ? (act.submissionMode === "physical" ? ["physical"] as ("upload" | "physical")[] : []) : [act.submissionMode];
-    const newAct: TeacherActivity = {
-      id: `act-${Date.now()}`, sectionId: section!.id, kind: act.kind, title: act.title.trim(), instructions: act.instructions.trim(),
+    const submissionModes = kind === "quiz" || kind === "exam" ? (act.submissionMode === "physical" ? ["physical"] as ("upload" | "physical")[] : []) : [act.submissionMode];
+    const newAct: TeacherAssessment = {
+      id: `act-${Date.now()}`, sectionId: section!.id, kind, title: act.title.trim(), instructions: act.instructions.trim(),
       category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, submissionModes,
       physicalRoom: act.submissionMode === "physical" ? act.physicalRoom.trim() : undefined,
-      hasMcq: act.kind === "quiz", reviewPolicy: act.kind === "quiz" || act.kind === "exam" ? act.reviewPolicy : undefined,
+      hasMcq: kind === "quiz", reviewPolicy: kind === "quiz" || kind === "exam" ? act.reviewPolicy : undefined,
       documentName: act.documentName.trim(), required: act.category === "Midterm" || act.category === "Final", published: true,
     };
-    ctx.setActivities((prev) => [newAct, ...prev]);
+    ctx.setAssessments((prev) => [newAct, ...prev]);
     if (newAct.kind === "quiz" || newAct.kind === "exam") setQActId(newAct.id);
-    setAct({ title: "", kind: "assignment", category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded", submissionMode: "upload", documentName: "", physicalRoom: "" });
+    setAct({ title: "", category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", instructions: "", reviewPolicy: "after_graded", submissionMode: "upload", documentName: "", physicalRoom: "" });
     setActErr(""); setShowActForm(false);
   }
   function saveCategory() {
@@ -138,11 +142,11 @@ function ClassDetail() {
   function publishResults() {
     const total = categories.reduce((s, c) => s + c.weight, 0);
     if (total !== 100) { alert("Category weights must total 100% before publishing."); return; }
-    if (!activities.some((a) => a.category === "Midterm") || !activities.some((a) => a.category === "Final")) { alert("Midterm and Final assessment results must exist before publishing."); return; }
+    if (!assessments.some((a) => a.category === "Midterm") || !assessments.some((a) => a.category === "Final")) { alert("Midterm and Final assessment results must exist before publishing."); return; }
     ctx.setResultStates((prev) => prev.map((r) => r.sectionId === sid ? { ...r, published: true, frozenWeights: true } : r));
   }
   function addAssessmentQuestion() {
-    if (!qActId) { setAqErr("Select a quiz/exam activity."); return; }
+    if (!qActId) { setAqErr("Select a quiz/exam assessment."); return; }
     const m = Number(aq.marks);
     if (!aq.text.trim()) { setAqErr("Question text is required."); return; }
     if (!m || m <= 0) { setAqErr("Marks must be > 0."); return; }
@@ -150,7 +154,7 @@ function ClassDetail() {
     if (aq.type === "mcq" && (!opts || opts.length < 2)) { setAqErr("MCQ needs at least 2 comma-separated options."); return; }
     const correct = aq.type === "mcq" ? Number(aq.correctOption) : undefined;
     if (aq.type === "mcq" && (correct == null || correct < 0 || correct >= (opts?.length ?? 0))) { setAqErr("Correct option index is out of range."); return; }
-    ctx.setAssessmentQuestions((prev) => [...prev, { id: `aq-${Date.now()}`, activityId: qActId, type: aq.type, text: aq.text.trim(), options: opts, correctOption: correct, marks: m }]);
+    ctx.setAssessmentQuestions((prev) => [...prev, { id: `aq-${Date.now()}`, assessmentId: qActId, type: aq.type, text: aq.text.trim(), options: opts, correctOption: correct, marks: m }]);
     setAq({ type: "mcq", text: "", options: "A,B,C,D", correctOption: "0", marks: "5" }); setAqErr("");
   }
 
@@ -216,13 +220,13 @@ function ClassDetail() {
             <Table>
               <TableHeader><TableRow><TableHead>Assessment</TableHead><TableHead>Category</TableHead><TableHead>Submitted</TableHead><TableHead>Graded</TableHead><TableHead></TableHead></TableRow></TableHeader>
               <TableBody>
-                {activities.map((a) => {
-                  const subs = ctx.submissions.filter((s) => s.activityId === a.id);
+                {assessments.map((a) => {
+                  const subs = ctx.submissions.filter((s) => s.assessmentId === a.id);
                   const submitted = subs.filter((s) => s.status !== "not-submitted").length;
                   const graded = subs.filter((s) => s.marks != null).length;
-                  return <TableRow key={a.id}><TableCell className="font-medium">{a.title}</TableCell><TableCell>{a.category}</TableCell><TableCell>{submitted}/{roster.length}</TableCell><TableCell>{graded}/{roster.length}</TableCell><TableCell><Link to={`/teacher/grading?activity=${a.id}`} className="text-blue-600 hover:underline">Grade</Link></TableCell></TableRow>;
+                  return <TableRow key={a.id}><TableCell className="font-medium">{a.title}</TableCell><TableCell>{a.category}</TableCell><TableCell>{submitted}/{roster.length}</TableCell><TableCell>{graded}/{roster.length}</TableCell><TableCell><Link to={`/teacher/grading?assessment=${a.id}`} className="text-blue-600 hover:underline">Grade</Link></TableCell></TableRow>;
                 })}
-                {activities.length === 0 && <TableRow><TableCell colSpan={5} className="text-muted-foreground">No activities yet.</TableCell></TableRow>}
+                {assessments.length === 0 && <TableRow><TableCell colSpan={5} className="text-muted-foreground">No assessments yet.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </CardContent></Card>
@@ -273,7 +277,7 @@ function ClassDetail() {
                 <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="size-4" /> Section events</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   {events.length === 0 ? <p className="text-sm text-muted-foreground">No events scheduled.</p> : events.map((ev) => {
-                    const linked = activities.find((a) => a.id === ev.linkedActivityId);
+                    const linked = assessments.find((a) => a.id === ev.linkedAssessmentId);
                     return (
                       <div key={ev.id} className="rounded border p-2 text-sm">
                         <div className="flex items-start justify-between gap-2">
@@ -283,7 +287,7 @@ function ClassDetail() {
                             {linked && <p className="text-xs text-muted-foreground">Linked: {linked.title}</p>}
                           </div>
                           <div className="flex items-center">
-                            <IconBtn title="Edit event" onClick={() => { setEditEvtId(ev.id); setEvt({ title: ev.title, type: ev.type, startAt: ev.startAt.slice(0,16), endAt: ev.endAt.slice(0,16), room: ev.room ?? "", linkedActivityId: ev.linkedActivityId ?? "" }); }}><Pencil className="size-4" /></IconBtn>
+                            <IconBtn title="Edit event" onClick={() => { setEditEvtId(ev.id); setEvt({ title: ev.title, type: ev.type, startAt: ev.startAt.slice(0,16), endAt: ev.endAt.slice(0,16), room: ev.room ?? "", linkedAssessmentId: ev.linkedAssessmentId ?? "" }); }}><Pencil className="size-4" /></IconBtn>
                             <IconBtn title="Delete event" danger onClick={() => ctx.setEvents((prev) => prev.filter((x) => x.id !== ev.id))}><Trash2 className="size-4" /></IconBtn>
                           </div>
                         </div>
@@ -294,14 +298,14 @@ function ClassDetail() {
                     <p className="text-sm font-medium">{editEvtId ? "Edit event" : "Add event"}</p>
                     <div className="space-y-1"><Label>Title</Label><Input value={evt.title} onChange={(e) => setEvt({ ...evt, title: e.target.value })} /></div>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="space-y-1"><Label>Type</Label><Select value={evt.type} onValueChange={(v) => v && setEvt({ ...evt, type: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["class","exam","deadline","other"].map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}</SelectContent></Select></div>
-                      <div className="space-y-1"><Label>Linked activity (optional)</Label><Select value={evt.linkedActivityId || "none"} onValueChange={(v) => setEvt({ ...evt, linkedActivityId: v === "none" ? "" : (v ?? "") })}><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{activities.map((a) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="space-y-1"><Label>Type</Label><Select value={evt.type} onValueChange={(v) => v && setEvt({ ...evt, type: v as "class" | "exam" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["class","exam"].map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="space-y-1"><Label>Linked assessment (optional)</Label><Select value={evt.linkedAssessmentId || "none"} onValueChange={(v) => setEvt({ ...evt, linkedAssessmentId: v === "none" ? "" : (v ?? "") })}><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem>{assessments.map((a) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}</SelectContent></Select></div>
                       <div className="space-y-1"><Label>Start</Label><Input type="datetime-local" value={evt.startAt} onChange={(e) => setEvt({ ...evt, startAt: e.target.value })} /></div>
                       <div className="space-y-1"><Label>End</Label><Input type="datetime-local" value={evt.endAt} onChange={(e) => setEvt({ ...evt, endAt: e.target.value })} /></div>
                     </div>
                     <div className="space-y-1"><Label>Room (optional)</Label><Input value={evt.room} onChange={(e) => setEvt({ ...evt, room: e.target.value })} /></div>
                     {evtErr && <p className="text-xs text-red-600">{evtErr}</p>}
-                    <div className="flex gap-2"><Button size="sm" onClick={saveEvent}>{editEvtId ? "Save" : "Add event"}</Button>{editEvtId && <Button size="sm" variant="ghost" onClick={() => { setEditEvtId(null); setEvt({ title: "", type: "class", startAt: "", endAt: "", room: "", linkedActivityId: "" }); setEvtErr(""); }}>Cancel</Button>}</div>
+                    <div className="flex gap-2"><Button size="sm" onClick={saveEvent}>{editEvtId ? "Save" : "Add event"}</Button>{editEvtId && <Button size="sm" variant="ghost" onClick={() => { setEditEvtId(null); setEvt({ title: "", type: "class", startAt: "", endAt: "", room: "", linkedAssessmentId: "" }); setEvtErr(""); }}>Cancel</Button>}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -342,33 +346,28 @@ function ClassDetail() {
           <div>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-lg font-bold">Weekly sections</h2>
-              <Button variant="outline" size="sm" onClick={() => setShowActForm((v) => !v)}><Plus className="size-4" /> Activity</Button>
+              <Button variant="outline" size="sm" onClick={() => setShowActForm((v) => !v)}><Plus className="size-4" /> Assessment</Button>
             </div>
 
             {showActForm && (
               <Card className="mb-3">
                 <CardHeader>
-                  <CardTitle>Create activity</CardTitle>
-                  <p className="text-sm font-normal text-muted-foreground">Activities are classwork items students complete or attend, such as assignments, quizzes, projects, or exams.</p>
+                  <CardTitle>Create assessment</CardTitle>
+                  <p className="text-sm font-normal text-muted-foreground">Assessments are graded or required classwork items such as assignments, quizzes, projects, labs, or exams.</p>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-2 md:col-span-2"><Label>Title</Label><Input value={act.title} onChange={e => setAct({ ...act, title: e.target.value })} /></div>
                     <div className="space-y-2">
-                      <Label>Kind</Label>
-                      <Select value={act.kind} onValueChange={v => { if (!v) return; const k = v as TeacherActivity["kind"]; const category = KIND_CATEGORY[k] || act.category; setAct({ ...act, kind: k, category, title: act.title || suggestTitle(k, category) }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["assignment","quiz","project","exam"].map(k => <SelectItem key={k} value={k} className="capitalize">{k}</SelectItem>)}</SelectContent></Select>
-                      <p className="text-xs text-muted-foreground">How the activity works (submission/attempt behavior).</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Grading category</Label>
-                      <Select value={act.category} onValueChange={v => { if (!v) return; setAct({ ...act, category: v, title: act.title || suggestTitle(act.kind, v) }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
-                      <p className="text-xs text-muted-foreground">Which grading bucket its marks count toward.</p>
+                      <Label>Category</Label>
+                      <Select value={act.category} onValueChange={v => { if (!v) return; setAct({ ...act, category: v, title: act.title || suggestTitle(v) }); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                      <p className="text-xs text-muted-foreground">Category determines grading bucket and assessment behavior.</p>
                     </div>
                     <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
                     <div className="space-y-2"><Label>Submission mode</Label><Select value={act.submissionMode} onValueChange={(v) => v && setAct({ ...act, submissionMode: v as "upload" | "physical" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="upload">Upload</SelectItem><SelectItem value="physical">Physical</SelectItem></SelectContent></Select></div>
                     <div className="space-y-2"><Label>Open date</Label><Input type="date" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
                     <div className="space-y-2"><Label>Due date</Label><Input type="date" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
-                    {(act.kind === "quiz" || act.kind === "exam") && <div className="space-y-2"><Label>Review policy</Label><Select value={act.reviewPolicy} onValueChange={(v) => v && setAct({ ...act, reviewPolicy: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["immediate","after_close","after_graded","never"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>}
+                    {(inferKind(act.category) === "quiz" || inferKind(act.category) === "exam") && <div className="space-y-2"><Label>Review policy</Label><Select value={act.reviewPolicy} onValueChange={(v) => v && setAct({ ...act, reviewPolicy: v as any })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["immediate","after_close","after_graded","never"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>}
                     {act.submissionMode === "physical" && <div className="space-y-2"><Label>Room / location (physical only)</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>}
                     <div className="md:col-span-2">
                       <SubmissionFileUpload
@@ -381,7 +380,7 @@ function ClassDetail() {
                     </div>
                     <div className="space-y-2 md:col-span-2"><Label>Instructions</Label><Textarea value={act.instructions} onChange={e => setAct({ ...act, instructions: e.target.value })} /></div>
                     {actErr && <p className="text-xs text-red-600 md:col-span-2">{actErr}</p>}
-                    <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addActivity}>Create activity</Button><Button size="sm" variant="ghost" onClick={() => setShowActForm(false)}>Cancel</Button></div>
+                    <div className="md:col-span-2 flex gap-2"><Button size="sm" onClick={addAssessment}>Create assessment</Button><Button size="sm" variant="ghost" onClick={() => setShowActForm(false)}>Cancel</Button></div>
                   </div>
                 </CardContent>
               </Card>
@@ -389,7 +388,7 @@ function ClassDetail() {
 
             <div className="space-y-2">
               {WEEK_RANGES.map((range, idx) => {
-                const weekActs = activities.filter(a => weekIndexFor(a.dueAt || a.openAt) === idx);
+                const weekActs = assessments.filter(a => weekIndexFor(a.dueAt || a.openAt) === idx);
                 const current = idx === 1;
                 return (
                   <details key={range} open={current} className={`group rounded-lg border px-4 py-3 ${current ? "border-blue-300 bg-blue-500/5" : ""}`}>
@@ -398,11 +397,11 @@ function ClassDetail() {
                     </summary>
                     <div className="mt-3 space-y-2">
                       {weekActs.length === 0 && WEEK_ENDS[idx] < "2026-09-03" && (
-                        <p className="text-sm text-muted-foreground">No activities this week.</p>
+                        <p className="text-sm text-muted-foreground">No assessments this week.</p>
                       )}
                       {weekActs.map((a) => {
                         const isQuizExam = a.kind === "quiz" || a.kind === "exam";
-                        const actQuestions = ctx.assessmentQuestions.filter(q => q.activityId === a.id);
+                        const actQuestions = ctx.assessmentQuestions.filter(q => q.assessmentId === a.id);
                         return (
                           <div key={a.id} className="space-y-2">
                             <div className="flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm hover:bg-muted/50">
@@ -413,9 +412,9 @@ function ClassDetail() {
                                 </p>
                               </div>
                               <div className="flex items-center gap-1">
-                                <Link to={`/teacher/grading?activity=${a.id}`} title="Open grading queue" aria-label="Open grading queue" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><ExternalLink className="size-4" /></Link>
+                                <Link to={`/teacher/grading?assessment=${a.id}`} title="Open grading queue" aria-label="Open grading queue" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><ExternalLink className="size-4" /></Link>
                                 {isQuizExam && <IconBtn title="Manage assessment questions" onClick={() => setQActId(qActId === a.id ? "" : a.id)}><HelpCircle className="size-4" /></IconBtn>}
-                                <IconBtn title="Delete activity" danger onClick={() => ctx.setActivities((prev) => prev.filter((x) => x.id !== a.id))}><Trash2 className="size-4" /></IconBtn>
+                                <IconBtn title="Delete assessment" danger onClick={() => ctx.setAssessments((prev) => prev.filter((x) => x.id !== a.id))}><Trash2 className="size-4" /></IconBtn>
                               </div>
                             </div>
                             {qActId === a.id && isQuizExam && (
@@ -440,9 +439,9 @@ function ClassDetail() {
                       {WEEK_ENDS[idx] >= "2026-09-03" && (
                         <button
                           type="button"
-                          title="Add activity"
-                          aria-label="Add activity"
-                          onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx], title: prev.title || suggestTitle(prev.kind, prev.category) })); setShowActForm(true); }}
+                          title="Add assessment"
+                          aria-label="Add assessment"
+                          onClick={() => { setAct((prev) => ({ ...prev, openAt: WEEK_STARTS[idx], dueAt: WEEK_ENDS[idx], title: prev.title || suggestTitle(prev.category) })); setShowActForm(true); }}
                           className="flex w-full items-center justify-center rounded border border-dashed px-3 py-2 text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:text-foreground focus-visible:bg-muted/50"
                         >
                           <Plus className="size-4" />

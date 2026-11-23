@@ -40,7 +40,7 @@ function fmtTime(s: string) {
 }
 
 function TeacherTimetable() {
-  const { events, activities } = useOutletContext<TeacherContext>();
+  const { events, assessments } = useOutletContext<TeacherContext>();
   const [cursor, setCursor] = useState(() => new Date(2026, 10, 1)); // Nov 2026
 
   const year = cursor.getFullYear();
@@ -89,7 +89,7 @@ function TeacherTimetable() {
                       </div>
                     ))}
                     {dayEvents.map((ev) => {
-                      const linked = activities.find((a) => a.id === ev.linkedActivityId);
+                      const linked = assessments.find((a) => a.id === ev.linkedAssessmentId);
                       const sec = teacherSections.find((s) => s.id === ev.sectionId);
                       return (
                         <div key={ev.id} className="rounded border bg-amber-50 px-1.5 py-0.5 text-[11px] leading-tight text-amber-800" title={`${ev.title}${linked ? ` (Linked: ${linked.title})` : ""}`}>

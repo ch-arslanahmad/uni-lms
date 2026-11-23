@@ -22,7 +22,7 @@ type Row = {
   studentId: number;
   studentName: string;
   studentLabel: string;
-  activityId: string;
+  assessmentId: string;
   activityTitle: string;
   category: string;
   sectionLabel: string;
@@ -51,13 +51,13 @@ function statusBadgeClass(s: DisplayStatus) {
 }
 
 function GradingPage() {
-  const { submissions, activities, setSubmissions } = useOutletContext<TeacherContext>();
+  const { submissions, assessments, setSubmissions } = useOutletContext<TeacherContext>();
   const [searchParams] = useSearchParams();
-  const initialActivity = searchParams.get("activity") ?? "";
+  const initialActivity = searchParams.get("assessment") ?? "";
 
   const [view, setView] = useState<ViewMode>(initialActivity ? "assessment" : "student");
   const [selectedStudent, setSelectedStudent] = useState(String(students[0]?.id ?? ""));
-  const [selectedActivity, setSelectedActivity] = useState(initialActivity || activities[0]?.id || "");
+  const [selectedActivity, setSelectedActivity] = useState(initialActivity || assessments[0]?.id || "");
   const [statusFilter, setStatusFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [drawer, setDrawer] = useState<Row | null>(null);
@@ -66,7 +66,7 @@ function GradingPage() {
   const [drawerErr, setDrawerErr] = useState("");
 
   const rows: Row[] = useMemo(() => submissions.map((sub) => {
-    const act = activities.find((a) => a.id === sub.activityId);
+    const act = assessments.find((a) => a.id === sub.assessmentId);
     const section = teacherSections.find((s) => s.id === act?.sectionId);
     const stu = students.find((s) => s.id === sub.studentId);
     const dueAt = sub.extensionDueAt ?? act?.dueAt ?? "—";
@@ -75,8 +75,8 @@ function GradingPage() {
       studentId: sub.studentId,
       studentName: stu?.name ?? String(sub.studentId),
       studentLabel: `#${sub.studentId} — ${stu?.name ?? sub.studentId} (${section?.section.subjectCode ?? "—"})`,
-      activityId: sub.activityId,
-      activityTitle: act?.title ?? sub.activityId,
+      assessmentId: sub.assessmentId,
+      activityTitle: act?.title ?? sub.assessmentId,
       category: act?.category ?? "—",
       sectionLabel: section ? `${section.section.subjectCode}-${section.section.code}` : "—",
       dueAt,
@@ -87,11 +87,11 @@ function GradingPage() {
       maxMarks: act?.maxMarks ?? 100,
       feedback: sub.feedback ?? "",
     };
-  }), [submissions, activities]);
+  }), [submissions, assessments]);
 
   const scoped = rows.filter((r) => view === "student"
     ? String(r.studentId) === selectedStudent
-    : r.activityId === selectedActivity);
+    : r.assessmentId === selectedActivity);
 
   const filtered = scoped.filter((r) => {
     const statusOk = statusFilter === "All" || r.status === statusFilter;
@@ -154,7 +154,7 @@ function GradingPage() {
   const searchPlaceholder = view === "student" ? "Search assessments or classes..." : "Search students by name or ID...";
   const selectedEntityText = view === "student"
     ? (students.find((s) => String(s.id) === selectedStudent)?.name ?? "student")
-    : (activities.find((a) => a.id === selectedActivity)?.title ?? "assessment");
+    : (assessments.find((a) => a.id === selectedActivity)?.title ?? "assessment");
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -189,7 +189,7 @@ function GradingPage() {
             <Select value={selectedActivity} onValueChange={(v) => v && setSelectedActivity(v)}>
               <SelectTrigger className="h-10 w-72"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {activities.map((a) => {
+                {assessments.map((a) => {
                   const sec = teacherSections.find((s) => s.id === a.sectionId);
                   return <SelectItem key={a.id} value={a.id}>{a.title} ({sec?.section.subjectCode ?? "—"})</SelectItem>;
                 })}

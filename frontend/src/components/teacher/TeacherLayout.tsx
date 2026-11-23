@@ -7,7 +7,7 @@ import { getTeacherProfile } from "../../mock/teacher";
 import {
   gradeCategories as seedCategories,
   sectionResultStates as seedResultStates,
-  teacherActivities as seedActivities,
+  teacherAssessments as seedAssessments,
   teacherAnnouncements as seedAnnouncements,
   teacherEvents as seedEvents,
   assessmentQuestions as seedAssessmentQuestions,
@@ -16,7 +16,7 @@ import {
   teacherSubmissions as seedSubmissions,
   type GradeCategory,
   type SectionResultState,
-  type TeacherActivity,
+  type TeacherAssessment,
   type TeacherAnnouncement,
   type TeacherEvent,
   type AssessmentQuestion,
@@ -26,8 +26,8 @@ import {
 } from "../../mock/teacher";
 
 export interface TeacherContext {
-  activities: TeacherActivity[];
-  setActivities: React.Dispatch<React.SetStateAction<TeacherActivity[]>>;
+  assessments: TeacherAssessment[];
+  setAssessments: React.Dispatch<React.SetStateAction<TeacherAssessment[]>>;
   submissions: TeacherSubmission[];
   setSubmissions: React.Dispatch<React.SetStateAction<TeacherSubmission[]>>;
   questions: TeacherQuestion[];
@@ -48,7 +48,7 @@ export interface TeacherContext {
 
 function TeacherLayout() {
   const teacher = getTeacherProfile();
-  const [activities, setActivities] = useState<TeacherActivity[]>(seedActivities);
+  const [assessments, setAssessments] = useState<TeacherAssessment[]>(seedAssessments);
   const [submissions, setSubmissions] = useState<TeacherSubmission[]>(seedSubmissions);
   const [questions, setQuestions] = useState<TeacherQuestion[]>(seedQuestions);
   const [materials, setMaterials] = useState<TeacherMaterial[]>(seedMaterials);
@@ -103,7 +103,7 @@ function TeacherLayout() {
       <main className="flex-1">
         <Outlet
           context={{
-            activities, setActivities,
+            assessments, setAssessments,
             submissions, setSubmissions,
             questions, setQuestions,
             materials, setMaterials,

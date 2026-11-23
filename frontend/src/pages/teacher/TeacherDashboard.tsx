@@ -7,12 +7,12 @@ import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { getTeacherProfile, teacherSections } from "../../mock/teacher";
 
 function TeacherDashboard() {
-  const { submissions, questions, activities } = useOutletContext<TeacherContext>();
+  const { submissions, questions, assessments } = useOutletContext<TeacherContext>();
   const navigate = useNavigate();
   const teacher = getTeacherProfile();
   const pendingGrading = submissions.filter((s) => s.status === "submitted").length;
   const unanswered = questions.filter((q) => q.status === "pending").length;
-  const upcoming = activities
+  const upcoming = assessments
     .filter((a) => a.dueAt >= "2026-11-22" || (a.required && !a.documentName))
     .sort((a, b) => a.dueAt.localeCompare(b.dueAt))
     .slice(0, 6);
@@ -21,7 +21,7 @@ function TeacherDashboard() {
     { value: teacherSections.length, label: "Assigned Classes", href: "/teacher/classes" },
     { value: pendingGrading, label: "Pending Grading", href: "/teacher/grading" },
     { value: unanswered, label: "Unanswered Questions", href: "/teacher/questions" },
-    { value: upcoming.length, label: "Upcoming Activities", href: "/teacher/classes" },
+    { value: upcoming.length, label: "Upcoming Assessments", href: "/teacher/classes" },
   ];
 
   const recentQuestions = questions.slice(0, 5);
@@ -40,9 +40,9 @@ function TeacherDashboard() {
       tableSlot={
         <div className="space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Upcoming activities</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Upcoming assessments</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {upcoming.length === 0 ? <p className="text-sm text-muted-foreground">No upcoming activities.</p> : upcoming.map((a) => {
+              {upcoming.length === 0 ? <p className="text-sm text-muted-foreground">No upcoming assessments.</p> : upcoming.map((a) => {
                 const sec = teacherSections.find((s) => s.id === a.sectionId);
                 return (
                   <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm hover:bg-muted/40">
@@ -51,7 +51,7 @@ function TeacherDashboard() {
                       <p className="text-xs text-muted-foreground">{sec ? `${sec.section.subjectCode} - ${sec.section.code} · ` : ""}{a.kind} · due {a.dueAt}</p>
                     </Link>
                     <div className="flex items-center gap-1 ml-3">
-                      <button type="button" title="Grading" aria-label="Grading" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => navigate(`/teacher/grading?activity=${a.id}`)}><ClipboardCheck className="size-4" /></button>
+                      <button type="button" title="Grading" aria-label="Grading" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => navigate(`/teacher/grading?assessment=${a.id}`)}><ClipboardCheck className="size-4" /></button>
                       <button type="button" title="Open class" aria-label="Open class" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => navigate(`/teacher/classes/${a.sectionId}`)}><BookOpen className="size-4" /></button>
                     </div>
                   </div>

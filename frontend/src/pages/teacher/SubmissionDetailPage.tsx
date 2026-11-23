@@ -12,9 +12,9 @@ import { students } from "../../models";
 
 function SubmissionDetailPage() {
   const { submissionId } = useParams();
-  const { submissions, setSubmissions, activities } = useOutletContext<TeacherContext>();
+  const { submissions, setSubmissions, assessments } = useOutletContext<TeacherContext>();
   const sub = submissions.find((s) => s.id === submissionId);
-  const act = activities.find((a) => a.id === sub?.activityId);
+  const act = assessments.find((a) => a.id === sub?.assessmentId);
   const section = teacherSections.find((s) => s.id === act?.sectionId);
   const student = students.find((s) => s.id === sub?.studentId);
 
