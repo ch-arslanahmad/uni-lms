@@ -1,7 +1,11 @@
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersPage from "./pages/admin/UsersPage";
-import { UserColumns, UserFilters, UserSearchKeys } from "./components/userTableConfig";
+import {
+  UserColumns,
+  UserFilters,
+  UserSearchKeys,
+} from "./components/userTableConfig";
 import StudentsPage from "./pages/admin/StudentsPage";
 import TeachersPage from "./pages/admin/TeachersPage";
 import NotFound from "./pages/NotFound";
