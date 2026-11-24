@@ -1,34 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Textarea } from "../../components/ui/textarea";
 import { getStudentQuizzes, isWrittenQuestion, QUIZ_SCORES_MESSAGE, type QuizAnswerValue } from "../../api";
+import { availabilityStatus } from "../../mock/student";
 
 function QuizAttemptPage() {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const quiz = getStudentQuizzes().find((q) => q.id === quizId);
+  const blocked = !quiz || availabilityStatus(quiz.opened, quiz.closed) !== "open";
   const totalSeconds = (parseInt(quiz?.timeLimit ?? "30", 10) || 30) * 60;
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, QuizAnswerValue>>({});
   const [remaining, setRemaining] = useState(totalSeconds);
   const [confirm, setConfirm] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setRemaining((s) => {
-        if (s <= 1) {
-          window.clearInterval(timer);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+  const expired = remaining === 0;
+  const submittedQuizRef = useRef<string | null>(null);
 
   // Written answers are excluded from the auto-graded score passed to review.
   const score = useMemo(
@@ -37,8 +28,45 @@ function QuizAttemptPage() {
     [answers, quiz],
   );
 
+  const submitAttempt = useCallback(() => {
+    if (!quiz || submittedQuizRef.current === quiz.id) return;
+    submittedQuizRef.current = quiz.id;
+    navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers, score }, replace: true });
+  }, [answers, navigate, quiz, score]);
+
+  useEffect(() => {
+    if (blocked || expired) return;
+    const timer = window.setInterval(() => {
+      setRemaining((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [blocked, expired]);
+
+  useEffect(() => {
+    if (!blocked && expired) submitAttempt();
+  }, [blocked, expired, submitAttempt]);
+
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
-  const expired = remaining === 0;
+
+  if (blocked) {
+    const status = availabilityStatus(quiz.opened, quiz.closed);
+    return (
+      <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+        <Breadcrumbs items={[{ label: "My courses", to: "/student/courses" }, { label: quiz.title, to: `/student/quizzes/${quiz.id}` }, { label: "Attempt" }]} />
+        <Card>
+          <CardHeader><CardTitle>Attempt not available</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              {status === "upcoming"
+                ? `This assessment opens on ${quiz.opened}. You cannot start an attempt yet.`
+                : `The attempt window closed on ${quiz.closed}. You cannot start a new attempt.`}
+            </p>
+            <Link to={`/student/quizzes/${quiz.id}`}><Button variant="outline" size="sm">Back to assessment</Button></Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   const question = quiz.questions[index];
   const answeredCount = Object.values(answers).filter((value) =>
     typeof value === "number" || (typeof value === "string" && value.trim().length > 0),
@@ -61,7 +89,7 @@ function QuizAttemptPage() {
       </div>
       {expired && (
         <div className="rounded-lg border border-red-200 bg-red-500/10 px-4 py-3 text-sm text-red-700">
-          Time expired. Answers are locked. Submit your attempt to view results.
+          Time expired. Answers are locked. Submit your attempt. Results will be available after publication.
         </div>
       )}
 
@@ -134,7 +162,7 @@ function QuizAttemptPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirm(false)}>Keep working</Button>
-            <Button onClick={() => navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers, score } })}>Submit</Button>
+            <Button onClick={submitAttempt}>Submit</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

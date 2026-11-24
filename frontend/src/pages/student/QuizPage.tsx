@@ -9,7 +9,7 @@ import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import { findActivity, findOffering, offerings, type Quiz } from "../../mock/student";
+import { activityLabel, availabilityStatus, findActivity, findOffering, findOfferingForActivity, type Quiz } from "../../mock/student";
 import { areQuizScoresPublished, fileToSubmissionFile, getStudentQuizzes, QUIZ_SCORES_MESSAGE, type SubmissionFile } from "../../api";
 
 type AttemptRow = Quiz["attempts"][number];
@@ -103,17 +103,22 @@ function QuizPage() {
   const { questions, saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const quiz = getStudentQuizzes().find((q) => q.id === quizId);
   const activity = findActivity(quizId);
-  const offeringByActivity = offerings.find((o) => o.weeks.some((w) => w.activities.some((a) => a.id === quizId)));
-  const offering = findOffering(quiz?.offeringId ?? offeringByActivity?.offeringId);
+  const offering = findOffering(quiz?.offeringId ?? findOfferingForActivity(quizId)?.offeringId);
   const [askOpen, setAskOpen] = useState(params.get("ask") === "1");
   const [eventNote, setEventNote] = useState("");
 
   if (!quiz && !activity) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
   const title = quiz?.title ?? activity?.title ?? "Quiz";
+  const typeLabel = quiz ? "Quiz" : activity ? activityLabel(activity) : "Quiz";
   const hasMcq = quiz != null || activity?.hasMcq;
   const hasSubmission = (activity?.submissionModes.length ?? 0) > 0;
   const scoresPublished = quiz ? areQuizScoresPublished(quiz) : false;
+  const availability = quiz
+    ? availabilityStatus(quiz.opened, quiz.closed)
+    : activity
+      ? availabilityStatus(activity.opened, activity.closed ?? activity.due)
+      : "open";
   const dueDate = quiz?.closed?.slice(0, 10) ?? activity?.due ?? "";
   const dueTone = activity?.submitted || activity?.graded
     ? "text-emerald-600"
@@ -141,6 +146,7 @@ function QuizPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{title}</h1>
+          <p className="text-xs text-muted-foreground">{typeLabel}</p>
           <p className="text-sm text-muted-foreground">
             {quiz ? `Opened ${quiz.opened}` : `Opened ${activity?.opened}`}
           </p>
@@ -159,6 +165,18 @@ function QuizPage() {
           </Link>
         </div>
       </div>
+
+      {availability !== "open" && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${
+          availability === "upcoming"
+            ? "border-amber-200 bg-amber-500/10 text-amber-700"
+            : "border-red-200 bg-red-500/10 text-red-700"
+        }`}>
+          {availability === "upcoming"
+            ? `This assessment is not open yet. It opens on ${quiz?.opened ?? activity?.opened}.`
+            : "The attempt window for this assessment has closed."}
+        </div>
+      )}
 
       {!hasSubmission && (askOpen || eventQuestions.length > 0) && (
         <Card>
@@ -221,8 +239,17 @@ function QuizPage() {
                 searchKeys={["status"]}
               />
               <div className="flex flex-wrap items-center gap-2">
-                {quiz.attempts.length === 0 ? (
-                  <Link to={`/student/quizzes/${quiz.id}/attempt`}><Button>Start attempt</Button></Link>
+                {quiz.attempts.length < quiz.attemptsAllowed && (
+                  availability === "open" ? (
+                    <Link to={`/student/quizzes/${quiz.id}/attempt`}>
+                      <Button>{quiz.attempts.length === 0 ? "Start attempt" : "New attempt"}</Button>
+                    </Link>
+                  ) : (
+                    <Button disabled>{quiz.attempts.length === 0 ? "Start attempt" : "New attempt"}</Button>
+                  )
+                )}
+                {scoresPublished ? (
+                  <Link to={`/student/quizzes/${quiz.id}/review`}><Button variant="outline">View results</Button></Link>
                 ) : (
                   <>
                     {quiz.attempts.length < quiz.attemptsAllowed && (

@@ -21,6 +21,7 @@ import AssignmentPage from "./pages/student/AssignmentPage";
 import QuizPage from "./pages/student/QuizPage";
 import QuizAttemptPage from "./pages/student/QuizAttemptPage";
 import QuizReviewPage from "./pages/student/QuizReviewPage";
+import ExamPage from "./pages/student/ExamPage";
 import TeacherProfilePage from "./pages/student/TeacherProfilePage";
 import MyQuestionsPage from "./pages/student/MyQuestionsPage";
 import ResultsPage from "./pages/student/ResultsPage";
@@ -73,6 +74,7 @@ const router = createBrowserRouter([
       { path: "quizzes/:quizId", element: <QuizPage /> },
       { path: "quizzes/:quizId/attempt", element: <QuizAttemptPage /> },
       { path: "quizzes/:quizId/review", element: <QuizReviewPage /> },
+      { path: "exams/:examId", element: <ExamPage /> },
       { path: "teachers/:teacherId", element: <TeacherProfilePage /> },
       { path: "*", element: <NotFound /> },
     ],

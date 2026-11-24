@@ -12,9 +12,8 @@ function QuizReviewPage() {
 
   const scoresPublished = areQuizScoresPublished(quiz);
   const hasWritten = quiz.questions.some(isWrittenQuestion);
-  const answers = state?.answers ?? Object.fromEntries(
-    quiz.questions.map((q) => [q.id, isWrittenQuestion(q) ? "" : q.answer]),
-  );
+  const submitted = state?.answers !== undefined;
+  const answers = state?.answers ?? {};
   const score = state?.score ?? quiz.grade;
 
   return (
@@ -22,7 +21,7 @@ function QuizReviewPage() {
       <Breadcrumbs items={[{ label: "My courses", to: "/student/courses" }, { label: quiz.title, to: `/student/quizzes/${quiz.id}` }, { label: "Review" }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{quiz.title} - Review</h1>
+          <h1 className="text-2xl font-bold">{quiz.title} - Results</h1>
           <p className="text-sm text-muted-foreground">
             {scoresPublished
               ? hasWritten
@@ -34,7 +33,14 @@ function QuizReviewPage() {
         <Link to={`/student/quizzes/${quiz.id}`}><Button variant="outline" size="sm">Back to summary</Button></Link>
       </div>
 
-      {!scoresPublished ? (
+      {!submitted ? (
+        <Card>
+          <CardHeader><CardTitle>No attempt to review</CardTitle></CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            No submitted answers were found for this assessment. Open the assessment to start an attempt.
+          </CardContent>
+        </Card>
+      ) : !scoresPublished ? (
         <Card>
           <CardHeader><CardTitle>Scores not published yet</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
