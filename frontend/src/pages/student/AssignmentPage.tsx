@@ -11,7 +11,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import { activityLabel, activityPath, allActivities, findActivity, offerings, type Activity } from "../../mock/student";
+import { activityLabel, activityPath, allActivities, availabilityStatus, findActivity, offerings, type Activity } from "../../mock/student";
 import { fileToSubmissionFile, type SubmissionFile } from "../../api";
 
 function ActivityBar({ activity }: { activity?: Activity }) {
@@ -87,6 +87,9 @@ function AssignmentPage() {
         ? `Due soon - ${activity.due}`
         : `Due ${activity.due}`;
   const eventQuestions = questions.filter((q) => q.contextTo === `/student/assignments/${activity.id}`);
+  const availability = availabilityStatus(activity.opened, activity.closed ?? activity.due);
+  const locked = availability === "upcoming";
+  const closed = availability === "closed";
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
@@ -117,6 +120,19 @@ function AssignmentPage() {
           )}
         </div>
       </div>
+
+      {(locked || closed) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{locked ? "Not open yet" : "Submission window closed"}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            {locked
+              ? `Details and submission become available on ${activity.opened}.`
+              : `The window closed on ${activity.closed ?? activity.due}. Ask your teacher if you need an extension.`}
+          </CardContent>
+        </Card>
+      )}
 
       {(askOpen || eventQuestions.length > 0) && (
         <Card>
@@ -178,23 +194,25 @@ function AssignmentPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader><CardTitle>Submission requirements</CardTitle></CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {canUpload && <p>Attachment upload required.</p>}
-          {isPhysical && activity.physical && (
-            <p>
-              Physical submission: {activity.physical.timeWindow}, {activity.physical.room}. You can come any working day before and on the due date.
-            </p>
-          )}
-          {!canUpload && !isPhysical && <p>No online submission required.</p>}
-        </CardContent>
-      </Card>
+      {!locked && (
+        <Card>
+          <CardHeader><CardTitle>Submission requirements</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {canUpload && <p>Attachment upload required.</p>}
+            {isPhysical && activity.physical && (
+              <p>
+                Physical submission: {activity.physical.timeWindow}, {activity.physical.room}. You can come any working day before and on the due date.
+              </p>
+            )}
+            {!canUpload && !isPhysical && <p>No online submission required.</p>}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader><CardTitle>Submission</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {!graded && !submitted && (
+          {!graded && !submitted && !locked && !closed && (
             <div className="space-y-3">
               {canUpload && (
                 <SubmissionFileUpload
@@ -218,7 +236,7 @@ function AssignmentPage() {
             </div>
           )}
 
-          {!graded && submitted && (
+          {!graded && submitted && !closed && (
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => { setNoteDraft(savedNote); setSubmitted(false); }}>Edit submission</Button>
               <Button size="sm" variant="destructive" onClick={() => setConfirmRemove(true)}>Remove submission</Button>
@@ -226,6 +244,7 @@ function AssignmentPage() {
           )}
 
           {graded && <p className="rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-700">Graded and locked. No further edits allowed.</p>}
+          {closed && !graded && <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Submissions are closed. Your existing submission is shown below.</p>}
 
           <Table>
             <TableHeader>

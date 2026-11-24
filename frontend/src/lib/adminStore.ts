@@ -48,6 +48,7 @@ export interface AdminState {
   enrolments: EnrolmentRow[];
   teacherCourses: Record<number, string>;
   examDatesheet: ExamDatesheetEntry[];
+  datesheetPublished: boolean;
 }
 
 function seedState(): AdminState {
@@ -67,6 +68,7 @@ function seedState(): AdminState {
     })),
     teacherCourses: { ...seedTeacherCourses },
     examDatesheet: mockExamDatesheet.map((e) => ({ ...e })),
+    datesheetPublished: true,
   };
 }
 
@@ -77,7 +79,10 @@ const STORAGE_KEY = "uni-lms-admin-store-v1";
 function loadState(): AdminState {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as AdminState;
+    if (raw) {
+      // Merge over seeds so state saved before a new flag was added stays valid.
+      return { ...seedState(), ...(JSON.parse(raw) as Partial<AdminState>) };
+    }
   } catch {
     // corrupted or unavailable storage — fall back to seeds
   }
@@ -108,6 +113,11 @@ export function getAdminState(): AdminState {
 
 export function useAdminStore(): AdminState {
   return useSyncExternalStore(subscribe, getAdminState);
+}
+
+/** Publish (or retract) the mid/final datesheet for teachers and students. */
+export function setDatesheetPublished(published: boolean) {
+  commit({ ...state, datesheetPublished: published });
 }
 
 /** Restore the original seed data (demo/testing helper). */
@@ -440,6 +450,56 @@ export function saveSlot(input: Omit<ScheduleSlot, "id">, id?: number): string |
 
 export function deleteSlot(id: number): string | null {
   commit({ ...state, scheduleSlots: state.scheduleSlots.filter((s) => s.id !== id) });
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// FR24 — admin-owned mid/final exam datesheet
+// ---------------------------------------------------------------------------
+
+export function dayOfWeekFor(date: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { weekday: "long" });
+}
+
+export function saveDatesheetEntry(
+  input: Omit<ExamDatesheetEntry, "id" | "dayOfWeek">,
+  id?: number,
+): string | null {
+  if (!input.subjectCode.trim() || !input.subjectTitle.trim() || !input.classSection.trim())
+    return "Course code, course title and class section are required.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.examDate)) return "Choose a valid exam date.";
+  if (!input.timeSlot.trim()) return "Time window is required.";
+
+  const duplicate = state.examDatesheet.find(
+    (e) =>
+      e.id !== id &&
+      e.examType === input.examType &&
+      e.classSection.toUpperCase() === input.classSection.toUpperCase() &&
+      e.subjectCode.toUpperCase() === input.subjectCode.toUpperCase(),
+  );
+  if (duplicate) return "That course already has an entry for this exam type in this class.";
+
+  const entry: ExamDatesheetEntry = {
+    ...input,
+    subjectCode: input.subjectCode.trim(),
+    subjectTitle: input.subjectTitle.trim(),
+    classSection: input.classSection.trim(),
+    timeSlot: input.timeSlot.trim(),
+    dayOfWeek: dayOfWeekFor(input.examDate),
+    id: id ?? nextId(state.examDatesheet),
+  };
+  commit({
+    ...state,
+    examDatesheet: id == null
+      ? [...state.examDatesheet, entry]
+      : state.examDatesheet.map((e) => (e.id === id ? entry : e)),
+  });
+  return null;
+}
+
+export function deleteDatesheetEntry(id: number): string | null {
+  commit({ ...state, examDatesheet: state.examDatesheet.filter((e) => e.id !== id) });
   return null;
 }
 

@@ -1,4 +1,4 @@
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { Link, RouterProvider, createBrowserRouter } from "react-router-dom";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersPage from "./pages/admin/UsersPage";
 import {
@@ -26,6 +26,8 @@ import ExamPage from "./pages/student/ExamPage";
 import TeacherProfilePage from "./pages/student/TeacherProfilePage";
 import MyQuestionsPage from "./pages/student/MyQuestionsPage";
 import ResultsPage from "./pages/student/ResultsPage";
+import StudentTimetablePage from "./pages/student/StudentTimetablePage";
+import DatesheetPage from "./pages/student/DatesheetPage";
 import TeacherLayout from "./components/teacher/TeacherLayout";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import MyClasses from "./pages/teacher/MyClasses";
@@ -51,8 +53,24 @@ function AdminUsersRoute() {
   );
 }
 
+// The published datesheet is also readable without entering a role area.
+function PublicDatesheetRoute() {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link to="/login" className="font-bold">Uni LMS</Link>
+          <Link to="/login" className="text-sm text-blue-600 hover:underline">Sign in</Link>
+        </div>
+      </header>
+      <DatesheetPage standalone />
+    </div>
+  );
+}
+
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/datesheet", element: <PublicDatesheetRoute /> },
   {
     element: <AdminLayout />,
     children: [
@@ -74,6 +92,8 @@ const router = createBrowserRouter([
       { path: "courses/:offeringId", element: <CoursePage /> },
       { path: "questions", element: <MyQuestionsPage /> },
       { path: "results", element: <ResultsPage /> },
+      { path: "timetable", element: <StudentTimetablePage /> },
+      { path: "datesheet", element: <DatesheetPage /> },
       { path: "assignments/:assignmentId", element: <AssignmentPage /> },
       { path: "quizzes/:quizId", element: <QuizPage /> },
       { path: "quizzes/:quizId/attempt", element: <QuizAttemptPage /> },

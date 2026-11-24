@@ -148,7 +148,7 @@ export default function ImportExportPage() {
         <div>
           <h1 className="text-2xl font-bold">CSV Import & Export</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Bulk ingest or export institutional academic data in all-or-nothing transactions (FR17)
+            Bulk ingest or export institutional academic data in all-or-nothing transactions
           </p>
         </div>
       </div>

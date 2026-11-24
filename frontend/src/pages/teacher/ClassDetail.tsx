@@ -13,6 +13,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable } from "../../components/SimpleTable";
 import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
+import { useAdminStore } from "../../lib/adminStore";
 import {
   calculateCourseResults,
   fileToSubmissionFile,
@@ -58,6 +59,7 @@ function ClassDetail() {
   const [params] = useSearchParams();
   const section = getTeacherSection(sectionId);
   const ctx = useOutletContext<TeacherContext>();
+  const admin = useAdminStore();
   const view = params.get("view") ?? "course";
 
   const sid = section?.id;
@@ -493,6 +495,23 @@ function ClassDetail() {
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="size-4" /> Section events</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Admin datesheet for your section</p>
+                    {!admin.datesheetPublished ? (
+                      <p className="rounded border p-2 text-sm text-muted-foreground">Not published yet.</p>
+                    ) : admin.examDatesheet.filter((e) => e.classSection.endsWith(section?.section.code ?? "__none")).length === 0 ? (
+                      <p className="rounded border p-2 text-sm text-muted-foreground">No midterm or final papers scheduled for this section.</p>
+                    ) : admin.examDatesheet
+                        .filter((e) => e.classSection.endsWith(section?.section.code ?? "__none"))
+                        .map((entry) => (
+                          <div key={entry.id} className="rounded border border-amber-200 bg-amber-50/50 p-2 text-sm">
+                            <p className="font-medium">{entry.examType} · {entry.subjectCode} {entry.subjectTitle}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {entry.examDate} ({entry.dayOfWeek}) · {entry.timeSlot}
+                            </p>
+                          </div>
+                        ))}
+                  </div>
                   {(() => {
                     const mandatory = assessments.filter((a) => a.category === "Midterm" || a.category === "Final");
                     return mandatory.length > 0 ? (
@@ -619,6 +638,9 @@ function ClassDetail() {
                         <div className="space-y-2"><Label>Open at</Label><Input type="datetime-local" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
                         <div className="space-y-2"><Label>Due at</Label><Input type="datetime-local" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
                         <div className="space-y-2"><Label>Close at</Label><Input type="datetime-local" value={act.closeAt} onChange={e => setAct({ ...act, closeAt: e.target.value })} /></div>
+                        <p className="text-xs text-muted-foreground md:col-span-3 -mt-1">
+                          Students see the title and schedule right away. The attachment and quiz questions unlock at Open at; attempts and uploads close at Close at. Grades stay hidden until results are published.
+                        </p>
                         {act.submissionModes.includes("physical") && <>
                           <div className="space-y-2"><Label>Room / location</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>
                           <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" checked={act.hasViva} onChange={e => setAct({ ...act, hasViva: e.target.checked })} />Includes viva</label>
@@ -653,7 +675,7 @@ function ClassDetail() {
                               <IconBtn title="Remove requirement" danger onClick={() => setAct((prev) => ({ ...prev, requirements: prev.requirements.filter((_, i) => i !== index) }))}><Trash2 className="size-4" /></IconBtn>
                             </div>
                           ))}
-                          <p className="text-xs text-muted-foreground">At least one requirement, and at least one must be required (FR8 / I7).</p>
+                          <p className="text-xs text-muted-foreground">At least one requirement, and at least one must be required.</p>
                         </div>
                         <div className="md:col-span-2">
                           <SubmissionFileUpload

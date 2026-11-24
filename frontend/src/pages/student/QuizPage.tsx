@@ -21,7 +21,7 @@ const attemptColumns: Column<AttemptRow>[] = [
   { key: "grade", label: "Grade" },
 ];
 
-function SubmissionBlock({ activityId }: { activityId: string }) {
+function SubmissionBlock({ activityId, locked = false, closed = false }: { activityId: string; locked?: boolean; closed?: boolean }) {
   const { questions, saveQuestion } = useOutletContext<StudentQuestionsContext>();
   const activity = findActivity(activityId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
@@ -41,7 +41,14 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
         {isPhysical && activity.physical && (
           <p>Physical submission: {activity.physical.timeWindow}, {activity.physical.room}. Any working day before and on due date.</p>
         )}
-        {!submitted ? (
+        {(locked || closed) && (
+          <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+            {locked
+              ? `Submissions open on ${activity.opened}.`
+              : "The submission window has closed. Existing submissions are read-only."}
+          </p>
+        )}
+        {!submitted && !locked && !closed ? (
           <div className="space-y-3">
             {canUpload && (
               <SubmissionFileUpload
@@ -65,7 +72,7 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
           <div className="space-y-2">
             {fileName && <p className="text-muted-foreground">File: {fileName}</p>}
             <p><span className="font-medium">Question for teacher:</span> {savedNote || "No question submitted."}</p>
-            <Button size="sm" variant="outline" onClick={() => { setNoteDraft(savedNote); setSubmitted(false); }}>Edit submission</Button>
+            {!closed && <Button size="sm" variant="outline" onClick={() => { setNoteDraft(savedNote); setSubmitted(false); }}>Edit submission</Button>}
           </div>
         )}
         {eventQuestions.length > 0 && (
@@ -178,7 +185,16 @@ function QuizPage() {
         </div>
       )}
 
-      {!hasSubmission && (askOpen || eventQuestions.length > 0) && (
+      {availability === "upcoming" && hasSubmission && activity && (
+        <Card>
+          <CardHeader><CardTitle>Attachment</CardTitle></CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            The question paper is locked until {quiz?.opened ?? activity.opened}.
+          </CardContent>
+        </Card>
+      )}
+
+      {availability !== "upcoming" && !hasSubmission && (askOpen || eventQuestions.length > 0) && (
         <Card>
           <CardHeader><CardTitle>Questions & responses</CardTitle></CardHeader>
           <CardContent className="space-y-3">
@@ -251,16 +267,7 @@ function QuizPage() {
                 {scoresPublished ? (
                   <Link to={`/student/quizzes/${quiz.id}/review`}><Button variant="outline">View results</Button></Link>
                 ) : (
-                  <>
-                    {quiz.attempts.length < quiz.attemptsAllowed && (
-                      <Link to={`/student/quizzes/${quiz.id}/attempt`}><Button>New attempt</Button></Link>
-                    )}
-                    {scoresPublished ? (
-                      <Link to={`/student/quizzes/${quiz.id}/review`}><Button variant="outline">Review</Button></Link>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">{QUIZ_SCORES_MESSAGE}</span>
-                    )}
-                  </>
+                  <span className="text-sm text-muted-foreground">{QUIZ_SCORES_MESSAGE}</span>
                 )}
               </div>
             </CardContent>
@@ -268,7 +275,9 @@ function QuizPage() {
         </>
       )}
 
-      {hasSubmission && activity && <SubmissionBlock activityId={activity.id} />}
+      {availability !== "upcoming" && hasSubmission && activity && (
+        <SubmissionBlock activityId={activity.id} closed={availability === "closed"} />
+      )}
     </div>
   );
 }

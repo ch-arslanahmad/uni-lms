@@ -17,7 +17,7 @@ const gradeColumns: Column<GradeRow>[] = [
   { key: "raw", label: "Marks obtained" },
   { key: "max", label: "Max marks" },
   { key: "weight", label: "Weightage %", render: (r) => `${r.weight}%` },
-  { key: "raw", label: "Weighted marks", render: (r) => ((r.raw / r.max) * r.weight).toFixed(2) },
+  { key: "raw", id: "weighted", label: "Weighted marks", render: (r) => ((r.raw / r.max) * r.weight).toFixed(2) },
 ];
 
 function CoursePage() {
