@@ -9,7 +9,8 @@ import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import { canReviewQuiz, findActivity, findOffering, offerings, quizReviewMessage, quizzes, type Quiz } from "../../mock/student";
+import { findActivity, findOffering, offerings, type Quiz } from "../../mock/student";
+import { areQuizScoresPublished, fileToSubmissionFile, getStudentQuizzes, QUIZ_SCORES_MESSAGE, type SubmissionFile } from "../../api";
 
 type AttemptRow = Quiz["attempts"][number];
 const attemptColumns: Column<AttemptRow>[] = [
@@ -25,6 +26,7 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
   const activity = findActivity(activityId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<SubmissionFile | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [savedNote, setSavedNote] = useState("");
   if (!activity) return null;
@@ -46,8 +48,10 @@ function SubmissionBlock({ activityId }: { activityId: string }) {
                 id="quiz-file"
                 fileName={fileName}
                 onFileChange={setFileName}
+                onFileSelected={(file) => { if (!file) { setUploadedFile(null); return; } void fileToSubmissionFile(file).then(setUploadedFile); }}
               />
             )}
+            {uploadedFile && <p className="text-xs text-muted-foreground">Selected: {uploadedFile.name} · {uploadedFile.mimeType} · {uploadedFile.size} bytes</p>}
             <div className="space-y-1">
               <Label htmlFor="quiz-note">Question for teacher (optional)</Label>
               <Textarea id="quiz-note" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Ask one clear question, if needed" />
@@ -97,7 +101,7 @@ function QuizPage() {
   const { quizId } = useParams();
   const [params] = useSearchParams();
   const { questions, saveQuestion } = useOutletContext<StudentQuestionsContext>();
-  const quiz = quizzes.find((q) => q.id === quizId);
+  const quiz = getStudentQuizzes().find((q) => q.id === quizId);
   const activity = findActivity(quizId);
   const offeringByActivity = offerings.find((o) => o.weeks.some((w) => w.activities.some((a) => a.id === quizId)));
   const offering = findOffering(quiz?.offeringId ?? offeringByActivity?.offeringId);
@@ -109,7 +113,7 @@ function QuizPage() {
   const title = quiz?.title ?? activity?.title ?? "Quiz";
   const hasMcq = quiz != null || activity?.hasMcq;
   const hasSubmission = (activity?.submissionModes.length ?? 0) > 0;
-  const reviewAllowed = quiz ? canReviewQuiz(quiz) : false;
+  const scoresPublished = quiz ? areQuizScoresPublished(quiz) : false;
   const dueDate = quiz?.closed?.slice(0, 10) ?? activity?.due ?? "";
   const dueTone = activity?.submitted || activity?.graded
     ? "text-emerald-600"
@@ -204,7 +208,7 @@ function QuizPage() {
           <div className="grid gap-4 sm:grid-cols-4">
             <Card><CardHeader><CardTitle className="text-sm">Attempts allowed</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.attemptsAllowed}</CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">Time limit</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.timeLimit}</CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-sm">Grade</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{reviewAllowed ? `${quiz.grade.toFixed(2)}/${quiz.max.toFixed(2)}` : `— / ${quiz.max.toFixed(2)}`}</CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">Grade</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{scoresPublished ? `${quiz.grade.toFixed(2)}/${quiz.max.toFixed(2)}` : `— / ${quiz.max.toFixed(2)}`}</CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">Questions</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.questions.length}</CardContent></Card>
           </div>
           <Card>
@@ -212,7 +216,7 @@ function QuizPage() {
             <CardContent className="space-y-3">
               <SimpleTable
                 columns={attemptColumns}
-                data={reviewAllowed ? quiz.attempts : quiz.attempts.map((a) => ({ ...a, grade: "Hidden" }))}
+                data={scoresPublished ? quiz.attempts : quiz.attempts.map((a) => ({ ...a, grade: "Hidden" }))}
                 searchable={false}
                 searchKeys={["status"]}
               />
@@ -224,10 +228,10 @@ function QuizPage() {
                     {quiz.attempts.length < quiz.attemptsAllowed && (
                       <Link to={`/student/quizzes/${quiz.id}/attempt`}><Button>New attempt</Button></Link>
                     )}
-                    {reviewAllowed ? (
+                    {scoresPublished ? (
                       <Link to={`/student/quizzes/${quiz.id}/review`}><Button variant="outline">Review</Button></Link>
                     ) : (
-                      <span className="text-sm text-muted-foreground">{quizReviewMessage(quiz)}</span>
+                      <span className="text-sm text-muted-foreground">{QUIZ_SCORES_MESSAGE}</span>
                     )}
                   </>
                 )}

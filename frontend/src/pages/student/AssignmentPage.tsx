@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
 import { allActivities, findActivity, offerings, type Activity } from "../../mock/student";
+import { fileToSubmissionFile, type SubmissionFile } from "../../api";
 
 function ActivityBar({ activity }: { activity?: Activity }) {
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ function AssignmentPage() {
   const activity = findActivity(assignmentId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<SubmissionFile | null>(null);
   const [askOpen, setAskOpen] = useState(params.get("ask") === "1" || params.get("extension") === "1");
   const [extensionMode, setExtensionMode] = useState(params.get("extension") === "1");
   const [noteDraft, setNoteDraft] = useState(() =>
@@ -199,8 +201,10 @@ function AssignmentPage() {
                   id="file"
                   fileName={fileName}
                   onFileChange={setFileName}
+                  onFileSelected={(file) => { if (!file) { setUploadedFile(null); return; } void fileToSubmissionFile(file).then(setUploadedFile); }}
                 />
               )}
+              {uploadedFile && <p className="text-xs text-muted-foreground">Selected: {uploadedFile.name} · {uploadedFile.mimeType} · {uploadedFile.size} bytes</p>}
               <Button
                 onClick={() => {
                   if (canUpload && !fileName) return;

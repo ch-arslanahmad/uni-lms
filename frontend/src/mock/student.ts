@@ -63,13 +63,16 @@ export interface QuizQuestion {
   options: string[];
   answer: number;
   points: number;
+  // Written questions are answered with free text and graded by the teacher.
+  type?: "mcq" | "written";
 }
-
-export type QuizReviewPolicy = "immediate" | "after_close" | "after_graded" | "never";
 
 export interface Quiz {
   id: string;
   offeringId: string;
+  // Links a seeded student quiz to a teacher-created assessment so its
+  // questions come from the teacher workspace snapshot in Phase 1.
+  sourceAssessmentId?: string;
   title: string;
   opened: string;
   closed: string;
@@ -77,7 +80,6 @@ export interface Quiz {
   attemptsAllowed: number;
   grade: number;
   max: number;
-  reviewPolicy: QuizReviewPolicy;
   questions: QuizQuestion[];
   attempts: { status: string; started: string; completed: string; duration: string; grade: string }[];
 }
@@ -243,6 +245,7 @@ export const quizzes: Quiz[] = [
   {
     id: "q1",
     offeringId: "CS301-5-A",
+    sourceAssessmentId: "ta-a2",
     title: "Quiz #1",
     opened: "2026-09-15 09:00",
     closed: "2026-09-21 23:59",
@@ -250,7 +253,6 @@ export const quizzes: Quiz[] = [
     attemptsAllowed: 2,
     grade: 10,
     max: 10,
-    reviewPolicy: "immediate",
     questions: [
       { id: "q1p1", text: "Which hook manages local component state?", options: ["useEffect", "useState", "useMemo", "useRef"], answer: 1, points: 5 },
       { id: "q1p2", text: "What does JSX compile to?", options: ["HTML", "CSS", "React.createElement calls", "JSON"], answer: 2, points: 5 },
@@ -260,6 +262,7 @@ export const quizzes: Quiz[] = [
   {
     id: "q2",
     offeringId: "CS301-5-A",
+    sourceAssessmentId: "ta-a7",
     title: "Quiz #2",
     opened: "2026-11-18 09:00",
     closed: "2026-11-24 23:59",
@@ -267,7 +270,6 @@ export const quizzes: Quiz[] = [
     attemptsAllowed: 1,
     grade: 0,
     max: 10,
-    reviewPolicy: "after_close",
     questions: [
       { id: "q2p1", text: "Which hook runs after every render by default?", options: ["useState", "useEffect", "useId", "useContext"], answer: 1, points: 5 },
       { id: "q2p2", text: "What is the correct way to update state based on previous state?", options: ["setState(value)", "setState(prev => prev + 1)", "state++", "useRef(state)"], answer: 1, points: 5 },
@@ -277,6 +279,7 @@ export const quizzes: Quiz[] = [
   {
     id: "q4",
     offeringId: "CS201-5-B",
+    sourceAssessmentId: "ta-a4",
     title: "Quiz: Trees",
     opened: "2026-09-22 09:00",
     closed: "2026-09-22 09:30",
@@ -284,7 +287,6 @@ export const quizzes: Quiz[] = [
     attemptsAllowed: 1,
     grade: 8,
     max: 10,
-    reviewPolicy: "immediate",
     questions: [
       { id: "q4p1", text: "Which traversal visits root first?", options: ["Inorder", "Preorder", "Postorder", "Level order"], answer: 1, points: 5 },
       { id: "q4p2", text: "A BST with n nodes has what average search time?", options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"], answer: 1, points: 5 },
@@ -414,18 +416,6 @@ export function findActivity(id: string | undefined): Activity | undefined {
   return allActivities().find((activity) => activity.id === id);
 }
 
-export function canReviewQuiz(quiz: Quiz, today = "2026-11-22"): boolean {
-  if (quiz.reviewPolicy === "immediate") return true;
-  if (quiz.reviewPolicy === "never") return false;
-  if (quiz.reviewPolicy === "after_close") return today >= quiz.closed.slice(0, 10);
-  if (quiz.reviewPolicy === "after_graded") return quiz.grade > 0;
-  return false;
-}
-
-export function quizReviewMessage(quiz: Quiz): string {
-  if (quiz.reviewPolicy === "immediate") return "Review available now.";
-  if (quiz.reviewPolicy === "never") return "Review is not available for this quiz.";
-  if (quiz.reviewPolicy === "after_close") return `Review available after ${quiz.closed.slice(0, 10)}.`;
-  if (quiz.reviewPolicy === "after_graded") return "Review available after grading is published.";
-  return "Review not available.";
-}
+// MCQ score visibility is decided by the section's result publication state
+// (FR4), not by a per-assessment review policy. The gate lives in src/api/ so
+// student pages read the same teacher snapshot the teacher workspace writes.

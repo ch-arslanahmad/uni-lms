@@ -20,6 +20,9 @@ export interface Column<T> {
   key: keyof T & string;
   label: string;
   render?: (row: T) => React.ReactNode;
+  sortable?: boolean;
+  headerClassName?: string;
+  cellClassName?: string;
 }
 
 export function SimpleTable<T>({
@@ -102,22 +105,26 @@ export function SimpleTable<T>({
           <TableHeader className="bg-muted/50">
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={column.key}>
-                  <Button
-                    variant="ghost"
-                    onClick={() => toggleSort(column.key)}
-                  >
-                    {column.label}
-                    {sort?.key === column.key ? (
-                      sort.dir === "asc" ? (
-                        <ArrowUp className="ml-2 h-4 w-4" />
+                <TableHead key={column.key} className={column.headerClassName}>
+                  {column.sortable === false ? (
+                    <span className="px-3 text-sm font-medium">{column.label}</span>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      onClick={() => toggleSort(column.key)}
+                    >
+                      {column.label}
+                      {sort?.key === column.key ? (
+                        sort.dir === "asc" ? (
+                          <ArrowUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ArrowDown className="ml-2 h-4 w-4" />
+                        )
                       ) : (
-                        <ArrowDown className="ml-2 h-4 w-4" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    )}
-                  </Button>
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
                 </TableHead>
               ))}
             </TableRow>
@@ -131,7 +138,7 @@ export function SimpleTable<T>({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                   {columns.map((column) => (
-                    <TableCell key={column.key}>
+                    <TableCell key={column.key} className={column.cellClassName}>
                       {column.render
                         ? column.render(row)
                         : String(row[column.key] ?? "")}
