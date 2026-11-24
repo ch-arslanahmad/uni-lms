@@ -1,4 +1,4 @@
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, UserRound } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import Footer from "../Footer";
@@ -105,12 +105,9 @@ function StudentLayout() {
             </ul>
           </div>
 
-          <div className="flex items-center gap-1">
-            <div className="ml-1 border-l pl-3">
-              <span className="hidden text-sm font-medium sm:inline">
-                {student?.name ?? "Student"}
-              </span>
-            </div>
+          <div className="hidden items-center gap-2 text-sm font-medium sm:flex">
+            <UserRound className="size-4 text-muted-foreground" />
+            {student?.name ?? "Student"}
           </div>
         </nav>
       </header>

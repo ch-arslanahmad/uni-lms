@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GraduationCap, Menu, X, LogIn } from "lucide-react";
+import { GraduationCap, Menu, X, LogIn, UserRound } from "lucide-react";
 import type { User } from "../models";
 import { NavLink } from "react-router-dom";
 
@@ -51,11 +51,15 @@ function Navbar({ user }: { user: User }) {
           ))}
         </ul>
 
-        {/* Desktop action */}
-        <div className="hidden md:block">
+        {/* Desktop user chip + login */}
+        <div className="hidden items-center gap-3 md:flex">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <UserRound className="h-4 w-4 text-slate-500" />
+            {user.name}
+          </div>
           <NavLink
             to="/login"
-            className="mt-2 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-blue-500 transition-colors hover:bg-blue-500 hover:text-white"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-blue-500 transition-colors hover:bg-blue-500 hover:text-white"
           >
             <LogIn className="h-4 w-4" />
             Login
@@ -95,6 +99,10 @@ function Navbar({ user }: { user: User }) {
               </li>
             ))}
           </ul>
+          <div className="flex items-center justify-center gap-2 border-b border-slate-200 pb-3 text-sm font-medium text-slate-700">
+            <UserRound className="h-4 w-4 text-slate-500" />
+            {user.name}
+          </div>
           <NavLink
             to="/login"
             className="mt-2 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-blue-500 transition-colors hover:bg-blue-500 hover:text-white"
