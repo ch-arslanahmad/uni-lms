@@ -11,7 +11,8 @@ import { Textarea } from "../../components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import { allActivities, findActivity, offerings, type Activity } from "../../mock/student";
+import { activityLabel, activityPath, allActivities, findActivity, offerings, type Activity } from "../../mock/student";
+import { fileToSubmissionFile, type SubmissionFile } from "../../api";
 
 function ActivityBar({ activity }: { activity?: Activity }) {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ function ActivityBar({ activity }: { activity?: Activity }) {
   const index = activity ? all.findIndex((a) => a.id === activity.id) : -1;
   const prev = all[index - 1];
   const next = all[index + 1];
-  const to = (a: Activity) => (a.kind === "quiz" ? `/student/quizzes/${a.id}` : `/student/assignments/${a.id}`);
+  const to = (a: Activity) => activityPath(a);
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3">
       <Link to={prev ? to(prev) : "#"}>
@@ -55,6 +56,7 @@ function AssignmentPage() {
   const activity = findActivity(assignmentId);
   const [submitted, setSubmitted] = useState(activity?.submitted ?? false);
   const [fileName, setFileName] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<SubmissionFile | null>(null);
   const [askOpen, setAskOpen] = useState(params.get("ask") === "1" || params.get("extension") === "1");
   const [extensionMode, setExtensionMode] = useState(params.get("extension") === "1");
   const [noteDraft, setNoteDraft] = useState(() =>
@@ -91,7 +93,7 @@ function AssignmentPage() {
       <Breadcrumbs items={[
         { label: "My courses", to: "/student/courses" },
         { label: offering?.code ?? "Course", to: offering ? `/student/courses/${offering.offeringId}` : undefined },
-        { label: activity.kind === "project" ? "Project" : "Assignment" },
+        { label: activityLabel(activity) },
       ]} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -102,7 +104,7 @@ function AssignmentPage() {
           <p className={`mt-1 flex items-center gap-1 text-sm font-medium ${dueTone}`}>
             <Clock className="size-4" /> {dueLabel}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground capitalize">Type: {activity.kind}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Type: {activityLabel(activity)}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => { setExtensionMode(false); setAskOpen((v) => !v); setTimeout(() => document.getElementById("note")?.focus(), 0); }}>
@@ -199,8 +201,10 @@ function AssignmentPage() {
                   id="file"
                   fileName={fileName}
                   onFileChange={setFileName}
+                  onFileSelected={(file) => { if (!file) { setUploadedFile(null); return; } void fileToSubmissionFile(file).then(setUploadedFile); }}
                 />
               )}
+              {uploadedFile && <p className="text-xs text-muted-foreground">Selected: {uploadedFile.name} · {uploadedFile.mimeType} · {uploadedFile.size} bytes</p>}
               <Button
                 onClick={() => {
                   if (canUpload && !fileName) return;

@@ -1,70 +1,66 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { GraduationCap, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Label } from "../components/ui/label";
+import { Role } from "../models";
 
-const roles = [
-  { id: "admin", label: "Admin", description: "Manage academic structure, users and schedules.", to: "/" },
-  {
-    id: "teacher",
-    label: "Teacher",
-    description: "Manage classes, grading and course content.",
-    to: "/teacher",
-    available: false,
-    note: "Teacher UI is on the feat/teacher-pages branch and not merged here yet.",
-  },
-  { id: "student", label: "Student", description: "View courses, submit work and track results.", to: "/student" },
-] as const;
+const ROLES = [
+  { role: Role.student, label: "Student", icon: UserRound, description: "View courses, submit work, check results." },
+  { role: Role.teacher, label: "Teacher", icon: GraduationCap, description: "Manage sections, grading and questions." },
+  { role: Role.admin, label: "Super Admin", icon: ShieldCheck, description: "Maintain academic structure and users." },
+];
 
-export default function LoginPage() {
-  const [role, setRole] = useState<(typeof roles)[number]["id"]>("student");
+function LoginPage() {
+  const { role, login, logout } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = params.get("next");
 
-  const selected = roles.find((r) => r.id === role) ?? roles[2];
+  function signIn(selected: Role) {
+    login(selected);
+    // "/" is the admin home; other roles would bounce straight back to login.
+    const destination = next && next !== "/" ? next : (selected === Role.admin ? "/" : `/${selected}`);
+    navigate(destination, { replace: true });
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Sign in to Uni-LMS</CardTitle>
-          <CardDescription>
-            Phase 1 mock login — select a role to enter the demo. Real authentication arrives with the backend.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="role" className="text-xs">Role</Label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as (typeof roles)[number]["id"])}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs"
-            >
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>{r.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
-            {selected.description}
-          </div>
-
-          {"note" in selected && selected.note && (
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400">
-              {selected.note}
-            </div>
-          )}
-
-          <Button
-            onClick={() => navigate(selected.to)}
-            disabled={"available" in selected && selected.available === false}
-          >
-            Continue as {selected.label}
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-slate-50 px-4 py-12">
+      <div className="flex items-center gap-2 text-xl font-bold">
+        <UsersRound className="size-6 text-blue-500" aria-hidden="true" />
+        Uni LMS
+      </div>
+      <div className="text-center">
+        <h1 className="text-2xl font-semibold text-slate-900">Choose your role</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Phase 1 role picker. Real credentials are handled by the Spring API in Phase 2.
+        </p>
+      </div>
+      <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-3">
+        {ROLES.map(({ role: option, label, icon: Icon, description }) => (
+          <Card key={option} className={role === option ? "border-blue-400 ring-2 ring-blue-500/20" : ""}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Icon className="size-4 text-blue-500" aria-hidden="true" />
+                {label}
+              </CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" size="sm" onClick={() => signIn(option)}>
+                Continue as {label}
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {role && (
+        <Button variant="ghost" size="sm" onClick={logout}>
+          Sign out (currently {role})
+        </Button>
+      )}
     </div>
   );
 }
+
+export default LoginPage;

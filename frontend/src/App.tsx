@@ -1,7 +1,11 @@
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersPage from "./pages/admin/UsersPage";
-import { UserColumns, UserFilters, UserSearchKeys } from "./components/userTableConfig";
+import {
+  UserColumns,
+  UserFilters,
+  UserSearchKeys,
+} from "./components/userTableConfig";
 import { useAdminStore } from "./lib/adminStore";
 import StudentsPage from "./pages/admin/StudentsPage";
 import TeachersPage from "./pages/admin/TeachersPage";
@@ -18,9 +22,18 @@ import AssignmentPage from "./pages/student/AssignmentPage";
 import QuizPage from "./pages/student/QuizPage";
 import QuizAttemptPage from "./pages/student/QuizAttemptPage";
 import QuizReviewPage from "./pages/student/QuizReviewPage";
+import ExamPage from "./pages/student/ExamPage";
 import TeacherProfilePage from "./pages/student/TeacherProfilePage";
 import MyQuestionsPage from "./pages/student/MyQuestionsPage";
 import ResultsPage from "./pages/student/ResultsPage";
+import TeacherLayout from "./components/teacher/TeacherLayout";
+import TeacherDashboard from "./pages/teacher/TeacherDashboard";
+import MyClasses from "./pages/teacher/MyClasses";
+import ClassDetail from "./pages/teacher/ClassDetail";
+import GradingPage from "./pages/teacher/GradingPage";
+import SubmissionDetailPage from "./pages/teacher/SubmissionDetailPage";
+import QuestionsPage from "./pages/teacher/QuestionsPage";
+import TeacherTimetable from "./pages/teacher/TeacherTimetable";
 import AdminLayout from "./components/AdminLayout";
 
 // Same UsersPage as the other branches, backed by the live admin store so
@@ -39,6 +52,7 @@ function AdminUsersRoute() {
 }
 
 const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
   {
     element: <AdminLayout />,
     children: [
@@ -64,11 +78,25 @@ const router = createBrowserRouter([
       { path: "quizzes/:quizId", element: <QuizPage /> },
       { path: "quizzes/:quizId/attempt", element: <QuizAttemptPage /> },
       { path: "quizzes/:quizId/review", element: <QuizReviewPage /> },
+      { path: "exams/:examId", element: <ExamPage /> },
       { path: "teachers/:teacherId", element: <TeacherProfilePage /> },
       { path: "*", element: <NotFound /> },
     ],
   },
-  { path: "/login", element: <LoginPage /> },
+  {
+    path: "/teacher",
+    element: <TeacherLayout />,
+    children: [
+      { index: true, element: <TeacherDashboard /> },
+      { path: "classes", element: <MyClasses /> },
+      { path: "classes/:sectionId", element: <ClassDetail /> },
+      { path: "grading", element: <GradingPage /> },
+      { path: "grading/:studentRef/:assessmentRef", element: <SubmissionDetailPage /> },
+      { path: "questions", element: <QuestionsPage /> },
+      { path: "timetable", element: <TeacherTimetable /> },
+      { path: "*", element: <NotFound /> },
+    ],
+  },
   { path: "*", element: <NotFound /> },
 ]);
 
