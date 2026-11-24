@@ -11,7 +11,8 @@ function QuizReviewPage() {
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
   const resultsPublished = quiz.resultsPublished;
-  const answers = state?.answers ?? Object.fromEntries(quiz.questions.map((q) => [q.id, q.answer]));
+  const submitted = state?.answers !== undefined;
+  const answers = state?.answers ?? {};
   const score = quiz.grade;
 
   return (
@@ -29,7 +30,14 @@ function QuizReviewPage() {
         <Link to={`/student/quizzes/${quiz.id}`}><Button variant="outline" size="sm">Back to summary</Button></Link>
       </div>
 
-      {!resultsPublished ? (
+      {!submitted ? (
+        <Card>
+          <CardHeader><CardTitle>No attempt to review</CardTitle></CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            No submitted answers were found for this assessment. Open the assessment to start an attempt.
+          </CardContent>
+        </Card>
+      ) : !resultsPublished ? (
         <Card>
           <CardHeader><CardTitle>Results not published yet</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">

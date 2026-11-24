@@ -80,6 +80,15 @@ function StudentDashboard() {
         </Link>
       </div>
 
+      {offerings.length === 0 && (
+        <Card>
+          <CardHeader><CardTitle>No courses enrolled</CardTitle></CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            You are not enrolled in any course offerings yet. Once enrollment is published, your activities, grades and calendar will appear here.
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Link to="/student/courses">
           <StatMetric label="Courses Enrolled" value={offerings.length} />

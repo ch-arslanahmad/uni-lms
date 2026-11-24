@@ -257,7 +257,7 @@ export const quizzes: Quiz[] = [
     opened: "2026-09-15 09:00",
     closed: "2026-09-21 23:59",
     timeLimit: "30 min",
-    attemptsAllowed: 2,
+    attemptsAllowed: 1,
     grade: 10,
     max: 10,
     resultsPublished: true,
@@ -380,11 +380,11 @@ export const courseResults: CourseResult[] = [
   { semester: 3, offeringId: "CS301-5-A", code: "CS301", title: "Advanced Front-End Development", credits: 3, percentage: null, letter: "IP", gradePoints: null, status: "in-progress" },
   { semester: 3, offeringId: "CS201-5-B", code: "CS201", title: "Data Structures & Algorithms", credits: 3, percentage: null, letter: "IP", gradePoints: null, status: "in-progress" },
   { semester: 3, offeringId: "ME101-5-A", code: "ME101", title: "Thermodynamics - I", credits: 3, percentage: null, letter: "IP", gradePoints: null, status: "in-progress" },
-  { semester: 2, offeringId: "CS101-4-A", code: "CS101", title: "Introduction to Programming", credits: 3, percentage: 86, letter: "A-", gradePoints: 3.7, status: "completed" },
+  { semester: 2, offeringId: "CS101-4-A", code: "CS101", title: "Introduction to Programming", credits: 3, percentage: 86, letter: "A", gradePoints: 4.0, status: "completed" },
   { semester: 2, offeringId: "MATH102-4-A", code: "MATH102", title: "Calculus II", credits: 3, percentage: 79, letter: "B+", gradePoints: 3.3, status: "completed" },
   { semester: 2, offeringId: "ENG101-4-A", code: "ENG101", title: "Academic Writing", credits: 2, percentage: 91, letter: "A", gradePoints: 4.0, status: "completed" },
   { semester: 1, offeringId: "EE110-3-A", code: "EE110", title: "Circuit Analysis", credits: 3, percentage: 82, letter: "B+", gradePoints: 3.3, status: "completed" },
-  { semester: 1, offeringId: "CS100-3-A", code: "CS100", title: "Computing Fundamentals", credits: 3, percentage: 88, letter: "A-", gradePoints: 3.7, status: "completed" },
+  { semester: 1, offeringId: "CS100-3-A", code: "CS100", title: "Computing Fundamentals", credits: 3, percentage: 88, letter: "A", gradePoints: 4.0, status: "completed" },
   { semester: 1, offeringId: "MATH101-3-A", code: "MATH101", title: "Calculus I", credits: 3, percentage: 74, letter: "B", gradePoints: 3.0, status: "completed" },
 ];
 

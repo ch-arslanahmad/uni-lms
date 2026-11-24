@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
@@ -16,20 +16,26 @@ function QuizAttemptPage() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [remaining, setRemaining] = useState(totalSeconds);
   const [confirm, setConfirm] = useState(false);
+  const expired = remaining === 0;
+  const submittedQuizRef = useRef<string | null>(null);
+
+  const submitAttempt = useCallback(() => {
+    if (!quiz || submittedQuizRef.current === quiz.id) return;
+    submittedQuizRef.current = quiz.id;
+    navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers }, replace: true });
+  }, [answers, navigate, quiz]);
 
   useEffect(() => {
-    if (blocked) return;
+    if (blocked || expired) return;
     const timer = window.setInterval(() => {
-      setRemaining((s) => {
-        if (s <= 1) {
-          window.clearInterval(timer);
-          return 0;
-        }
-        return s - 1;
-      });
+      setRemaining((s) => Math.max(0, s - 1));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [blocked]);
+  }, [blocked, expired]);
+
+  useEffect(() => {
+    if (!blocked && expired) submitAttempt();
+  }, [blocked, expired, submitAttempt]);
 
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
@@ -52,7 +58,6 @@ function QuizAttemptPage() {
       </div>
     );
   }
-  const expired = remaining === 0;
   const question = quiz.questions[index];
   const minutes = Math.floor(remaining / 60);
   const seconds = String(remaining % 60).padStart(2, "0");
@@ -132,7 +137,7 @@ function QuizAttemptPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirm(false)}>Keep working</Button>
-            <Button onClick={() => navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers } })}>Submit</Button>
+            <Button onClick={submitAttempt}>Submit</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
