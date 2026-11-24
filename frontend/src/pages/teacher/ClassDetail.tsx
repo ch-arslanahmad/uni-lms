@@ -133,7 +133,7 @@ function ClassDetail() {
     if (editAnnId) {
       ctx.setAnnouncements((prev) => prev.map((a) => a.id === editAnnId ? { ...a, title: annTitle.trim(), body: annBody.trim() } : a));
     } else {
-      ctx.setAnnouncements((prev) => [{ id: `tan-${Date.now()}`, sectionId: section!.id, title: annTitle.trim(), body: annBody.trim(), date: nowTimestamp().slice(0, 10) }, ...prev]);
+      ctx.setAnnouncements((prev) => [{ id: `tan-${crypto.randomUUID()}`, sectionId: section!.id, title: annTitle.trim(), body: annBody.trim(), date: nowTimestamp().slice(0, 10) }, ...prev]);
     }
     setAnnTitle(""); setAnnBody(""); setAnnErr(""); setEditAnnId(null);
   }
@@ -141,7 +141,7 @@ function ClassDetail() {
     const e = err(matName, "Material name is required."); if (e) { setMatErr(e); return; }
     if (!matUrl && !matFile) { setMatErr("Choose a file or provide a link."); return; }
     ctx.setMaterials((prev) => [{
-      id: `tm-${Date.now()}`, sectionId: section!.id, name: matName.trim(),
+      id: `tm-${crypto.randomUUID()}`, sectionId: section!.id, name: matName.trim(),
       type: matUrl ? "link" : "file", size: matUrl ? undefined : (matFile ? String(matFile.size) : matSize || "file"),
       url: matUrl.trim() || matFile?.url, fileName: matFile?.name, mimeType: matFile?.mimeType,
       uploadedAt: nowTimestamp().slice(0, 10),
@@ -160,7 +160,7 @@ function ClassDetail() {
     if (editEvtId) {
       ctx.setEvents((prev) => prev.map((x) => x.id === editEvtId ? { ...x, ...payload } : x));
     } else {
-      ctx.setEvents((prev) => [...prev, { id: `tev-${Date.now()}`, sectionId: section!.id, ...payload }]);
+      ctx.setEvents((prev) => [...prev, { id: `tev-${crypto.randomUUID()}`, sectionId: section!.id, ...payload }]);
     }
     setEvt({ title: "", startAt: "", endAt: "", room: "" }); setEditEvtId(null); setEvtErr(""); setShowAddForm(false);
   }
@@ -218,7 +218,7 @@ function ClassDetail() {
 
     let projectId = act.projectId || undefined;
     if (act.category === "Project" && act.newProjectTitle.trim()) {
-      projectId = `proj-${Date.now()}`;
+      projectId = `proj-${crypto.randomUUID()}`;
       ctx.setProjects((prev) => [...prev, { id: projectId!, sectionId: section!.id, title: act.newProjectTitle.trim() }]);
     }
     const documentName = act.documentName.trim() || actFile?.name || undefined;
@@ -239,7 +239,7 @@ function ClassDetail() {
       if (kind === "quiz" || kind === "exam") setQActId(editActId);
     } else {
       const newAct: TeacherAssessment = {
-        id: `act-${Date.now()}`, sectionId: section!.id,
+        id: `act-${crypto.randomUUID()}`, sectionId: section!.id,
         title: suggestTitle(act.category), published: true, ...patch,
       };
       ctx.setAssessments((prev) => [newAct, ...prev]);
@@ -258,7 +258,7 @@ function ClassDetail() {
     if (editCatId) {
       ctx.setCategories((prev) => prev.map((c) => c.id === editCatId ? { ...c, name: catName.trim(), weight: w, count } : c));
     } else {
-      ctx.setCategories((prev) => [...prev, { id: `gc-${Date.now()}`, sectionId: section!.id, name: catName.trim(), weight: w, count }]);
+      ctx.setCategories((prev) => [...prev, { id: `gc-${crypto.randomUUID()}`, sectionId: section!.id, name: catName.trim(), weight: w, count }]);
     }
     setEditCatId(null); setCatName("Assignments"); setCatWeight(""); setCatCount("1"); setCatErr("");
   }
@@ -284,7 +284,7 @@ function ClassDetail() {
   function addProject() {
     const e = err(newProjectTitle, "Project title is required.");
     if (e) { setNewProjectError(e); return; }
-    ctx.setProjects((prev) => [...prev, { id: `proj-${Date.now()}`, sectionId: section!.id, title: newProjectTitle.trim() }]);
+    ctx.setProjects((prev) => [...prev, { id: `proj-${crypto.randomUUID()}`, sectionId: section!.id, title: newProjectTitle.trim() }]);
     setNewProjectTitle(""); setNewProjectError("");
   }
   function addAssessmentQuestion() {
@@ -296,7 +296,7 @@ function ClassDetail() {
     if (aq.type === "mcq" && (!opts || opts.length < 2)) { setAqErr("MCQ needs at least 2 comma-separated options."); return; }
     const correct = aq.type === "mcq" ? Number(aq.correctOption) : undefined;
     if (aq.type === "mcq" && (correct == null || correct < 0 || correct >= (opts?.length ?? 0))) { setAqErr("Correct option index is out of range."); return; }
-    ctx.setAssessmentQuestions((prev) => [...prev, { id: `aq-${Date.now()}`, assessmentId: qActId, type: aq.type, text: aq.text.trim(), options: opts, correctOption: correct, marks: m }]);
+    ctx.setAssessmentQuestions((prev) => [...prev, { id: `aq-${crypto.randomUUID()}`, assessmentId: qActId, type: aq.type, text: aq.text.trim(), options: opts, correctOption: correct, marks: m }]);
     setAq({ type: "mcq", text: "", options: "A,B,C,D", correctOption: "0", marks: "5" }); setAqErr("");
   }
 

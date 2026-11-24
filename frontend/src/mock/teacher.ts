@@ -369,9 +369,10 @@ export function getTeacherSection(id: number | string | undefined): TeacherSecti
 }
 
 export function getSectionStudents(sectionId: number) {
-  // Mock: pick a stable subset of students by section id; admin owns real enrolments.
-  const start = (sectionId * 3) % Math.max(1, students.length - 6);
-  return students.slice(start, start + 6);
+  // Mock: give each section a distinct stable slice; admin owns real enrolments.
+  // Step by 5 (coprime with the 18 seeded students) so section 4 and 5 rosters never collide.
+  const start = (sectionId * 5) % students.length;
+  return Array.from({ length: Math.min(6, students.length) }, (_, i) => students[(start + i) % students.length]);
 }
 
 export function getSectionAssessments(sectionId: number) {
