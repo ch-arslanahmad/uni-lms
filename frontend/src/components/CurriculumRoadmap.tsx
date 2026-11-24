@@ -110,6 +110,15 @@ export function CurriculumRoadmap({
     };
   }, [prog, currentProgObj, programCurriculums, subjects]);
 
+  const hasCurriculum = semesterGroups.some((group) => group.subjects.length > 0);
+  const emptyRoadmapMessage = hasCurriculum
+    ? null
+    : search.trim()
+      ? `No subjects match "${search.trim()}" in ${prog}.`
+      : readOnly
+        ? `No curriculum subjects are available for ${prog} yet.`
+        : `No subjects in ${prog}'s roadmap yet. Add one to get started.`;
+
   const [addOpen, setAddOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -194,6 +203,11 @@ export function CurriculumRoadmap({
 
       {/* Semesters Collapsible List */}
       <div className="flex flex-col gap-3">
+        {emptyRoadmapMessage && (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            {emptyRoadmapMessage}
+          </div>
+        )}
         {semesterGroups.map(({ semester, subjects: semSubs, totalCredits }) => {
           const isExpanded = expandedSems[semester] ?? false;
           const isCurrentSem = semester === currentSemesterNum;

@@ -161,6 +161,43 @@ export function teacherRows(s: AdminState): TeacherRow[] {
     }));
 }
 
+/**
+ * Enrolment.course holds display text ("CS-201 Data Structures"), but the CSV
+ * format needs a section identifier the importer accepts (e.g. "BSCS-3B").
+ * Build it from the student's program, the course's curriculum semester and
+ * a section letter that actually exists for that program.
+ */
+function enrolmentSectionCode(enrolment: EnrolmentRow, s: AdminState): string {
+  if (/^[A-Z]+-\d[A-Z]$/.test(enrolment.course.toUpperCase()))
+    return enrolment.course.toUpperCase();
+
+  const subjectCode = /^([A-Z]+-\d+)/.exec(enrolment.course.toUpperCase())?.[1] ?? "";
+  const department = s.users.find((u) => u.id === enrolment.studentId)?.department;
+  const program =
+    s.programs.find(
+      (p) =>
+        p.departmentCode === department &&
+        (!subjectCode ||
+          s.programCurriculums.some(
+            (c) => c.programCode === p.code && c.subjectCode === subjectCode,
+          )),
+    ) ?? s.programs.find((p) => p.departmentCode === department);
+  if (!program) return enrolment.course;
+
+  const semester =
+    s.programCurriculums.find(
+      (c) => c.programCode === program.code && c.subjectCode === subjectCode,
+    )?.semesterNumber ?? 1;
+  // Placements can name a letter with no seeded section under that program;
+  // fall back to an existing one so the exported row still re-imports.
+  const section =
+    s.sections.find(
+      (sec) => sec.programCode === program.code && sec.code === enrolment.section,
+    ) ?? s.sections.find((sec) => sec.programCode === program.code);
+
+  return `${program.code}-${semester}${section?.code ?? enrolment.section}`;
+}
+
 // ---------------------------------------------------------------------------
 // FR18 — academic structure CRUD. Each action returns an error string or null.
 // ---------------------------------------------------------------------------
@@ -420,7 +457,6 @@ const EXPECTED_HEADERS: Record<CsvDataType, string[]> = {
   users: ["name", "email", "role", "department_code"],
   enrolments: ["student_roll_no", "term_name", "class_section_code"],
   courses: ["subject_code", "title", "department_code", "credit_hours"],
-  exam_datesheet: ["exam_type", "subject_code", "class_section", "exam_date", "start_time", "end_time"],
 };
 
 /** "role (student|teacher|admin)" → "role" */
@@ -448,7 +484,6 @@ export function validateIngest(
   const seenEmails = new Set<string>();
   const seenSubjectCodes = new Set<string>();
   const seenEnrolments = new Set<string>();
-  const seenExams = new Set<string>();
 
   rows.forEach((row, idx) => {
     const rowNo = idx + 1;
@@ -497,7 +532,7 @@ export function validateIngest(
           (e) =>
             String(e.studentId) === roll &&
             e.semester === term &&
-            e.course.toUpperCase() === sectionCode,
+            enrolmentSectionCode(e, state) === sectionCode,
         )
       )
         fail("Duplicate enrolment for this student, term and section.");
@@ -517,38 +552,6 @@ export function validateIngest(
       if (!state.departments.some((d) => d.code === dept)) fail(`Unknown department "${dept || "(empty)"}".`);
       if (!Number.isInteger(credits) || credits < 1 || credits > 6)
         fail("Credit hours must be a whole number between 1 and 6.");
-    }
-
-    if (type === "exam_datesheet") {
-      const examType = col(row, "exam_type").toLowerCase();
-      const subjectCode = col(row, "subject_code").toUpperCase();
-      const classSection = col(row, "class_section").toUpperCase();
-      const examDate = col(row, "exam_date");
-      const start = col(row, "start_time");
-      const end = col(row, "end_time");
-      if (!["midterm", "final"].includes(examType))
-        fail(`Exam type must be midterm or final (got "${examType || "(empty)"}").`);
-      if (!state.subjects.some((s) => s.code === subjectCode))
-        fail(`Unknown course "${subjectCode || "(empty)"}".`);
-      if (!classSection) fail("Class section is required.");
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(examDate) || Number.isNaN(Date.parse(examDate)))
-        fail(`Exam date "${examDate || "(empty)"}" must be YYYY-MM-DD.`);
-      const timeOk = (t: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
-      if (!timeOk(start) || !timeOk(end)) fail("Times must be HH:MM (24h).");
-      else if (start >= end) fail("Start time must be before end time.");
-      const key = `${examType}|${subjectCode}|${classSection}|${examDate}`;
-      if (
-        seenExams.has(key) ||
-        state.examDatesheet.some(
-          (e) =>
-            e.examType.toLowerCase() === examType &&
-            e.subjectCode === subjectCode &&
-            e.classSection.toUpperCase() === classSection &&
-            e.examDate === examDate,
-        )
-      )
-        fail("Duplicate exam entry for this course, section and date.");
-      seenExams.add(key);
     }
   });
 
@@ -604,24 +607,6 @@ export function applyIngest(
     commit({ ...state, subjects: [...state.subjects, ...additions] });
   }
 
-  if (type === "exam_datesheet") {
-    const additions: ExamDatesheetEntry[] = rows.map((row, idx) => {
-      const examDate = col(row, "exam_date");
-      const subjectCode = col(row, "subject_code").toUpperCase();
-      return {
-        id: nextId(state.examDatesheet) + idx,
-        examType: col(row, "exam_type").toLowerCase() === "midterm" ? "Midterm" : "Final",
-        subjectCode,
-        subjectTitle: state.subjects.find((s) => s.code === subjectCode)?.title ?? subjectCode,
-        classSection: col(row, "class_section").toUpperCase(),
-        examDate,
-        dayOfWeek: new Date(`${examDate}T00:00:00`).toLocaleDateString("en-US", { weekday: "long" }),
-        timeSlot: `${col(row, "start_time")} - ${col(row, "end_time")}`,
-      };
-    });
-    commit({ ...state, examDatesheet: [...state.examDatesheet, ...additions] });
-  }
-
   return [];
 }
 
@@ -639,20 +624,16 @@ export function exportIngestData(
     case "enrolments":
       return {
         headers: EXPECTED_HEADERS.enrolments,
-        rows: s.enrolments.map((e) => [e.studentId, e.semester, e.course]),
+        rows: s.enrolments.map((e) => [
+          e.studentId,
+          e.semester,
+          enrolmentSectionCode(e, s),
+        ]),
       };
     case "courses":
       return {
         headers: EXPECTED_HEADERS.courses,
         rows: s.subjects.map((sub) => [sub.code, sub.title, sub.departmentCode, sub.creditHours]),
-      };
-    case "exam_datesheet":
-      return {
-        headers: EXPECTED_HEADERS.exam_datesheet,
-        rows: s.examDatesheet.map((e) => {
-          const [start, end] = e.timeSlot.split(" - ");
-          return [e.examType.toLowerCase(), e.subjectCode, e.classSection, e.examDate, start, end];
-        }),
       };
   }
 }

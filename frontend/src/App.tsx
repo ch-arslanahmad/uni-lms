@@ -1,6 +1,8 @@
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import AllUsersPage from "./pages/admin/AllUsersPage";
+import UsersPage from "./pages/admin/UsersPage";
+import { UserColumns, UserFilters, UserSearchKeys } from "./components/userTableConfig";
+import { useAdminStore } from "./lib/adminStore";
 import StudentsPage from "./pages/admin/StudentsPage";
 import TeachersPage from "./pages/admin/TeachersPage";
 import NotFound from "./pages/NotFound";
@@ -21,12 +23,27 @@ import MyQuestionsPage from "./pages/student/MyQuestionsPage";
 import ResultsPage from "./pages/student/ResultsPage";
 import AdminLayout from "./components/AdminLayout";
 
+// Same UsersPage as the other branches, backed by the live admin store so
+// CSV imports appear without duplicating the users list in App.
+function AdminUsersRoute() {
+  const store = useAdminStore();
+  return (
+    <UsersPage
+      title="Users"
+      data={store.users}
+      columns={UserColumns}
+      searchKeys={UserSearchKeys}
+      filters={UserFilters}
+    />
+  );
+}
+
 const router = createBrowserRouter([
   {
     element: <AdminLayout />,
     children: [
       { path: "/", element: <AdminDashboard /> },
-      { path: "/admin/users", element: <AllUsersPage /> },
+      { path: "/admin/users", element: <AdminUsersRoute /> },
       { path: "/admin/students", element: <StudentsPage /> },
       { path: "/admin/teachers", element: <TeachersPage /> },
       { path: "/admin/academics", element: <Academics /> },

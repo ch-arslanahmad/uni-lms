@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { MessageCircleQuestion } from "lucide-react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
@@ -10,7 +10,6 @@ import { SimpleTable, type Column } from "../../components/SimpleTable";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
 import { findOffering, grades, type GradeRow } from "../../mock/student";
 import { students } from "../../models";
-import { useAdminStore } from "../../lib/adminStore";
 
 const gradeColumns: Column<GradeRow>[] = [
   { key: "title", label: "Assessment" },
@@ -30,17 +29,6 @@ function CoursePage() {
   const [askOpen, setAskOpen] = useState(params.get("ask") === "1");
   const [courseNote, setCourseNote] = useState("");
   const [courseNoteSaved, setCourseNoteSaved] = useState("");
-  const adminStore = useAdminStore();
-  const timetableSlots = useMemo(() => {
-    if (!offering) return [];
-    const norm = (v: string) => v.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-    return adminStore.scheduleSlots
-      .filter((s) => norm(s.subjectCode) === norm(offering.code) && s.sectionCode.endsWith(`-${offering.section}`))
-      .sort((a, b) => {
-        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-        return days.indexOf(a.dayOfWeek) - days.indexOf(b.dayOfWeek) || a.timeSlot.localeCompare(b.timeSlot);
-      });
-  }, [adminStore.scheduleSlots, offering]);
 
   if (!offering) {
     return (
@@ -191,14 +179,14 @@ function CoursePage() {
               <Card>
                 <CardHeader><CardTitle>Time Table</CardTitle></CardHeader>
                 <CardContent className="text-sm">
-                  {timetableSlots.length === 0 ? (
-                    <p className="text-muted-foreground">No schedule set yet.</p>
-                  ) : (
+                  {offering.timetable ? (
                     <ul className="space-y-1">
-                      {timetableSlots.map((s) => (
-                        <li key={s.id}>{s.dayOfWeek} {s.timeSlot} · {s.room} · {s.teacherName}</li>
+                      {offering.timetable.split(" · ").map((slot) => (
+                        <li key={slot}>{slot}</li>
                       ))}
                     </ul>
+                  ) : (
+                    <p className="text-muted-foreground">No schedule set yet.</p>
                   )}
                 </CardContent>
               </Card>

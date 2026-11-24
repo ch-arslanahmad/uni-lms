@@ -21,6 +21,11 @@ export function TimetableGrid({
 }: TimetableGridProps) {
   return (
     <div className="w-full overflow-x-auto border rounded-lg bg-card shadow-xs">
+      {slots.length === 0 && (
+        <p className="border-b p-3 text-center text-xs text-muted-foreground">
+          No classes scheduled for this section yet. Select an empty slot to add one.
+        </p>
+      )}
       <table className="w-full border-collapse text-left text-xs min-w-[700px]">
         <thead>
           <tr className="border-b bg-muted/50 text-muted-foreground">
