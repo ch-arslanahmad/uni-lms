@@ -9,7 +9,8 @@ import {
   studentQuestions as seedQuestions,
   type StudentQuestion,
 } from "../../mock/student";
-import { students } from "../../models";
+import { students, Role } from "../../models";
+import { useRequireRole } from "../../auth/AuthContext";
 
 export interface StudentQuestionsContext {
   questions: StudentQuestion[];
@@ -24,6 +25,7 @@ export interface StudentQuestionsContext {
 }
 
 function StudentLayout() {
+  const guard = useRequireRole(Role.student);
   const student = students.find((s) => s.id === currentStudentId);
   const [questions, setQuestions] = useState<StudentQuestion[]>(seedQuestions);
   const unreadCount = questions.filter((q) => q.answer && !q.readAt).length;
@@ -60,6 +62,8 @@ function StudentLayout() {
       ...prev,
     ]);
   }
+
+  if (guard) return <>{guard}</>;
 
   return (
     <div className="flex min-h-screen flex-col">

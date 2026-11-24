@@ -1,29 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
-import { availabilityStatus, quizzes } from "../../mock/student";
+import { Textarea } from "../../components/ui/textarea";
+import { getStudentQuizzes, isWrittenQuestion, QUIZ_SCORES_MESSAGE, type QuizAnswerValue } from "../../api";
+import { availabilityStatus } from "../../mock/student";
 
 function QuizAttemptPage() {
   const { quizId } = useParams();
   const navigate = useNavigate();
-  const quiz = quizzes.find((q) => q.id === quizId);
+  const quiz = getStudentQuizzes().find((q) => q.id === quizId);
   const blocked = !quiz || availabilityStatus(quiz.opened, quiz.closed) !== "open";
   const totalSeconds = (parseInt(quiz?.timeLimit ?? "30", 10) || 30) * 60;
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, QuizAnswerValue>>({});
   const [remaining, setRemaining] = useState(totalSeconds);
   const [confirm, setConfirm] = useState(false);
   const expired = remaining === 0;
   const submittedQuizRef = useRef<string | null>(null);
 
+  // Written answers are excluded from the auto-graded score passed to review.
+  const score = useMemo(
+    () => quiz?.questions.reduce((sum, q) =>
+      sum + (!isWrittenQuestion(q) && answers[q.id] === q.answer ? q.points : 0), 0) ?? 0,
+    [answers, quiz],
+  );
+
   const submitAttempt = useCallback(() => {
     if (!quiz || submittedQuizRef.current === quiz.id) return;
     submittedQuizRef.current = quiz.id;
-    navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers }, replace: true });
-  }, [answers, navigate, quiz]);
+    navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers, score }, replace: true });
+  }, [answers, navigate, quiz, score]);
 
   useEffect(() => {
     if (blocked || expired) return;
@@ -59,6 +68,9 @@ function QuizAttemptPage() {
     );
   }
   const question = quiz.questions[index];
+  const answeredCount = Object.values(answers).filter((value) =>
+    typeof value === "number" || (typeof value === "string" && value.trim().length > 0),
+  ).length;
   const minutes = Math.floor(remaining / 60);
   const seconds = String(remaining % 60).padStart(2, "0");
   const timerTone = remaining === 0 ? "bg-red-500/10 text-red-600" : remaining <= 60 ? "bg-red-500/10 text-red-600" : remaining <= 300 ? "bg-amber-500/10 text-amber-600" : "bg-blue-500/10 text-blue-600";
@@ -87,23 +99,37 @@ function QuizAttemptPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="font-medium">{question.text}</p>
-          <div className="space-y-2">
-            {question.options.map((option, i) => (
-              <button
-                key={option}
-                type="button"
+          {isWrittenQuestion(question) ? (
+            <div className="space-y-2">
+              <Textarea
+                aria-label={`Answer for question ${index + 1}`}
+                value={typeof answers[question.id] === "string" ? String(answers[question.id]) : ""}
+                onChange={(event) => setAnswers((a) => ({ ...a, [question.id]: event.target.value }))}
                 disabled={expired}
-                onClick={() => setAnswers((a) => ({ ...a, [question.id]: i }))}
-                className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
-                  answers[question.id] === i
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "hover:bg-muted"
-                } ${expired ? "cursor-not-allowed opacity-60" : ""}`}
-              >
-                {String.fromCharCode(65 + i)}. {option}
-              </button>
-            ))}
-          </div>
+                rows={6}
+                placeholder="Write your answer here..."
+              />
+              <p className="text-xs text-muted-foreground">Written answers are graded by your teacher.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {question.options.map((option, i) => (
+                <button
+                  key={option}
+                  type="button"
+                  disabled={expired}
+                  onClick={() => setAnswers((a) => ({ ...a, [question.id]: i }))}
+                  className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
+                    answers[question.id] === i
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "hover:bg-muted"
+                  } ${expired ? "cursor-not-allowed opacity-60" : ""}`}
+                >
+                  {String.fromCharCode(65 + i)}. {option}
+                </button>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -131,8 +157,7 @@ function QuizAttemptPage() {
           <DialogHeader>
             <DialogTitle>Submit this attempt?</DialogTitle>
             <DialogDescription>
-              You answered {Object.keys(answers).length} of {quiz.questions.length} questions.
-              Your score will be available after results are published.
+              You answered {answeredCount} of {quiz.questions.length} questions. {QUIZ_SCORES_MESSAGE}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
