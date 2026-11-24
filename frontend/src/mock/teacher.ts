@@ -58,18 +58,11 @@ export type AssessmentKind = "assignment" | "quiz" | "exam" | "project";
 // "online" = answered in-app, "upload" = attachment-based, "physical" = paper-based.
 export type SubmissionMode = "online" | "upload" | "physical";
 export type SubmissionType = "digital" | "physical" | null;
-export type RequirementType = "text" | "link" | "attachment";
+export type RequirementType = "text" | "attachment";
 
 export interface AssignmentRequirement {
   type: RequirementType;
   isRequired: boolean;
-}
-
-export interface TeacherProject {
-  id: string;
-  sectionId: number;
-  title: string;
-  description?: string;
 }
 
 export interface SubmissionFile {
@@ -108,8 +101,6 @@ export interface TeacherAssessment {
   closeAt?: string;
   submissionModes: SubmissionMode[];
   requirements: AssignmentRequirement[]; // FR8 / I7: at least one, at least one required
-  projectId?: string; // multi-stage projects (FR8)
-  stageNumber?: number;
   physicalRoom?: string; // only when physical submission is required
   hasViva?: boolean;
   hasMcq?: boolean;
@@ -217,7 +208,7 @@ export function makeAssessmentReference(documentName: string): SubmissionFile {
 const seededAssessments: Omit<TeacherAssessment, "requirements">[] = [
   { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", document: referenceFile("assignment1-erd-reference.svg"), published: true },
   { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionModes: ["online"], hasMcq: true, published: true },
-  { id: "ta-a3", sectionId: 4, kind: "project", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], projectId: "proj-1", stageNumber: 1, documentName: "project-m1-brief.pdf", document: referenceFile("project-m1-brief-reference.svg"), published: true },
+  { id: "ta-a3", sectionId: 4, kind: "project", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], documentName: "project-m1-brief.pdf", document: referenceFile("project-m1-brief-reference.svg"), published: true },
   { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
   { id: "ta-a5", sectionId: 4, kind: "exam", title: "Final", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
   { id: "ta-a7", sectionId: 5, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionModes: ["online"], hasMcq: true, published: true },
@@ -225,11 +216,11 @@ const seededAssessments: Omit<TeacherAssessment, "requirements">[] = [
   { id: "ta-a9", sectionId: 5, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
 ];
 
-export const teacherProjects: TeacherProject[] = [
-  { id: "proj-1", sectionId: 4, title: "Uni-LMS Design Project", description: "Multi-stage project: proposal, ERD, and implementation." },
-];
-
 function defaultRequirements(act: Omit<TeacherAssessment, "requirements">): AssignmentRequirement[] {
+  if (act.category === "Project") return [
+    { type: "attachment", isRequired: true },
+    { type: "text", isRequired: true },
+  ];
   if (act.submissionModes.includes("upload")) return [{ type: "attachment", isRequired: true }];
   if (act.submissionModes.includes("physical")) return [{ type: "attachment", isRequired: false }];
   return [{ type: "text", isRequired: true }];
@@ -377,10 +368,6 @@ export function getSectionStudents(sectionId: number) {
 
 export function getSectionAssessments(sectionId: number) {
   return teacherAssessments.filter((a) => a.sectionId === sectionId);
-}
-
-export function getSectionProjects(sectionId: number) {
-  return teacherProjects.filter((p) => p.sectionId === sectionId);
 }
 
 // MCQ marks are derived from the question key, not trusted from stored answers.

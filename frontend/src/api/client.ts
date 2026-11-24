@@ -14,7 +14,6 @@ import {
   assessmentAnswers,
   gradeCategories,
   sectionResultStates,
-  teacherProjects,
   getTeacherProfile,
   type AssessmentAnswer,
   type AssessmentAttempt,
@@ -25,7 +24,6 @@ import {
   type TeacherAssessment,
   type TeacherEvent,
   type TeacherMaterial,
-  type TeacherProject,
   type TeacherQuestion,
   type TeacherSubmission,
   type SubmissionFile,
@@ -43,14 +41,13 @@ export interface TeacherSnapshot {
   assessmentAnswers: AssessmentAnswer[];
   categories: GradeCategory[];
   resultStates: SectionResultState[];
-  projects: TeacherProject[];
 }
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // Shared by every localStorage-backed workspace so keys never drift.
-export const TEACHER_SNAPSHOT_KEY = "uni-lms.teacher-snapshot.v1";
+export const TEACHER_SNAPSHOT_KEY = "uni-lms.teacher-snapshot.v2";
 
 // Phase 1 identity/time helpers: mutations record the signed-in teacher and the
 // real time instead of seed values.
@@ -77,7 +74,6 @@ export const mockApi = {
       assessmentAnswers,
       categories: gradeCategories,
       resultStates: sectionResultStates,
-      projects: teacherProjects,
     });
   },
 };

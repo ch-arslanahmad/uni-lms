@@ -91,7 +91,7 @@ function ClassDetail() {
     instructions: "",
     submissionModes: ["upload"] as SubmissionMode[],
     requirements: [{ type: "attachment" as RequirementType, isRequired: true }],
-    hasViva: false, documentName: "", physicalRoom: "", projectId: "", stageNumber: "1", newProjectTitle: "",
+    hasViva: false, documentName: "", physicalRoom: "",
   });
   const [act, setAct] = useState(emptyAct);
   const paperOnly = act.category === "Midterm" || act.category === "Final";
@@ -106,10 +106,6 @@ function ClassDetail() {
   const [evt, setEvt] = useState({ title: "", startAt: "", endAt: "", room: "" });
   const [evtErr, setEvtErr] = useState(""); const [editEvtId, setEditEvtId] = useState<string | null>(null);
   const [publishErr, setPublishErr] = useState("");
-  const [newProjectTitle, setNewProjectTitle] = useState("");
-  const [newProjectError, setNewProjectError] = useState("");
-  const [editProjectId, setEditProjectId] = useState<string | null>(null);
-  const [projectDraft, setProjectDraft] = useState("");
 
   function suggestTitle(category: string) {
     const sameCat = assessments.filter((a) => a.category === category);
@@ -184,9 +180,6 @@ function ClassDetail() {
       hasViva: assessment.hasViva ?? false,
       documentName: assessment.documentName ?? "",
       physicalRoom: assessment.physicalRoom ?? "",
-      projectId: assessment.projectId ?? "",
-      stageNumber: String(assessment.stageNumber ?? 1),
-      newProjectTitle: "",
     });
     setActFile(assessment.document ?? null);
     requestAnimationFrame(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -214,21 +207,14 @@ function ClassDetail() {
       || (!act.requirements.length ? "Add at least one submission requirement." : "")
       || (!act.requirements.some((r) => r.isRequired) ? "At least one requirement must be marked required." : "")
       || (act.closeAt && act.dueAt && act.closeAt < act.dueAt ? "Close time must be after the due time." : "")
-      || (act.dueAt && act.openAt && act.dueAt < act.openAt ? "Due time must be after the open time." : "")
-      || (act.category === "Project" && Number(act.stageNumber) < 1 ? "Stage number must be at least 1." : "");
+      || (act.dueAt && act.openAt && act.dueAt < act.openAt ? "Due time must be after the open time." : "");
     if (e) { setActErr(e); return; }
 
-    let projectId = act.projectId || undefined;
-    if (act.category === "Project" && act.newProjectTitle.trim()) {
-      projectId = `proj-${crypto.randomUUID()}`;
-      ctx.setProjects((prev) => [...prev, { id: projectId!, sectionId: section!.id, title: act.newProjectTitle.trim() }]);
-    }
     const documentName = act.documentName.trim() || actFile?.name || undefined;
     const patch = {
       kind, instructions: act.instructions.trim(),
       category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, closeAt: act.closeAt,
       submissionModes, requirements: act.requirements,
-      projectId, stageNumber: act.category === "Project" ? Number(act.stageNumber) : undefined,
       physicalRoom: submissionModes.includes("physical") ? act.physicalRoom.trim() : undefined,
       hasViva: submissionModes.includes("physical") ? act.hasViva : undefined,
       hasMcq: kind === "quiz" && submissionModes.includes("online"),
@@ -265,12 +251,6 @@ function ClassDetail() {
     setEditCatId(null); setCatName("Assignments"); setCatWeight(""); setCatCount("1"); setCatErr("");
   }
 
-  function saveProjectTitle(projectId: string) {
-    if (!projectDraft.trim()) return;
-    ctx.setProjects((prev) => prev.map((p) => p.id === projectId ? { ...p, title: projectDraft.trim() } : p));
-    setEditProjectId(null);
-    setProjectDraft("");
-  }
   function publishResults() {
     const total = categories.reduce((s, c) => s + c.weight, 0);
     if (total !== 100) { setPublishErr("Category weights must total 100% before publishing."); return; }
@@ -282,12 +262,6 @@ function ClassDetail() {
     }
     setPublishErr("");
     ctx.setResultStates((prev) => prev.map((r) => r.sectionId === sid ? { ...r, published: true, frozenWeights: true } : r));
-  }
-  function addProject() {
-    const e = err(newProjectTitle, "Project title is required.");
-    if (e) { setNewProjectError(e); return; }
-    ctx.setProjects((prev) => [...prev, { id: `proj-${crypto.randomUUID()}`, sectionId: section!.id, title: newProjectTitle.trim() }]);
-    setNewProjectTitle(""); setNewProjectError("");
   }
   function addAssessmentQuestion() {
     if (!qActId) { setAqErr("Select a quiz/exam assessment."); return; }
@@ -449,50 +423,6 @@ function ClassDetail() {
                 <CardContent className="text-sm">{section.schedule}</CardContent>
               </Card>
               <Card>
-                <CardHeader><CardTitle>Multi-stage projects</CardTitle><p className="text-sm font-normal text-muted-foreground">Create a project, then add assessment stages to it from the assessment form.</p></CardHeader>
-                <CardContent className="space-y-3">
-                  {ctx.projects.filter((p) => p.sectionId === sid).map((project) => {
-                    const stages = assessments.filter((a) => a.projectId === project.id).sort((a, b) => (a.stageNumber ?? 0) - (b.stageNumber ?? 0));
-                    return (
-                      <div key={project.id} className="rounded border p-2 text-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            {editProjectId === project.id ? (
-                              <div className="flex gap-2">
-                                <Input value={projectDraft} onChange={(e) => setProjectDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveProjectTitle(project.id); }} />
-                                <Button size="sm" onClick={() => saveProjectTitle(project.id)}>Save</Button>
-                                <Button size="sm" variant="ghost" onClick={() => { setEditProjectId(null); setProjectDraft(""); }}>Cancel</Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">{project.title}</p>
-                                <IconBtn title="Rename project" onClick={() => { setEditProjectId(project.id); setProjectDraft(project.title); }}><Pencil className="size-4" /></IconBtn>
-                              </div>
-                            )}
-                            {project.description && <p className="text-xs text-muted-foreground">{project.description}</p>}
-                          </div>
-                          <IconBtn title="Delete project" danger onClick={() => ctx.setProjects((prev) => prev.filter((p) => p.id !== project.id))}><Trash2 className="size-4" /></IconBtn>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">Stages: {stages.length ? stages.map((a) => `${a.stageNumber ?? "?"}. ${a.title}`).join(" · ") : "none yet"}</p>
-                        {stages.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {stages.map((stage) => (
-                              <Button key={stage.id} size="sm" variant="outline" onClick={() => openEditAssessment(stage)}><Pencil className="size-3" /> Edit stage {stage.stageNumber ?? "?"}</Button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {ctx.projects.filter((p) => p.sectionId === sid).length === 0 && <p className="text-sm text-muted-foreground">No projects yet.</p>}
-                  <div className="flex gap-2">
-                    <Input value={newProjectTitle} onChange={(e) => setNewProjectTitle(e.target.value)} placeholder="New project title" />
-                    <Button size="sm" onClick={addProject}>Add</Button>
-                  </div>
-                  {newProjectError && <p className="text-xs text-red-600">{newProjectError}</p>}
-                </CardContent>
-              </Card>
-              <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="size-4" /> Section events</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div className="space-y-2">
@@ -608,7 +538,16 @@ function ClassDetail() {
                           <Select value={act.category} onValueChange={v => {
                             if (!v) return;
                             const isPaper = v === "Midterm" || v === "Final";
-                            setAct({ ...act, category: v, submissionModes: isPaper ? ["physical"] : (v === "Quizzes" ? ["online"] : ["upload"]), physicalRoom: isPaper ? act.physicalRoom : "" });
+                            setAct({
+                              ...act,
+                              category: v,
+                              submissionModes: isPaper ? ["physical"] : (v === "Quizzes" ? ["online"] : ["upload"]),
+                              physicalRoom: isPaper ? act.physicalRoom : "",
+                              requirements: v === "Project" ? [
+                                { type: "attachment" as RequirementType, isRequired: true },
+                                { type: "text" as RequirementType, isRequired: true },
+                              ] : act.requirements,
+                            });
                           }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                           <p className="text-xs text-muted-foreground">Category determines grading bucket and assessment behavior. Title is auto-numbered (e.g. {suggestTitle(act.category)}).</p>
                         </div>
@@ -646,20 +585,6 @@ function ClassDetail() {
                           <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" checked={act.hasViva} onChange={e => setAct({ ...act, hasViva: e.target.checked })} />Includes viva</label>
                           <p className="text-xs text-muted-foreground md:col-span-2 -mt-2">Physical submission means in-person assessment; enable viva if students will also be assessed orally.</p>
                         </>}
-                        {act.category === "Project" && <>
-                          <div className="space-y-2">
-                            <Label>Project</Label>
-                            <Select value={act.projectId || "__none"} onValueChange={v => v && setAct({ ...act, projectId: v === "__none" ? "" : v })}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none">Standalone (no project)</SelectItem>
-                                {ctx.projects.filter(p => p.sectionId === sid).map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2"><Label>Or new project title</Label><Input value={act.newProjectTitle} onChange={e => setAct({ ...act, newProjectTitle: e.target.value })} placeholder="Creates a project for this stage" /></div>
-                          <div className="space-y-2"><Label>Stage number</Label><Input type="number" min={1} value={act.stageNumber} onChange={e => setAct({ ...act, stageNumber: e.target.value })} /></div>
-                        </>}
                         <div className="md:col-span-2 space-y-2">
                           <div className="flex items-center justify-between"><Label>Submission requirements</Label><Button size="sm" variant="outline" onClick={() => setAct((prev) => ({ ...prev, requirements: [...prev.requirements, { type: "text", isRequired: false }] }))}><Plus className="size-4" /> Add requirement</Button></div>
                           {act.requirements.map((r, index) => (
@@ -668,7 +593,7 @@ function ClassDetail() {
                                 <Label>Type</Label>
                                 <Select value={r.type} onValueChange={v => v && setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, type: v as RequirementType } : item) }))}>
                                   <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="link">Link</SelectItem><SelectItem value="attachment">Attachment</SelectItem></SelectContent>
+                                  <SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="attachment">Attachment</SelectItem></SelectContent>
                                 </Select>
                               </div>
                               <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={r.isRequired} onChange={(e) => setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, isRequired: e.target.checked } : item) }))} /> Required</label>
@@ -730,7 +655,7 @@ function ClassDetail() {
                               <div>
                                 <p className="font-medium flex items-center gap-2">{a.title}{a.required && <Badge variant="secondary">Required</Badge>}{a.required && !a.documentName && <Badge variant="secondary" className="gap-1"><AlertCircle className="size-3" />Pending document</Badge>}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.closeAt ? ` - Closes ${a.closeAt}` : ""} - Modes: {a.submissionModes.join(", ") || "none"}{a.requirements?.length ? ` - Requires: ${a.requirements.map((r) => `${r.type}${r.isRequired ? "*" : ""}`).join(", ")}` : ""}{a.projectId ? ` - Stage ${a.stageNumber ?? "?"}` : ""}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{a.hasViva ? " - Viva" : ""}
+                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.closeAt ? ` - Closes ${a.closeAt}` : ""} - Modes: {a.submissionModes.join(", ") || "none"}{a.requirements?.length ? ` - Requires: ${a.requirements.map((r) => `${r.type}${r.isRequired ? "*" : ""}`).join(", ")}` : ""}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{a.hasViva ? " - Viva" : ""}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1">

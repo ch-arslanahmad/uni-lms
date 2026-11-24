@@ -20,7 +20,6 @@ import {
   type TeacherAssessment,
   type TeacherEvent,
   type TeacherMaterial,
-  type TeacherProject,
   type TeacherQuestion,
   type TeacherSnapshot,
   type TeacherSubmission,
@@ -49,8 +48,6 @@ export interface TeacherContext {
   setCategories: React.Dispatch<React.SetStateAction<GradeCategory[]>>;
   resultStates: SectionResultState[];
   setResultStates: React.Dispatch<React.SetStateAction<SectionResultState[]>>;
-  projects: TeacherProject[];
-  setProjects: React.Dispatch<React.SetStateAction<TeacherProject[]>>;
 }
 
 
@@ -87,7 +84,6 @@ function TeacherLayout() {
   const [assessmentAnswers, setAssessmentAnswers] = useState<AssessmentAnswer[]>([]);
   const [categories, setCategories] = useState<GradeCategory[]>([]);
   const [resultStates, setResultStates] = useState<SectionResultState[]>([]);
-  const [projects, setProjects] = useState<TeacherProject[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -104,7 +100,6 @@ function TeacherLayout() {
     setAssessmentAnswers(data.assessmentAnswers);
     setCategories(data.categories);
     setResultStates(data.resultStates);
-    setProjects(data.projects);
     setHydrated(true);
   }, [snapshot.data]);
 
@@ -114,13 +109,13 @@ function TeacherLayout() {
       localStorage.setItem(TEACHER_SNAPSHOT_KEY, JSON.stringify({
         assessments, submissions, questions, materials, announcements, events,
         assessmentQuestions, assessmentAttempts, assessmentAnswers,
-        categories, resultStates, projects,
+        categories, resultStates,
       } satisfies TeacherSnapshot));
     } catch {
       // Storage quota can be reached by large demo attachments; keep the in-memory session usable.
     }
   }, [hydrated, assessments, submissions, questions, materials, announcements, events,
-    assessmentQuestions, assessmentAttempts, assessmentAnswers, categories, resultStates, projects]);
+    assessmentQuestions, assessmentAttempts, assessmentAnswers, categories, resultStates]);
 
   const pendingGrading = useMemo(() => submissions.filter((s) => s.status === "submitted").length, [submissions]);
   const pendingQuestions = useMemo(() => questions.filter((q) => q.status === "pending").length, [questions]);
@@ -182,7 +177,6 @@ function TeacherLayout() {
             assessmentAnswers, setAssessmentAnswers,
             categories, setCategories,
             resultStates, setResultStates,
-            projects, setProjects,
           } satisfies TeacherContext}
         />
       </main>
