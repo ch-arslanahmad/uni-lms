@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent } from "react";
+import { useRef, type ChangeEvent, type ReactNode } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Upload, Download, CheckCircle2 } from "lucide-react";
@@ -11,6 +11,10 @@ export interface UploadBoxProps {
   onFileChange: (file: File | null) => void;
   onRunIngest: () => void;
   onDownloadTemplate: (option: DataOption) => void;
+  /** Parse/validation preview rendered under the drop zone. */
+  preview?: ReactNode;
+  /** Whether ingest may run (file parsed and every row valid). */
+  canIngest?: boolean;
 }
 
 export function UploadBox({
@@ -20,6 +24,8 @@ export function UploadBox({
   onFileChange,
   onRunIngest,
   onDownloadTemplate,
+  preview,
+  canIngest,
 }: UploadBoxProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -66,9 +72,11 @@ export function UploadBox({
         {uploadStatus === "success" && (
           <div className="flex items-center gap-2 p-3 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-md">
             <CheckCircle2 size={16} />
-            <span>File uploaded and parsed successfully. Ready for database batch write.</span>
+            <span>All rows valid — import applied to the local mock data (backend transaction arrives in Phase 2).</span>
           </div>
         )}
+
+        {preview}
 
         <div className="flex items-center justify-between pt-1">
           <Button
@@ -82,7 +90,7 @@ export function UploadBox({
 
           <Button
             size="sm"
-            disabled={!selectedFile}
+            disabled={!(canIngest ?? !!selectedFile)}
             onClick={onRunIngest}
           >
             Run Bulk Ingest

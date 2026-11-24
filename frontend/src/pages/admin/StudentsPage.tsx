@@ -1,7 +1,8 @@
 import UsersPage from "./UsersPage";
 import { type TableFilter } from "../../components/userTableConfig";
 import { type Column } from "../../components/SimpleTable";
-import { type Student, students } from "../../models";
+import { type Student } from "../../models";
+import { useAdminStore, studentRows } from "../../lib/adminStore";
 
 const StudentColumns: Column<Student>[] = [
   { key: "id", label: "ID" },
@@ -19,11 +20,12 @@ const StudentFilters: TableFilter<Student>[] = [
 ];
 
 function StudentsPage() {
+  const store = useAdminStore();
   return (
     <UsersPage
       title="Students"
       columns={StudentColumns}
-      data={students}
+      data={studentRows(store)}
       searchKeys={["name", "email", "department", "course"]}
       filters={StudentFilters}
     />

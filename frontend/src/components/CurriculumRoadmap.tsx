@@ -1,16 +1,16 @@
 import { useMemo, useState } from "react";
+import { type ProgramRow } from "../models";
 import {
-  departments,
-  programs,
-  subjects,
-  programCurriculums,
-  type ProgramRow,
-} from "../models";
+  useAdminStore,
+  saveCurriculumEntry,
+  deleteCurriculumEntry,
+} from "../lib/adminStore";
+import { FormDialog } from "./FormDialog";
 import { SearchInput } from "./SearchInput";
 import FilterDropdown from "./FilterDropdown";
 import { StatMetric } from "./StatMetric";
 import { Button } from "./ui/button";
-import { ChevronDown, ChevronRight, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpen, X } from "lucide-react";
 
 interface SubjectDetail {
   id: number;
@@ -32,10 +32,13 @@ export function CurriculumRoadmap({
   initialDeptCode,
   readOnly = false,
 }: CurriculumRoadmapProps) {
+  const store = useAdminStore();
+  const { departments, programs, subjects, programCurriculums } = store;
+
   const [dept, setDept] = useState(initialDeptCode ?? departments[0]?.code ?? "CS");
   const filteredPrograms = useMemo(
     () => programs.filter((p) => p.departmentCode === dept),
-    [dept],
+    [dept, programs],
   );
   const [prog, setProg] = useState(
     initialProgramCode ?? filteredPrograms[0]?.code ?? "BSCS",
@@ -90,7 +93,7 @@ export function CurriculumRoadmap({
     }
 
     return list;
-  }, [prog, search, currentProgObj]);
+  }, [prog, search, currentProgObj, programCurriculums, subjects]);
 
   // Overall Program Stats
   const programSummary = useMemo(() => {
@@ -105,7 +108,23 @@ export function CurriculumRoadmap({
       totalSemesters: currentProgObj?.totalSemesters ?? 8,
       durationYears: currentProgObj?.durationYears ?? 4,
     };
-  }, [prog, currentProgObj]);
+  }, [prog, currentProgObj, programCurriculums, subjects]);
+
+  const hasCurriculum = semesterGroups.some((group) => group.subjects.length > 0);
+  const emptyRoadmapMessage = hasCurriculum
+    ? null
+    : search.trim()
+      ? `No subjects match "${search.trim()}" in ${prog}.`
+      : readOnly
+        ? `No curriculum subjects are available for ${prog} yet.`
+        : `No subjects in ${prog}'s roadmap yet. Add one to get started.`;
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const availableSubjects = subjects.filter(
+    (s) => !programCurriculums.some((c) => c.programCode === prog && c.subjectCode === s.code),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -165,14 +184,30 @@ export function CurriculumRoadmap({
       <div className="flex flex-wrap items-center gap-4">
         <SearchInput value={search} onChange={setSearch} />
         {!readOnly && (
-          <Button size="sm" className="ml-auto">
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() => setAddOpen(true)}
+            disabled={availableSubjects.length === 0}
+          >
             + Add Subject to Semester
           </Button>
         )}
       </div>
 
+      {actionError && (
+        <div className="p-2.5 text-xs rounded-md border border-destructive/30 bg-destructive/10 text-destructive">
+          {actionError}
+        </div>
+      )}
+
       {/* Semesters Collapsible List */}
       <div className="flex flex-col gap-3">
+        {emptyRoadmapMessage && (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            {emptyRoadmapMessage}
+          </div>
+        )}
         {semesterGroups.map(({ semester, subjects: semSubs, totalCredits }) => {
           const isExpanded = expandedSems[semester] ?? false;
           const isCurrentSem = semester === currentSemesterNum;
@@ -230,9 +265,21 @@ export function CurriculumRoadmap({
                               <span className="text-xs text-foreground">{sub.title}</span>
                             </div>
                           </div>
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                            {sub.creditHours} CH
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                              {sub.creditHours} CH
+                            </span>
+                            {!readOnly && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                aria-label={`Remove ${sub.code} from semester ${semester}`}
+                                onClick={() => setActionError(deleteCurriculumEntry(sub.id))}
+                              >
+                                <X size={13} className="text-muted-foreground" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -243,6 +290,43 @@ export function CurriculumRoadmap({
           );
         })}
       </div>
+
+      {!readOnly && (
+        <FormDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          title={`Add Subject to ${prog}`}
+          description="Place a catalog course into one semester of this program's roadmap."
+          fields={[
+            {
+              name: "subjectCode",
+              label: "Subject",
+              type: "select",
+              options: availableSubjects.map((s) => ({
+                value: s.code,
+                label: `${s.code} — ${s.title}`,
+              })),
+            },
+            {
+              name: "semesterNumber",
+              label: "Semester",
+              type: "select",
+              options: Array.from(
+                { length: currentProgObj?.totalSemesters ?? 8 },
+                (_, i) => ({ value: String(i + 1), label: `Semester ${i + 1}` }),
+              ),
+            },
+          ]}
+          submitLabel="Add to Roadmap"
+          onSubmit={(v) =>
+            saveCurriculumEntry({
+              programCode: prog,
+              subjectCode: v.subjectCode,
+              semesterNumber: Number(v.semesterNumber),
+            })
+          }
+        />
+      )}
     </div>
   );
 }

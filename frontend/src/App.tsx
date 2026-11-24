@@ -6,13 +6,14 @@ import {
   UserFilters,
   UserSearchKeys,
 } from "./components/userTableConfig";
+import { useAdminStore } from "./lib/adminStore";
 import StudentsPage from "./pages/admin/StudentsPage";
 import TeachersPage from "./pages/admin/TeachersPage";
 import NotFound from "./pages/NotFound";
+import LoginPage from "./pages/LoginPage";
 import Academics from "./pages/admin/Academics";
 import ImportExportPage from "./pages/admin/ImportExportPage";
 import TimetablePage from "./pages/admin/TimetablePage";
-import { users } from "./models";
 import StudentLayout from "./components/student/StudentLayout";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import MyCourses from "./pages/student/MyCourses";
@@ -34,7 +35,21 @@ import SubmissionDetailPage from "./pages/teacher/SubmissionDetailPage";
 import QuestionsPage from "./pages/teacher/QuestionsPage";
 import TeacherTimetable from "./pages/teacher/TeacherTimetable";
 import AdminLayout from "./components/AdminLayout";
-import LoginPage from "./pages/LoginPage";
+
+// Same UsersPage as the other branches, backed by the live admin store so
+// CSV imports appear without duplicating the users list in App.
+function AdminUsersRoute() {
+  const store = useAdminStore();
+  return (
+    <UsersPage
+      title="Users"
+      data={store.users}
+      columns={UserColumns}
+      searchKeys={UserSearchKeys}
+      filters={UserFilters}
+    />
+  );
+}
 
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -42,18 +57,7 @@ const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { path: "/", element: <AdminDashboard /> },
-      {
-        path: "/admin/users",
-        element: (
-          <UsersPage
-            title="Users"
-            data={users}
-            columns={UserColumns}
-            searchKeys={UserSearchKeys}
-            filters={UserFilters}
-          />
-        ),
-      },
+      { path: "/admin/users", element: <AdminUsersRoute /> },
       { path: "/admin/students", element: <StudentsPage /> },
       { path: "/admin/teachers", element: <TeachersPage /> },
       { path: "/admin/academics", element: <Academics /> },

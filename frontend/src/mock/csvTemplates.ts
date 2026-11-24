@@ -1,4 +1,4 @@
-export type CsvDataType = "users" | "enrolments" | "courses" | "exam_datesheet";
+export type CsvDataType = "users" | "enrolments" | "courses";
 
 export interface DataOption {
   id: CsvDataType;
@@ -29,12 +29,5 @@ export const csvDataOptions: DataOption[] = [
     description: "Master list of subjects, credit hours, and offering departments.",
     columns: ["subject_code", "title", "department_code", "credit_hours"],
     sampleFilename: "courses_template.csv",
-  },
-  {
-    id: "exam_datesheet",
-    title: "Exam Datesheet",
-    description: "Midterm and final examination schedule with dates and time windows.",
-    columns: ["exam_type (midterm|final)", "subject_code", "class_section", "exam_date", "start_time", "end_time"],
-    sampleFilename: "exam_datesheet_template.csv",
   },
 ];

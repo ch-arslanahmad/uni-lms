@@ -178,7 +178,17 @@ function CoursePage() {
               </Card>
               <Card>
                 <CardHeader><CardTitle>Time Table</CardTitle></CardHeader>
-                <CardContent className="text-sm">{offering.timetable}</CardContent>
+                <CardContent className="text-sm">
+                  {offering.timetable ? (
+                    <ul className="space-y-1">
+                      {offering.timetable.split(" · ").map((slot) => (
+                        <li key={slot}>{slot}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground">No schedule set yet.</p>
+                  )}
+                </CardContent>
               </Card>
             </div>
           </div>

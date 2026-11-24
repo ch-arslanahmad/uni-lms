@@ -4,21 +4,28 @@ import {
   TIME_SLOTS,
   type ScheduleSlot,
 } from "../mock/timetable";
-import { subjects } from "../models";
+import type { SubjectRow } from "../models";
 
 export interface TimetableGridProps {
   slots: ScheduleSlot[];
+  subjects: SubjectRow[];
   onCellClick: (day: string, time: string) => void;
   onSlotClick: (slot: ScheduleSlot) => void;
 }
 
 export function TimetableGrid({
   slots,
+  subjects,
   onCellClick,
   onSlotClick,
 }: TimetableGridProps) {
   return (
     <div className="w-full overflow-x-auto border rounded-lg bg-card shadow-xs">
+      {slots.length === 0 && (
+        <p className="border-b p-3 text-center text-xs text-muted-foreground">
+          No classes scheduled for this section yet. Select an empty slot to add one.
+        </p>
+      )}
       <table className="w-full border-collapse text-left text-xs min-w-[700px]">
         <thead>
           <tr className="border-b bg-muted/50 text-muted-foreground">
@@ -70,6 +77,7 @@ export function TimetableGrid({
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
                           <UserIcon size={10} />
                           <span>{slot.teacherName}</span>
+                          <span className="ml-auto font-medium">{slot.room}</span>
                         </div>
                       </div>
                     ) : (
