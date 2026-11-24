@@ -79,6 +79,8 @@ function StudentLayout() {
                 { label: "Dashboard", to: "/student", end: true },
                 { label: "My courses", to: "/student/courses", end: false },
                 { label: "Results", to: "/student/results", end: false },
+                { label: "Timetable", to: "/student/timetable", end: false },
+                { label: "Datesheet", to: "/student/datesheet", end: false },
                 { label: "My questions", to: "/student/questions", end: false },
               ].map(({ label, to, end }) => (
                 <li key={to}>

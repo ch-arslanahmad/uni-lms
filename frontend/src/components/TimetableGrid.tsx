@@ -11,6 +11,7 @@ export interface TimetableGridProps {
   subjects: SubjectRow[];
   onCellClick: (day: string, time: string) => void;
   onSlotClick: (slot: ScheduleSlot) => void;
+  readOnly?: boolean;
 }
 
 export function TimetableGrid({
@@ -18,12 +19,15 @@ export function TimetableGrid({
   subjects,
   onCellClick,
   onSlotClick,
+  readOnly = false,
 }: TimetableGridProps) {
   return (
     <div className="w-full overflow-x-auto border rounded-lg bg-card shadow-xs">
       {slots.length === 0 && (
         <p className="border-b p-3 text-center text-xs text-muted-foreground">
-          No classes scheduled for this section yet. Select an empty slot to add one.
+          {readOnly
+            ? "No classes scheduled for your section yet."
+            : "No classes scheduled for this section yet. Select an empty slot to add one."}
         </p>
       )}
       <table className="w-full border-collapse text-left text-xs min-w-[700px]">
@@ -62,8 +66,8 @@ export function TimetableGrid({
                   >
                     {slot ? (
                       <div
-                        onClick={() => onSlotClick(slot)}
-                        className="h-full w-full p-2 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/60 transition-all cursor-pointer flex flex-col justify-between shadow-2xs"
+                        onClick={readOnly ? undefined : () => onSlotClick(slot)}
+                        className={`h-full w-full p-2 rounded-md border border-primary/30 bg-primary/5 flex flex-col justify-between shadow-2xs ${readOnly ? "" : "hover:bg-primary/10 hover:border-primary/60 transition-all cursor-pointer"}`}
                       >
                         <div>
                           <span className="font-bold text-primary text-[11px]">
@@ -80,6 +84,8 @@ export function TimetableGrid({
                           <span className="ml-auto font-medium">{slot.room}</span>
                         </div>
                       </div>
+                    ) : readOnly ? (
+                      <div className="h-full w-full" />
                     ) : (
                       <button
                         type="button"

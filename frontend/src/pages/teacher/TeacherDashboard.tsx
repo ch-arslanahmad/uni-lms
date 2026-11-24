@@ -5,10 +5,12 @@ import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { getTeacherProfile, teacherSections } from "../../api";
+import { useAdminStore } from "../../lib/adminStore";
 
 function TeacherDashboard() {
   const { submissions, questions, assessments } = useOutletContext<TeacherContext>();
   const navigate = useNavigate();
+  const admin = useAdminStore();
   const teacher = getTeacherProfile();
   const pendingGrading = submissions.filter((s) => s.status === "submitted").length;
   const unanswered = questions.filter((q) => q.status === "pending").length;
@@ -39,6 +41,24 @@ function TeacherDashboard() {
       ]}
       tableSlot={
         <div className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Published exam deadlines</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {!admin.datesheetPublished ? (
+                <p className="text-sm text-muted-foreground">The administrator has not published the midterm and final datesheet yet.</p>
+              ) : admin.examDatesheet.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No exam dates have been scheduled.</p>
+              ) : admin.examDatesheet.map((entry) => (
+                <div key={entry.id} className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-sm">
+                  <p className="font-medium">{entry.examType} · {entry.subjectCode} {entry.subjectTitle}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {entry.examDate} ({entry.dayOfWeek}) · {entry.timeSlot} · {entry.classSection}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Prepare and post required material before this date.</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader><CardTitle className="text-base">Upcoming assessments</CardTitle></CardHeader>
             <CardContent className="space-y-2">

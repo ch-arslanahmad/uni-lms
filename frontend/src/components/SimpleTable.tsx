@@ -5,6 +5,7 @@ import * as React from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { Button } from "./ui/button";
+import { SearchInput } from "./SearchInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import {
   Table,
@@ -30,6 +31,9 @@ export interface Column<T> {
 export function SimpleTable<T>({
   columns,
   data,
+  searchKeys,
+  searchPlaceholder,
+  searchable = false,
   paginated = false,
   pageSizeOptions = [10, 20, 50],
   initialPageSize = 10,
@@ -51,7 +55,7 @@ export function SimpleTable<T>({
     [pageSizeOptions],
   );
 
-  // The 3 states, sorting, page sizes, and the current page
+  // The 4 states, search, sorting, page sizes, and the current page
   const [sort, setSort] = React.useState<{
     key: string;
     dir: "asc" | "desc";
@@ -62,17 +66,27 @@ export function SimpleTable<T>({
       ? initialPageSize
       : (sizeOptions[0] ?? 10),
   );
+  const [query, setQuery] = React.useState("");
 
   // changing page size sends us back to page 1
   React.useEffect(() => {
     setPage(0);
   }, [pageSize]);
 
+  // 1) SEARCH — only when the caller opts in and supplies keys
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!searchable || !q || !searchKeys?.length) return data;
+    return data.filter((row) =>
+      searchKeys.some((key) => String(row[key] ?? "").toLowerCase().includes(q)),
+    );
+  }, [data, query, searchKeys, searchable]);
+
   // 2) SORT
   const sorted = React.useMemo(() => {
-    if (!sort) return data;
+    if (!sort) return filtered;
     const dir = sort.dir === "asc" ? 1 : -1;
-    return [...data].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       // creates a copy to avoid mutation of the original array
       const av = a[sort.key as keyof T]; // fetch the values for the sort key from both objects
       const bv = b[sort.key as keyof T];
@@ -80,7 +94,7 @@ export function SimpleTable<T>({
         return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
-  }, [data, sort]);
+  }, [filtered, sort]);
 
   // 3) PAGINATE, clamp the page so filtering can
   const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize)); // at least 1 page even if no results
@@ -101,6 +115,13 @@ export function SimpleTable<T>({
 
   return (
     <div className="space-y-3">
+      {searchable && !!searchKeys?.length && (
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder={searchPlaceholder}
+        />
+      )}
       {/* the table itself */}
       <div className="overflow-hidden rounded-md border bg-card">
         <Table>
