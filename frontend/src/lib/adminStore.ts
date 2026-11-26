@@ -25,7 +25,7 @@ import {
 } from "../models";
 import { studentPlacement, teacherCourses as seedTeacherCourses } from "../mock/people";
 import { initialScheduleSlots, type ScheduleSlot } from "../mock/timetable";
-import { mockExamDatesheet, type ExamDatesheetEntry } from "../mock/calendar";
+import { mockExamDatesheet, sectionIdFromClassCode, type ExamDatesheetEntry } from "../mock/calendar";
 import type { CsvDataType } from "../mock/csvTemplates";
 
 export interface EnrolmentRow {
@@ -405,11 +405,13 @@ export function saveSlot(input: Omit<ScheduleSlot, "id">, id?: number): string |
   if (!input.subjectCode || !input.teacherName || !input.room.trim())
     return "Subject, teacher and room are all required.";
   if (!input.sectionCode) return "Select a class first.";
+  const sectionId = sectionIdFromClassCode(input.sectionCode);
   const examConflict = state.examDatesheet.find(
     (e) =>
-      e.classSection.toUpperCase() === input.sectionCode.toUpperCase() &&
+      sectionId !== null &&
+      e.sectionId === sectionId &&
       e.dayOfWeek === input.dayOfWeek &&
-      ["midterm", "final"].includes(e.examType.toLowerCase()),
+      (e.examType === "midterm" || e.examType === "final"),
   );
   if (examConflict) {
     return `Cannot schedule a recurring class on ${input.dayOfWeek}: ${input.sectionCode} has ${examConflict.examType} (${examConflict.subjectCode}) on ${examConflict.examDate}.`;
@@ -466,7 +468,7 @@ export function saveDatesheetEntry(
   input: Omit<ExamDatesheetEntry, "id" | "dayOfWeek">,
   id?: number,
 ): string | null {
-  if (!input.subjectCode.trim() || !input.subjectTitle.trim() || !input.classSection.trim())
+  if (!input.subjectCode.trim() || !input.subjectTitle.trim() || !input.sectionId)
     return "Course code, course title and class section are required.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.examDate)) return "Choose a valid exam date.";
   if (!input.timeSlot.trim()) return "Time window is required.";
@@ -475,7 +477,7 @@ export function saveDatesheetEntry(
     (e) =>
       e.id !== id &&
       e.examType === input.examType &&
-      e.classSection.toUpperCase() === input.classSection.toUpperCase() &&
+      e.sectionId === input.sectionId &&
       e.subjectCode.toUpperCase() === input.subjectCode.toUpperCase(),
   );
   if (duplicate) return "That course already has an entry for this exam type in this class.";
@@ -484,7 +486,7 @@ export function saveDatesheetEntry(
     ...input,
     subjectCode: input.subjectCode.trim(),
     subjectTitle: input.subjectTitle.trim(),
-    classSection: input.classSection.trim(),
+    sectionId: input.sectionId,
     timeSlot: input.timeSlot.trim(),
     dayOfWeek: dayOfWeekFor(input.examDate),
     id: id ?? nextId(state.examDatesheet),

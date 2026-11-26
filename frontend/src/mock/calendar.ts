@@ -1,12 +1,36 @@
+import { programCurriculums, sections, type SectionRow } from "../models";
+
 export interface ExamDatesheetEntry {
   id: number;
-  examType: "Midterm" | "Final";
+  examType: "midterm" | "final";
+  sectionId: number;
   subjectCode: string;
   subjectTitle: string;
-  classSection: string;
   examDate: string;     // e.g. "2026-11-16"
   dayOfWeek: string;    // e.g. "Monday"
   timeSlot: string;     // e.g. "09:00 - 11:00"
+}
+
+// A datesheet row points at a section; the human label is derived, not stored.
+export function sectionClassCode(section: SectionRow): string {
+  const curriculum = programCurriculums.find(
+    (item) => item.programCode === section.programCode && item.subjectCode === section.subjectCode,
+  );
+  return `${section.programCode}-${curriculum?.semesterNumber ?? "?"}${section.code}`;
+}
+
+export function datesheetClassLabel(entry: Pick<ExamDatesheetEntry, "sectionId">): string {
+  const section = sections.find((item) => item.id === entry.sectionId);
+  return section ? sectionClassCode(section) : `Section ${entry.sectionId}`;
+}
+
+export function sectionIdFromClassCode(classCode: string): number | null {
+  const code = classCode.trim().toUpperCase();
+  return sections.find((section) => sectionClassCode(section).toUpperCase() === code)?.id ?? null;
+}
+
+export function examTypeLabel(type: ExamDatesheetEntry["examType"]): string {
+  return type === "midterm" ? "Midterm" : "Final";
 }
 
 export interface AcademicCalendarMilestone {
@@ -64,60 +88,60 @@ export const academicCalendarMilestones: AcademicCalendarMilestone[] = [
 export const mockExamDatesheet: ExamDatesheetEntry[] = [
   {
     id: 1,
-    examType: "Midterm",
+    examType: "midterm",
     subjectCode: "CS-301",
     subjectTitle: "Database Systems",
-    classSection: "BSCS-5A",
+    sectionId: 4,
     examDate: "2026-11-09",
     dayOfWeek: "Monday",
     timeSlot: "09:00 - 11:00",
   },
   {
     id: 2,
-    examType: "Midterm",
+    examType: "midterm",
     subjectCode: "CS-310",
     subjectTitle: "Operating Systems",
-    classSection: "BSCS-5A",
+    sectionId: 4,
     examDate: "2026-11-11",
     dayOfWeek: "Wednesday",
     timeSlot: "09:00 - 11:00",
   },
   {
     id: 3,
-    examType: "Midterm",
+    examType: "midterm",
     subjectCode: "CS-320",
     subjectTitle: "Software Engineering",
-    classSection: "BSCS-5A",
+    sectionId: 4,
     examDate: "2026-11-13",
     dayOfWeek: "Friday",
     timeSlot: "09:00 - 11:00",
   },
   {
     id: 4,
-    examType: "Final",
+    examType: "final",
     subjectCode: "CS-301",
     subjectTitle: "Database Systems",
-    classSection: "BSCS-5A",
+    sectionId: 4,
     examDate: "2027-01-18",
     dayOfWeek: "Monday",
     timeSlot: "09:00 - 12:00",
   },
   {
     id: 5,
-    examType: "Final",
+    examType: "final",
     subjectCode: "CS-310",
     subjectTitle: "Operating Systems",
-    classSection: "BSCS-5A",
+    sectionId: 4,
     examDate: "2027-01-21",
     dayOfWeek: "Thursday",
     timeSlot: "09:00 - 12:00",
   },
   {
     id: 6,
-    examType: "Final",
+    examType: "final",
     subjectCode: "CS-320",
     subjectTitle: "Software Engineering",
-    classSection: "BSCS-5A",
+    sectionId: 4,
     examDate: "2027-01-25",
     dayOfWeek: "Monday",
     timeSlot: "09:00 - 12:00",

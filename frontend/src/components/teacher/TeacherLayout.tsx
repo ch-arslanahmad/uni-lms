@@ -164,7 +164,7 @@ function TeacherLayout() {
     assessmentQuestions, assessmentAttempts, assessmentAnswers, categories, resultStates]);
 
   const pendingGrading = useMemo(() => submissions.filter((s) => s.status === "submitted").length, [submissions]);
-  const pendingQuestions = useMemo(() => questions.filter((q) => q.status === "pending").length, [questions]);
+  const pendingQuestions = useMemo(() => questions.filter((q) => q.status === "open" && !q.answer).length, [questions]);
 
   if (guard) return <>{guard}</>;
   if (snapshot.error) return <ErrorState message={snapshot.error} onRetry={snapshot.retry} />;

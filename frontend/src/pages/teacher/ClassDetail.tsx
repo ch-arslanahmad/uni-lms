@@ -15,6 +15,7 @@ import { SimpleTable } from "../../components/SimpleTable";
 import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { useAdminStore } from "../../lib/adminStore";
+import { examTypeLabel } from "../../mock/calendar";
 import {
   calculateCourseResults,
   fileToSubmissionFile,
@@ -546,13 +547,13 @@ function ClassDetail() {
                     <p className="text-xs font-medium text-muted-foreground">Admin datesheet for your section</p>
                     {!admin.datesheetPublished ? (
                       <p className="rounded border p-2 text-sm text-muted-foreground">Not published yet.</p>
-                    ) : admin.examDatesheet.filter((e) => e.classSection.endsWith(section?.section.code ?? "__none")).length === 0 ? (
+                    ) : admin.examDatesheet.filter((e) => e.sectionId === section.section.id).length === 0 ? (
                       <p className="rounded border p-2 text-sm text-muted-foreground">No midterm or final papers scheduled for this section.</p>
                     ) : admin.examDatesheet
-                        .filter((e) => e.classSection.endsWith(section?.section.code ?? "__none"))
+                        .filter((e) => e.sectionId === section.section.id)
                         .map((entry) => (
                           <div key={entry.id} className="rounded border border-amber-200 bg-amber-50/50 p-2 text-sm">
-                            <p className="font-medium">{entry.examType} · {entry.subjectCode} {entry.subjectTitle}</p>
+                            <p className="font-medium">{examTypeLabel(entry.examType)} · {entry.subjectCode} {entry.subjectTitle}</p>
                             <p className="text-xs text-muted-foreground">
                               {entry.examDate} ({entry.dayOfWeek}) · {entry.timeSlot}
                             </p>

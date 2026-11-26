@@ -5,14 +5,19 @@ import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { nowTimestamp, teacherSections } from "../../api";
 import { students } from "../../models";
 
-type StatusFilter = "All" | "pending" | "answered" | "resolved";
+type StatusFilter = "All" | "open" | "answered" | "resolved";
 
 const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "All", label: "All" },
-  { value: "pending", label: "Pending" },
+  { value: "open", label: "Open" },
   { value: "answered", label: "Answered" },
   { value: "resolved", label: "Resolved" },
 ];
+
+function bucketOf(q: { status: "open" | "resolved"; answer?: string }): Exclude<StatusFilter, "All"> {
+  if (q.status === "resolved") return "resolved";
+  return q.answer ? "answered" : "open";
+}
 
 function formatStudentId(id: number) {
   return `#${id}`;
@@ -21,17 +26,17 @@ function formatStudentId(id: number) {
 function QuestionsPage() {
   const { questions, setQuestions, assessments } = useOutletContext<TeacherContext>();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("pending");
+  const [status, setStatus] = useState<StatusFilter>("open");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [replyingId, setReplyingId] = useState<string | null>(null);
 
   const counts = useMemo(() => {
-    return {
-      All: questions.length,
-      pending: questions.filter((q) => q.status === "pending").length,
-      answered: questions.filter((q) => q.status === "answered").length,
-      resolved: questions.filter((q) => q.status === "resolved").length,
-    } as Record<StatusFilter, number>;
+    const buckets = questions.reduce((acc, q) => {
+      const bucket = bucketOf(q);
+      acc[bucket] += 1;
+      return acc;
+    }, { open: 0, answered: 0, resolved: 0 });
+    return { All: questions.length, ...buckets } as Record<StatusFilter, number>;
   }, [questions]);
 
   const filtered = useMemo(() => {
@@ -40,7 +45,7 @@ function QuestionsPage() {
       const stu = students.find((s) => s.id === item.studentId);
       const text = `${item.question} ${stu?.name ?? ""} ${item.studentId}`.toLowerCase();
       const matchesQuery = !q || text.includes(q);
-      const matchesStatus = status === "All" || item.status === status;
+      const matchesStatus = status === "All" || bucketOf(item) === status;
       return matchesQuery && matchesStatus;
     });
   }, [questions, query, status]);
@@ -60,11 +65,21 @@ function QuestionsPage() {
     if (!answer) return;
     setQuestions((prev) =>
       prev.map((q) =>
-        q.id === id ? { ...q, answer, answeredAt: nowTimestamp(), status: "answered" } : q,
+        q.id === id && !q.answer ? { ...q, answer, answeredAt: nowTimestamp() } : q,
       ),
     );
     setDrafts((d) => ({ ...d, [id]: "" }));
     setReplyingId(null);
+  }
+
+  function resolveQuestion(id: string) {
+    setQuestions((prev) =>
+      prev.map((q) =>
+        q.id === id && q.answer && q.status !== "resolved"
+          ? { ...q, status: "resolved", resolvedAt: nowTimestamp() }
+          : q,
+      ),
+    );
   }
 
   return (
@@ -122,6 +137,7 @@ function QuestionsPage() {
             const section = teacherSections.find((s) => s.id === q.sectionId);
             const act = assessments.find((a) => a.id === q.assessmentId);
             const isReplying = replyingId === q.id;
+            const bucket = bucketOf(q);
             const studentLabel = `${formatStudentId(q.studentId)} ${stu?.name ?? "Unknown student"}`;
             const contextLabel = [section ? `${section.section.subjectCode}-${section.section.code}` : null, act?.title ?? null]
               .filter(Boolean)
@@ -134,11 +150,12 @@ function QuestionsPage() {
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-slate-900">{studentLabel}</p>
-                        {q.status === "pending" && (
-                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                            Pending
-                          </span>
-                        )}
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          {bucket === "open" ? "Open" : bucket === "answered" ? "Answered" : "Resolved"}
+                        </span>
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                          {q.visibility === "public" ? "Public" : "Private"}
+                        </span>
                       </div>
                       <p className="text-xs text-slate-400">{q.askedAt}</p>
                     </div>
@@ -146,17 +163,25 @@ function QuestionsPage() {
                     {contextLabel && <p className="mt-1 text-xs text-slate-500">{contextLabel}</p>}
                     <p className="mt-3 text-sm text-slate-800">{q.question}</p>
 
-                    {(q.status === "answered" || q.status === "resolved") && q.answer && (
+                    {q.answer && (
                       <div className="mt-3 border-l border-slate-200 pl-4">
                         <p className="text-sm text-slate-700">{q.answer}</p>
                         <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
                           {q.answeredAt && <span>{q.answeredAt}</span>}
-                          {q.status === "resolved" && <span>Resolved</span>}
+                          {q.resolvedAt && <span>Resolved {q.resolvedAt}</span>}
                         </div>
                       </div>
                     )}
 
-                    {q.status === "pending" && !isReplying && (
+                    {bucket === "answered" && (
+                      <div className="mt-3 flex justify-end">
+                        <Button size="sm" variant="ghost" onClick={() => resolveQuestion(q.id)}>
+                          Mark resolved
+                        </Button>
+                      </div>
+                    )}
+
+                    {bucket === "open" && !isReplying && (
                       <div className="mt-3 flex justify-end">
                         <Button size="sm" variant="ghost" onClick={() => startReply(q.id)}>
                           Reply
@@ -164,7 +189,7 @@ function QuestionsPage() {
                       </div>
                     )}
 
-                    {q.status === "pending" && isReplying && (
+                    {bucket === "open" && isReplying && (
                       <div className="mt-3 space-y-3">
                         <label htmlFor={`reply-${q.id}`} className="sr-only">
                           Reply to {studentLabel}

@@ -160,9 +160,11 @@ export interface TeacherQuestion {
   studentId: number;
   question: string;
   askedAt: string;
+  status: "open" | "resolved";
+  visibility: "public" | "private";
   answer?: string;
   answeredAt?: string;
-  status: "pending" | "answered" | "resolved";
+  resolvedAt?: string;
 }
 
 export interface GradeCategory {
@@ -383,9 +385,9 @@ export function getAssessmentAnswers(attemptId: string): AssessmentAnswer[] {
 }
 
 export const teacherQuestions: TeacherQuestion[] = [
-  { id: "tq1", sectionId: 4, assessmentId: "ta-a3", studentId: 7, question: "Can we submit proposal as PDF and slides separately?", askedAt: "2026-11-20 14:10", status: "pending" },
-  { id: "tq2", sectionId: 4, studentId: 9, question: "Will normalization beyond 3NF be in midterm?", askedAt: "2026-11-19 10:00", answer: "Midterm is up to 3NF; BCNF is good to know but not required.", answeredAt: "2026-11-19 12:30", status: "answered" },
-  { id: "tq3", sectionId: 5, studentId: 16, question: "Is Quiz 1 the same format for section B?", askedAt: "2026-11-21 09:20", status: "pending" },
+  { id: "tq1", sectionId: 4, assessmentId: "ta-a3", studentId: 7, question: "Can we submit proposal as PDF and slides separately?", askedAt: "2026-11-20 14:10", status: "open", visibility: "public" },
+  { id: "tq2", sectionId: 4, studentId: 9, question: "Will normalization beyond 3NF be in midterm?", askedAt: "2026-11-19 10:00", status: "resolved", visibility: "public", answer: "Midterm is up to 3NF; BCNF is good to know but not required.", answeredAt: "2026-11-19 12:30", resolvedAt: "2026-11-19 12:30" },
+  { id: "tq3", sectionId: 5, studentId: 16, question: "Is Quiz 1 the same format for section B?", askedAt: "2026-11-21 09:20", status: "open", visibility: "private" },
 ];
 
 export const gradeCategories: GradeCategory[] = [
@@ -438,7 +440,7 @@ export function getPendingGradingCount() {
 }
 
 export function getUnansweredQuestionsCount() {
-  return teacherQuestions.filter((q) => q.status === "pending").length;
+  return teacherQuestions.filter((q) => q.status === "open" && !q.answer).length;
 }
 
 export function getTeacherProfile() {

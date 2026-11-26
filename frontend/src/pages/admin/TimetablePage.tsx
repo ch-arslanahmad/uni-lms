@@ -23,19 +23,24 @@ import {
 import { type ScheduleSlot } from "../../mock/timetable";
 import {
   academicCalendarMilestones,
+  datesheetClassLabel,
+  examTypeLabel,
+  sectionClassCode,
+  sectionIdFromClassCode,
   type ExamDatesheetEntry,
 } from "../../mock/calendar";
+import { sections } from "../../models";
 import { TimetableGrid } from "../../components/TimetableGrid";
 import { SlotDialog } from "../../components/SlotDialog";
 
 const datesheetCols: Column<ExamDatesheetEntry>[] = [
-  { key: "examType", label: "Exam Type" },
+  { key: "examType", label: "Exam Type", render: (entry) => examTypeLabel(entry.examType) },
   { key: "examDate", label: "Date" },
   { key: "dayOfWeek", label: "Day" },
   { key: "timeSlot", label: "Time Window" },
   { key: "subjectCode", label: "Course Code" },
   { key: "subjectTitle", label: "Course Title" },
-  { key: "classSection", label: "Class Section" },
+  { key: "sectionId", label: "Class Section", render: (entry) => datesheetClassLabel(entry) },
 ];
 
 export default function TimetablePage() {
@@ -85,10 +90,10 @@ export default function TimetablePage() {
   const [datesheetDialogOpen, setDatesheetDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ExamDatesheetEntry | null>(null);
   const [entryForm, setEntryForm] = useState({
-    examType: "Midterm" as ExamDatesheetEntry["examType"],
+    examType: "midterm" as ExamDatesheetEntry["examType"],
     subjectCode: "",
     subjectTitle: "",
-    classSection: classCode,
+    sectionId: sectionIdFromClassCode(classCode) ?? sections[0]?.id ?? 0,
     examDate: "",
     timeSlot: "",
   });
@@ -100,12 +105,12 @@ export default function TimetablePage() {
       examType: entry.examType,
       subjectCode: entry.subjectCode,
       subjectTitle: entry.subjectTitle,
-      classSection: entry.classSection,
+      sectionId: entry.sectionId,
       examDate: entry.examDate,
       timeSlot: entry.timeSlot,
     } : {
-      examType: "Midterm", subjectCode: "", subjectTitle: "",
-      classSection: classCode, examDate: "", timeSlot: "",
+      examType: "midterm", subjectCode: "", subjectTitle: "",
+      sectionId: sectionIdFromClassCode(classCode) ?? sections[0]?.id ?? 0, examDate: "", timeSlot: "",
     });
     setEntryErr("");
     setDatesheetDialogOpen(true);
@@ -140,7 +145,7 @@ export default function TimetablePage() {
         (entry) =>
           entry.subjectCode.toLowerCase().includes(datesheetSearch.toLowerCase()) ||
           entry.subjectTitle.toLowerCase().includes(datesheetSearch.toLowerCase()) ||
-          entry.classSection.toLowerCase().includes(datesheetSearch.toLowerCase()),
+          datesheetClassLabel(entry).toLowerCase().includes(datesheetSearch.toLowerCase()),
       );
   }, [examTypeFilter, datesheetSearch, store.examDatesheet]);
 
@@ -384,18 +389,26 @@ export default function TimetablePage() {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Midterm">Midterm</SelectItem>
-                  <SelectItem value="Final">Final</SelectItem>
+                  <SelectItem value="midterm">Midterm</SelectItem>
+                  <SelectItem value="final">Final</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
               <Label>Class section</Label>
-              <Input
-                value={entryForm.classSection}
-                onChange={(event) => setEntryForm((prev) => ({ ...prev, classSection: event.target.value }))}
-                placeholder="BSCS-5A"
-              />
+              <Select
+                value={String(entryForm.sectionId)}
+                onValueChange={(value) => setEntryForm((prev) => ({ ...prev, sectionId: Number(value) }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
+                <SelectContent>
+                  {sections.map((item) => (
+                    <SelectItem key={item.id} value={String(item.id)}>
+                      {sectionClassCode(item)} · {item.subjectCode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label>Course</Label>

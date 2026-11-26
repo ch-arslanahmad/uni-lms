@@ -3,24 +3,23 @@ import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { useAdminStore } from "../../lib/adminStore";
-import type { ExamDatesheetEntry } from "../../mock/calendar";
-import { studentPlacement } from "../../mock/people";
-import { currentStudentId } from "../../mock/student";
+import { datesheetClassLabel, examTypeLabel, type ExamDatesheetEntry } from "../../mock/calendar";
+import { offerings } from "../../mock/student";
 
 const columns: Column<ExamDatesheetEntry>[] = [
-  { key: "examType", label: "Exam" },
+  { key: "examType", label: "Exam", render: (entry) => examTypeLabel(entry.examType) },
   { key: "subjectCode", label: "Course" },
   { key: "subjectTitle", label: "Title" },
   { key: "examDate", label: "Date" },
   { key: "dayOfWeek", label: "Day" },
   { key: "timeSlot", label: "Time" },
-  { key: "classSection", label: "Class" },
+  { key: "sectionId", label: "Class", render: (entry) => datesheetClassLabel(entry) },
 ];
 
 export default function DatesheetPage({ standalone = false }: { standalone?: boolean }) {
   const store = useAdminStore();
-  const section = studentPlacement[currentStudentId]?.section ?? "A";
-  const entries = store.examDatesheet.filter((entry) => entry.classSection.endsWith(section));
+  const mySectionIds = offerings.map((offering) => offering.sectionId);
+  const entries = store.examDatesheet.filter((entry) => mySectionIds.includes(entry.sectionId));
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-4 py-8 sm:px-6">
