@@ -1,6 +1,6 @@
 import { Download } from "lucide-react";
 import { buttonVariants } from "../ui/button";
-import { mcqMarksFor } from "../../api";
+import { isMcqAssessment, mcqMarksFor } from "../../api";
 import type {
   AssessmentAnswer,
   AssessmentQuestion,
@@ -49,7 +49,7 @@ export function AttachmentCard({ file }: { file: SubmissionFile }) {
 }
 
 export function AssessmentReference({ assessment }: { assessment: TeacherAssessment }) {
-  const isMcq = assessment.hasMcq || assessment.kind === "quiz";
+  const isMcq = isMcqAssessment(assessment);
   if (isMcq && !assessment.document && !assessment.documentName) {
     return (
       <section className="px-6 py-6">

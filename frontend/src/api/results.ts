@@ -46,8 +46,12 @@ export function gradeForPercent(percent: number): { letter: string; gradePoints:
 }
 
 // For a project the teacher splits max marks between question marks and viva.
+export function isProjectAssessment(assessment: TeacherAssessment): boolean {
+  return assessment.itemType === "assessment" && assessment.kind === "project";
+}
+
 export function vivaCapFor(assessment: TeacherAssessment, questions: AssessmentQuestion[]): number {
-  if (assessment.kind !== "project") return assessment.maxMarks;
+  if (!isProjectAssessment(assessment)) return assessment.maxMarks;
   const questionMarks = questions
     .filter((question) => question.assessmentId === assessment.id)
     .reduce((sum, question) => sum + question.marks, 0);
@@ -68,13 +72,13 @@ function marksFor(
   const submissionViva = requiresViva(assessment) ? (submission?.viva?.marks ?? 0) : 0;
 
   // Project scores come from the attempt; a physical assignment has no attempt.
-  if (assessment.kind !== "project" && submission?.marks != null) {
+  if (!isProjectAssessment(assessment) && submission?.marks != null) {
     return Math.min(assessment.maxMarks, submission.marks + submissionViva);
   }
 
   if (!attempt) return null;
 
-  const viva = assessment.kind === "project"
+  const viva = isProjectAssessment(assessment)
     ? Math.min(attempt.viva?.marks ?? 0, vivaCapFor(assessment, input.questions))
     : submissionViva;
   const attemptAnswers = input.answers.filter((answer) => answer.attemptId === attempt.id);
@@ -106,12 +110,33 @@ export function autoGradeMcqAnswers(questions: AssessmentQuestion[], answers: As
   });
 }
 
+function isReadyToPublish(
+  assessment: TeacherAssessment,
+  studentId: number,
+  input: CourseResultInput,
+): boolean {
+  const marks = marksFor(assessment, studentId, input);
+  if (marks == null) return false;
+  const submission = input.submissions.find(
+    (item) => item.assessmentId === assessment.id && item.studentId === studentId,
+  );
+  if (submission?.status !== "locked") return false;
+  if (!requiresViva(assessment)) return true;
+  if (isProjectAssessment(assessment)) {
+    const attempt = input.attempts.find(
+      (item) => item.assessmentId === assessment.id && item.studentId === studentId,
+    );
+    return attempt?.viva?.marks != null;
+  }
+  return submission.viva?.marks != null;
+}
+
 export function calculateCourseResults(input: CourseResultInput): CourseResultRow[] {
   const sectionAssessments = input.assessments.filter((item) => item.sectionId === input.sectionId);
   const sectionCategories = input.categories.filter((item) => item.sectionId === input.sectionId);
   const roster = getSectionStudents(input.sectionId);
-  const midterm = sectionAssessments.find((item) => item.category === "Midterm");
-  const final = sectionAssessments.find((item) => item.category === "Final");
+  const midterm = sectionAssessments.find((item) => item.kind === "midterm");
+  const final = sectionAssessments.find((item) => item.kind === "final");
 
   return roster.map((student) => {
     const categoryPercents: Record<string, number> = {};
@@ -133,8 +158,8 @@ export function calculateCourseResults(input: CourseResultInput): CourseResultRo
 
     const complete = Boolean(
       midterm && final &&
-        marksFor(midterm, student.id, input) != null &&
-        marksFor(final, student.id, input) != null,
+        isReadyToPublish(midterm, student.id, input) &&
+        isReadyToPublish(final, student.id, input),
     );
     const grade = complete ? gradeForPercent(coursePercent) : { letter: "—", gradePoints: 0 };
 

@@ -54,9 +54,10 @@ export interface AssessmentQuestion {
   marks: number;
 }
 
-export type AssessmentKind = "assignment" | "quiz" | "exam" | "project";
-// "online" = answered in-app, "upload" = attachment-based, "physical" = paper-based.
-export type SubmissionMode = "online" | "upload" | "physical";
+export type AssessmentKind = "quiz" | "midterm" | "final" | "project";
+export type AssessmentMode = "online_mcq" | "online_attachment" | "paper";
+export type AssessmentItemType = "assignment" | "assessment";
+export type SubmissionMode = "upload" | "physical";
 export type SubmissionType = "digital" | "physical" | null;
 export type RequirementType = "written_work" | "attachment";
 
@@ -101,7 +102,9 @@ export interface AssessmentAnswer {
 export interface TeacherAssessment {
   id: string;
   sectionId: number;
-  kind: AssessmentKind;
+  itemType: AssessmentItemType;
+  kind?: AssessmentKind; // assessment items only
+  mode?: AssessmentMode; // assessment items only
   title: string;
   instructions: string;
   category: string;
@@ -109,20 +112,27 @@ export interface TeacherAssessment {
   openAt: string;
   dueAt: string;
   closeAt?: string;
-  submissionModes: SubmissionMode[];
+  submissionMode: SubmissionMode;
   requirements: AssignmentRequirement[]; // FR8 / I7: at least one, at least one required
   physicalRoom?: string; // only when physical submission is required
-  hasMcq?: boolean;
   documentName?: string; // required supporting document label
   document?: SubmissionFile; // teacher-uploaded reference for grading
   required?: boolean; // mandatory system/term requirement (mid/final)
   published: boolean;
 }
 
+export function isMcqAssessment(item: Pick<TeacherAssessment, "mode">): boolean {
+  return item.mode === "online_mcq";
+}
+
+export function isPaperAssessment(item: Pick<TeacherAssessment, "mode">): boolean {
+  return item.mode === "paper";
+}
+
 // Viva is mandatory only for a physical assignment submission or a project attempt.
-export function requiresViva(assessment: Pick<TeacherAssessment, "kind" | "submissionModes">): boolean {
-  return assessment.kind === "project"
-    || (assessment.kind === "assignment" && assessment.submissionModes.includes("physical"));
+export function requiresViva(item: Pick<TeacherAssessment, "itemType" | "kind" | "submissionMode">): boolean {
+  return (item.itemType === "assessment" && item.kind === "project")
+    || (item.itemType === "assignment" && item.submissionMode === "physical");
 }
 
 export interface TeacherSubmission {
@@ -223,14 +233,15 @@ export function makeAssessmentReference(documentName: string): SubmissionFile {
 }
 
 const seededAssessments: Omit<TeacherAssessment, "requirements">[] = [
-  { id: "ta-a1", sectionId: 4, kind: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionModes: ["upload"], documentName: "assignment1-erd.pdf", document: referenceFile("assignment1-erd-reference.svg"), published: true },
-  { id: "ta-a2", sectionId: 4, kind: "quiz", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionModes: ["online"], hasMcq: true, published: true },
-  { id: "ta-a3", sectionId: 4, kind: "project", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionModes: ["upload"], documentName: "project-m1-brief.pdf", document: referenceFile("project-m1-brief-reference.svg"), published: true },
-  { id: "ta-a4", sectionId: 4, kind: "exam", title: "Midterm", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
-  { id: "ta-a5", sectionId: 4, kind: "exam", title: "Final", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall A", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
-  { id: "ta-a7", sectionId: 5, kind: "quiz", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionModes: ["online"], hasMcq: true, published: true },
-  { id: "ta-a8", sectionId: 5, kind: "exam", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
-  { id: "ta-a9", sectionId: 5, kind: "exam", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionModes: ["physical"], physicalRoom: "Exam Hall B", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
+  { id: "ta-a1", sectionId: 4, itemType: "assignment", title: "Assignment 1", instructions: "Design an ERD for Uni-LMS.", category: "Assignments", maxMarks: 100, openAt: "2026-09-01", dueAt: "2026-09-08", closeAt: "2026-09-15", submissionMode: "upload", documentName: "assignment1-erd.pdf", document: referenceFile("assignment1-erd-reference.svg"), published: true },
+  { id: "ta-a2", sectionId: 4, itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz 1", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionMode: "upload", published: true },
+  { id: "ta-a3", sectionId: 4, itemType: "assessment", kind: "project", mode: "online_attachment", title: "Final Project", instructions: "Submit proposal and ERD draft.", category: "Project", maxMarks: 30, openAt: "2026-10-01", dueAt: "2026-11-25", closeAt: "2026-12-01", submissionMode: "upload", documentName: "project-m1-brief.pdf", document: referenceFile("project-m1-brief-reference.svg"), published: true },
+  { id: "ta-a4", sectionId: 4, itemType: "assessment", kind: "midterm", mode: "paper", title: "Midterm", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionMode: "physical", physicalRoom: "Exam Hall A", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
+  { id: "ta-a5", sectionId: 4, itemType: "assessment", kind: "final", mode: "paper", title: "Final", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionMode: "physical", physicalRoom: "Exam Hall A", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
+  { id: "ta-a6", sectionId: 4, itemType: "assignment", title: "Assignment 2", instructions: "Physical submission with a mandatory viva.", category: "Assignments", maxMarks: 100, openAt: "2026-11-01", dueAt: "2026-11-08", closeAt: "2026-11-15", submissionMode: "physical", physicalRoom: "Lab 2", documentName: "assignment2-brief.pdf", document: referenceFile("assignment2-brief-reference.svg"), published: true },
+  { id: "ta-a7", sectionId: 5, itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz 1: SQL Basics", instructions: "MCQ quiz on SELECT/JOIN.", category: "Quizzes", maxMarks: 10, openAt: "2026-09-20T09:00", dueAt: "2026-09-20T10:00", closeAt: "2026-09-20T10:30", submissionMode: "upload", published: true },
+  { id: "ta-a8", sectionId: 5, itemType: "assessment", kind: "midterm", mode: "paper", title: "Midterm Exam", instructions: "Paper-based midterm. Covers ER modeling, relational model, and normalization up to 3NF.", category: "Midterm", maxMarks: 100, openAt: "2026-11-12", dueAt: "2026-11-12", submissionMode: "physical", physicalRoom: "Exam Hall B", required: true, documentName: "midterm-question-paper.pdf", document: referenceFile("midterm-question-paper-reference.svg"), published: true },
+  { id: "ta-a9", sectionId: 5, itemType: "assessment", kind: "final", mode: "paper", title: "Final Exam", instructions: "Comprehensive final exam.", category: "Final", maxMarks: 100, openAt: "2027-01-18", dueAt: "2027-01-18", submissionMode: "physical", physicalRoom: "Exam Hall B", required: true, documentName: "final-question-paper.pdf", document: referenceFile("final-question-paper-reference.svg"), published: true },
 ];
 
 function defaultRequirements(act: Omit<TeacherAssessment, "requirements">): AssignmentRequirement[] {
@@ -238,7 +249,7 @@ function defaultRequirements(act: Omit<TeacherAssessment, "requirements">): Assi
     { type: "attachment", isRequired: true },
     { type: "written_work", isRequired: true },
   ];
-  if (act.submissionModes.includes("upload")) return [{ type: "attachment", isRequired: true }];
+  if (act.submissionMode === "upload") return [{ type: "attachment", isRequired: true }];
   return [{ type: "written_work", isRequired: true }];
 }
 
@@ -254,15 +265,16 @@ function seedSubmissions(): TeacherSubmission[] {
   for (const act of teacherAssessments) {
     const roster = getSectionStudents(act.sectionId).slice(0, 6);
     roster.forEach((stu, i) => {
-      if (act.kind === "quiz" || act.kind === "exam") {
+      const inApp = isMcqAssessment(act);
+      if (inApp || isPaperAssessment(act)) {
         out.push({
           id: `sub-${act.id}-${stu.id}`,
           assessmentId: act.id,
           studentId: stu.id,
           submittedAt: i < 4 ? `${act.dueAt} 10:0${i}` : undefined,
           status: i < 3 ? "graded" : i < 4 ? "submitted" : "not-submitted",
-          // Exams are paper-based; quizzes are answered in-app with no document recorded.
-          type: act.kind === "exam" ? "physical" : null,
+          // Paper assessments have no file; in-app MCQs are scored from attempts.
+          type: isPaperAssessment(act) ? "physical" : null,
           marks: i < 3 ? Math.max(0, act.maxMarks - i * 3) : undefined,
           feedback: i < 3 ? "Good work." : undefined,
           updatedBy: i < 3 ? "Carol" : undefined,
@@ -271,7 +283,7 @@ function seedSubmissions(): TeacherSubmission[] {
       } else {
         const fileName = `${stu.name.split(" ")[0].toLowerCase()}-${act.id}.svg`;
         const marks = i < 2 || i === 4 ? Math.max(0, act.maxMarks - i * 5) : undefined;
-        const viva = act.kind === "assignment" && requiresViva(act) && marks != null
+        const viva = act.itemType === "assignment" && requiresViva(act) && marks != null
           ? {
               examiner: "Carol",
               conductedAt: `${act.dueAt} 16:00`,
@@ -285,11 +297,11 @@ function seedSubmissions(): TeacherSubmission[] {
           studentId: stu.id,
           submittedAt: i < 5 ? `${act.dueAt} 09:1${i}` : undefined,
           status: i < 2 ? "locked" : i < 4 ? "submitted" : i === 4 ? "graded" : "not-submitted",
-          type: "digital",
-          file: i < 5 ? { name: fileName, mimeType: "image/svg+xml", size: "2 KB", url: MOCK_SUBMISSION_FILE_URL } : undefined,
+          type: act.submissionMode === "physical" ? "physical" : "digital",
+          file: act.submissionMode === "upload" && i < 5 ? { name: fileName, mimeType: "image/svg+xml", size: "2 KB", url: MOCK_SUBMISSION_FILE_URL } : undefined,
           marks,
           feedback: i < 2 || i === 4 ? "Reviewed." : undefined,
-          fileName: i < 5 ? fileName : undefined,
+          fileName: act.submissionMode === "upload" && i < 5 ? fileName : undefined,
           updatedBy: i < 2 || i === 4 ? "Carol" : undefined,
           updatedAt: i < 2 || i === 4 ? `${act.dueAt} 17:30` : undefined,
           viva,
@@ -304,7 +316,7 @@ export const teacherSubmissions: TeacherSubmission[] = seedSubmissions();
 
 function seedAssessmentAttempts(): AssessmentAttempt[] {
   const out: AssessmentAttempt[] = [];
-  for (const act of teacherAssessments.filter((item) => item.hasMcq || item.kind === "project")) {
+  for (const act of teacherAssessments.filter((item) => isMcqAssessment(item) || item.kind === "project")) {
     getSectionStudents(act.sectionId).forEach((stu, i) => {
       out.push({
         id: `att-${act.id}-${stu.id}`,

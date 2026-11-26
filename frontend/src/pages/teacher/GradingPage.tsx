@@ -23,6 +23,8 @@ import {
   autoGradeMcqAnswers,
   calculateAttemptTotal,
   currentTeacherName,
+  isMcqAssessment,
+  isProjectAssessment,
   nowTimestamp,
   requiresViva,
   vivaCapFor,
@@ -116,7 +118,7 @@ type GradingDrawerProps = {
 function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWrittenMark, onAutoGradeMcq }: GradingDrawerProps) {
   const [marks, setMarks] = useState(row.marks != null ? String(row.marks) : "");
   const [vivaMarks, setVivaMarks] = useState(() => {
-    const current = row.assessment.kind === "project" ? attempt?.viva?.marks : row.viva?.marks;
+    const current = isProjectAssessment(row.assessment) ? attempt?.viva?.marks : row.viva?.marks;
     return current != null ? String(current) : "";
   });
   const [feedback, setFeedback] = useState(row.feedback ?? "");
@@ -124,7 +126,7 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
 
   const autoTotal = useMemo(() => calculateAttemptTotal(questions, answers), [questions, answers]);
   const hasMcq = questions.some((question) => question.type === "mcq");
-  const isProject = row.assessment.kind === "project";
+  const isProject = isProjectAssessment(row.assessment);
   const vivaRequired = requiresViva(row.assessment);
   const vivaCap = isProject ? vivaCapFor(row.assessment, questions) : row.maxMarks;
 
@@ -175,7 +177,7 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
 
         <AssessmentReference assessment={row.assessment} />
 
-        {(questions.length > 0 || row.assessment.hasMcq || row.assessment.kind === "quiz") && (
+        {(questions.length > 0 || isMcqAssessment(row.assessment)) && (
           <AssessmentAnswers
             questions={questions}
             answers={answers}
@@ -187,7 +189,7 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
         <section className="px-6 py-6">
           <h3 className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Student submission</h3>
           <div className="mt-3 border-t border-slate-100 pt-4 text-sm">
-            {row.assessment.hasMcq || row.assessment.kind === "quiz" ? (
+            {isMcqAssessment(row.assessment) ? (
               <p className="text-slate-500">Answered in-app. See assessment answers above.</p>
             ) : row.submissionType === "digital" ? (
               row.file ? (

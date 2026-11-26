@@ -13,6 +13,8 @@ import {
   autoGradeMcqAnswers,
   calculateAttemptTotal,
   currentTeacherName,
+  isMcqAssessment,
+  isProjectAssessment,
   nowTimestamp,
   requiresViva,
   teacherSections,
@@ -47,7 +49,7 @@ function SubmissionDetailPage() {
 
   const [marks, setMarks] = useState(sub?.marks?.toString() ?? "");
   const [vivaMarks, setVivaMarks] = useState(() => {
-    const current = sub && act?.kind === "project" ? attempt?.viva?.marks : sub?.viva?.marks;
+    const current = sub && act && isProjectAssessment(act) ? attempt?.viva?.marks : sub?.viva?.marks;
     return current != null ? String(current) : "";
   });
   const [feedback, setFeedback] = useState(sub?.feedback ?? "");
@@ -79,7 +81,7 @@ function SubmissionDetailPage() {
 
   const activeAct = act;
   const activeSub = sub;
-  const isProject = activeAct.kind === "project";
+  const isProject = isProjectAssessment(activeAct);
   const vivaRequired = requiresViva(activeAct);
   const vivaCap = isProject ? vivaCapFor(activeAct, assessmentQuestions) : activeAct.maxMarks;
 
@@ -181,7 +183,7 @@ function SubmissionDetailPage() {
 
       <div className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <AssessmentReference assessment={act} />
-        {(questions.length > 0 || act.hasMcq || act.kind === "quiz") && (
+        {(questions.length > 0 || isMcqAssessment(act)) && (
           <AssessmentAnswers questions={questions} answers={answers} submittedAt={attempt?.submittedAt} onWrittenMark={setWrittenMark} />
         )}
       </div>
@@ -194,7 +196,7 @@ function SubmissionDetailPage() {
           <p><span className="font-medium">File:</span> {sub.fileName ?? "—"}</p>
           {sub.file ? (
             <AttachmentCard file={sub.file} />
-          ) : act.hasMcq || act.kind === "quiz" ? (
+          ) : isMcqAssessment(act) ? (
             <p className="text-xs text-slate-500">Answered in-app. See assessment answers above.</p>
           ) : sub.type === "physical" ? (
             <p className="text-xs text-slate-500">Physical submission. No document attached.</p>
