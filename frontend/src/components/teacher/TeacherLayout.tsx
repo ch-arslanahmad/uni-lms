@@ -10,11 +10,13 @@ import {
   getTeacherProfile,
   mockApi,
   TEACHER_SNAPSHOT_KEY,
+  TEACHER_SNAPSHOT_VERSION,
   useApiQuery,
   type AssessmentAnswer,
   type AssessmentAttempt,
   type AssessmentQuestion,
   type GradeCategory,
+  type PersistedTeacherSnapshot,
   type SectionResultState,
   type TeacherAnnouncement,
   type TeacherAssessment,
@@ -53,16 +55,54 @@ export interface TeacherContext {
 
 // Phase 1 persistence: the API returns a fresh snapshot, then local edits replay
 // on top of it. Phase 2 replaces this with real API mutations.
+const SNAPSHOT_ID_KEYS: Partial<Record<keyof TeacherSnapshot, string>> = {
+  assessments: "id",
+  submissions: "id",
+  questions: "id",
+  materials: "id",
+  announcements: "id",
+  events: "id",
+  assessmentQuestions: "id",
+  assessmentAttempts: "id",
+  assessmentAnswers: "id",
+  categories: "id",
+  resultStates: "sectionId",
+};
+
+function mergeArray(fresh: unknown[], saved: unknown[], idKey: string): unknown[] {
+  const byId = new Map<string, unknown>();
+  for (const item of fresh) {
+    const record = item as Record<string, unknown>;
+    const id = String(record[idKey]);
+    if (id && id !== "undefined") byId.set(id, item);
+  }
+  for (const item of saved) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as Record<string, unknown>;
+    const id = String(record[idKey]);
+    if (!id || id === "undefined") continue;
+    byId.set(id, { ...(byId.get(id) as Record<string, unknown> | undefined), ...record });
+  }
+  return [...byId.values()];
+}
+
 function hydrate(fresh: TeacherSnapshot): TeacherSnapshot {
   try {
     const raw = localStorage.getItem(TEACHER_SNAPSHOT_KEY);
     if (!raw) return fresh;
-    const saved = JSON.parse(raw) as Partial<TeacherSnapshot>;
-    const merged = { ...fresh };
+    const parsed = JSON.parse(raw) as Partial<PersistedTeacherSnapshot> & Partial<TeacherSnapshot>;
+    const current = parsed.version === TEACHER_SNAPSHOT_VERSION && parsed.data;
+    const saved = (current ? parsed.data : parsed) as Record<string, unknown>;
+    const freshRecord = { ...fresh } as unknown as Record<string, unknown[]>;
     for (const key of Object.keys(fresh) as (keyof TeacherSnapshot)[]) {
-      if (Array.isArray(saved[key])) (merged[key] as unknown[]) = saved[key] as unknown[];
+      const savedItems = saved[key];
+      if (!Array.isArray(savedItems)) continue;
+      const idKey = SNAPSHOT_ID_KEYS[key];
+      freshRecord[key] = idKey
+        ? mergeArray(freshRecord[key], savedItems, idKey)
+        : savedItems;
     }
-    return merged;
+    return freshRecord as unknown as TeacherSnapshot;
   } catch {
     return fresh;
   }
@@ -107,10 +147,13 @@ function TeacherLayout() {
     if (!hydrated) return;
     try {
       localStorage.setItem(TEACHER_SNAPSHOT_KEY, JSON.stringify({
-        assessments, submissions, questions, materials, announcements, events,
-        assessmentQuestions, assessmentAttempts, assessmentAnswers,
-        categories, resultStates,
-      } satisfies TeacherSnapshot));
+        version: TEACHER_SNAPSHOT_VERSION,
+        data: {
+          assessments, submissions, questions, materials, announcements, events,
+          assessmentQuestions, assessmentAttempts, assessmentAnswers,
+          categories, resultStates,
+        } satisfies TeacherSnapshot,
+      } satisfies PersistedTeacherSnapshot));
     } catch {
       // Storage quota can be reached by large demo attachments; keep the in-memory session usable.
     }

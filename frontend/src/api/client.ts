@@ -48,6 +48,14 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 
 // Shared by every localStorage-backed workspace so keys never drift.
 export const TEACHER_SNAPSHOT_KEY = "uni-lms.teacher-snapshot.v2";
+export const TEACHER_SNAPSHOT_VERSION = 3;
+
+// Stored snapshots carry a version so older saved state can be merged with
+// newly seeded records instead of hiding them.
+export interface PersistedTeacherSnapshot {
+  version: number;
+  data: TeacherSnapshot;
+}
 
 // Phase 1 identity/time helpers: mutations record the signed-in teacher and the
 // real time instead of seed values.
