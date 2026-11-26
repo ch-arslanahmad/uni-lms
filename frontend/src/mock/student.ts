@@ -179,10 +179,14 @@ export const offerings: CourseOffering[] = [
       5: [{ id: "p1", itemType: "assessment", kind: "project", mode: "online_attachment", title: "Project Milestone 1: Proposal", opened: "2026-09-29", due: "2026-10-05", submitted: true, graded: true, score: 18, max: 20, submissionMode: "upload" }],
       7: [{ id: "p2", itemType: "assessment", kind: "project", mode: "online_attachment", title: "Project Viva", opened: "2026-10-13", due: "2026-10-19", submitted: false, max: 30, submissionMode: "upload", physical: { timeWindow: "10:00 AM - 1:00 PM", room: "Room C-304" } }],
       9: [{ id: "q3", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz #3", opened: "2026-10-27", due: "2026-10-27", submitted: false, max: 10, submissionMode: "upload" }],
-      10: [{ id: "a4", itemType: "assignment", title: "Assignment 4: State management", opened: "2026-11-03", due: "2026-11-09", closed: "2026-11-16", submitted: false, max: 100, submissionMode: "upload" }],
+      10: [
+        { id: "a4", itemType: "assignment", title: "Assignment 4: State management", opened: "2026-11-03", due: "2026-11-09", closed: "2026-11-16", submitted: false, max: 100, submissionMode: "upload" },
+        { id: "q6", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz #3: Hooks", opened: "2026-10-27", due: "2026-10-30", submitted: true, graded: true, score: 10, max: 10, submissionMode: "upload" },
+      ],
       11: [{ id: "a5", itemType: "assignment", title: "DBMS Assignment_4 Fall 2026", opened: "2026-11-10", due: "2026-11-17", closed: "2026-11-24", submitted: true, max: 100, submissionMode: "upload" }],
       12: [
         { id: "q2", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz #2", opened: "2026-11-18", due: "2026-11-24", submitted: false, max: 10, submissionMode: "upload" },
+        { id: "q7", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz #4: Rendering", opened: "2026-11-20", due: "2026-11-27", submitted: false, max: 10, submissionMode: "upload" },
         { id: "e1", itemType: "assessment", kind: "midterm", mode: "paper", title: "Midterm exam", opened: "2026-11-20", due: "2026-11-23", submitted: false, max: 100, submissionMode: "physical", physical: { timeWindow: "09:00 AM - 11:00 AM", room: "Room C-304" } },
         { id: "e2", itemType: "assessment", kind: "final", mode: "paper", title: "Final exam", opened: "2026-12-01", due: "2026-12-05", submitted: false, max: 100, submissionMode: "physical", physical: { timeWindow: "09:00 AM - 12:00 PM", room: "Exam Hall A" } },
       ],
@@ -209,6 +213,7 @@ export const offerings: CourseOffering[] = [
       11: [{ id: "a6", itemType: "assignment", title: "Assignment: Graphs", opened: "2026-11-10", due: "2026-11-16", submitted: false, max: 100, submissionMode: "physical", physical: { timeWindow: "10:00 AM - 12:00 PM", room: "Room E-202" } }],
       12: [
         { id: "a10", itemType: "assignment", title: "Assignment: Hashing", opened: "2026-11-17", due: "2026-11-23", submitted: false, max: 100, submissionMode: "upload" },
+        { id: "q8", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz: Graphs", opened: "2026-11-19", due: "2026-11-28", submitted: false, max: 10, submissionMode: "upload" },
         { id: "e3", itemType: "assessment", kind: "midterm", mode: "paper", title: "Midterm exam", opened: "2026-11-20", due: "2026-11-23", submitted: false, max: 100, submissionMode: "physical", physical: { timeWindow: "10:00 AM - 12:00 PM", room: "Room E-202" } },
         { id: "e4", itemType: "assessment", kind: "final", mode: "paper", title: "Final exam", opened: "2026-12-01", due: "2026-12-05", submitted: false, max: 100, submissionMode: "physical", physical: { timeWindow: "10:00 AM - 01:00 PM", room: "Exam Hall B" } },
       ],
@@ -229,7 +234,7 @@ export const offerings: CourseOffering[] = [
     materials: [{ name: "Steam tables.pdf", size: "540 KB" }],
     announcements: [{ title: "Midterm", date: "2026-11-09", body: "Midterm on Monday 09:00-11:00, room E-202." }],
     weeks: weeks({
-      3: [{ id: "q5", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz: Thermo basics", opened: "2026-09-15", due: "2026-09-15", submitted: true, graded: true, score: 9, max: 10, submissionMode: "upload" }],
+      3: [{ id: "q5", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz: Thermo basics", opened: "2026-09-15", due: "2026-09-15", submitted: true, graded: true, score: 6, max: 10, submissionMode: "upload" }],
       6: [{ id: "a11", itemType: "assignment", title: "Assignment: Heat transfer", opened: "2026-10-06", due: "2026-10-12", submitted: false, max: 100, submissionMode: "upload" }],
       9: [{ id: "p4", itemType: "assessment", kind: "project", mode: "online_attachment", title: "Thermo Project Viva", opened: "2026-10-27", due: "2026-11-02", submitted: false, max: 50, submissionMode: "upload", physical: { timeWindow: "2:00 PM - 5:00 PM", room: "ME Seminar Hall" } }],
       11: [{ id: "e5", itemType: "assessment", kind: "midterm", mode: "paper", title: "Midterm exam", opened: "2026-11-20", due: "2026-11-23", submitted: false, max: 100, submissionMode: "physical", physical: { timeWindow: "09:00 AM - 11:00 AM", room: "Room E-202" } }],
@@ -339,6 +344,72 @@ export const quizzes: Quiz[] = [
       { id: "q4p2", text: "A BST with n nodes has what average search time?", options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"], answer: 1, points: 5 },
     ],
     attempt: { started: "2026-09-22 09:00", completed: "2026-09-22 09:18", duration: "18 min", grade: "8.00 / 10.00" },
+  },
+  {
+    id: "q5",
+    offeringId: "ME101-5-A",
+    sectionId: 13,
+    title: "Quiz: Thermo basics",
+    opened: "2026-09-15 09:00",
+    closed: "2026-09-15 23:59",
+    timeLimit: "15 min",
+    grade: 6,
+    max: 10,
+    questions: [
+      { id: "q5p1", text: "Which law says energy cannot be created or destroyed?", options: ["Zeroth law", "First law", "Second law", "Third law"], answer: 1, points: 3 },
+      { id: "q5p2", text: "What does a Carnot cycle define?", options: ["Maximum heat-engine efficiency", "Minimum boiler pressure", "Specific heat capacity", "Rate of heat transfer"], answer: 0, points: 3 },
+      { id: "q5p3", text: "What is the SI unit of specific heat capacity?", options: ["J/kg·K", "J/K", "kJ/kg", "W/m·K"], answer: 0, points: 4 },
+    ],
+    attempt: { started: "2026-09-15 10:02", completed: "2026-09-15 10:14", duration: "12 min", grade: "6.00 / 10.00" },
+  },
+  {
+    id: "q6",
+    offeringId: "CS301-5-A",
+    sectionId: 4,
+    title: "Quiz #3: Hooks",
+    opened: "2026-10-27 09:00",
+    closed: "2026-10-30 23:59",
+    timeLimit: "15 min",
+    grade: 10,
+    max: 10,
+    questions: [
+      { id: "q6p1", text: "Which hook reads a context value?", options: ["useContext", "useEffect", "useReducer", "useRef"], answer: 0, points: 2 },
+      { id: "q6p2", text: "When does a useEffect cleanup function run?", options: ["On every parent render", "Before the next effect and on unmount", "Only on first mount", "Never"], answer: 1, points: 3 },
+      { id: "q6p3", text: "Which hook memoizes a callback?", options: ["useMemo", "useCallback", "useState", "useLayoutEffect"], answer: 1, points: 5 },
+    ],
+    attempt: { started: "2026-10-29 16:25", completed: "2026-10-29 16:40", duration: "15 min", grade: "10.00 / 10.00" },
+  },
+  {
+    id: "q7",
+    offeringId: "CS301-5-A",
+    sectionId: 4,
+    title: "Quiz #4: Rendering",
+    opened: "2026-11-20 09:00",
+    closed: "2026-11-27 23:59",
+    timeLimit: "25 min",
+    grade: 0,
+    max: 10,
+    questions: [
+      { id: "q7p1", text: "What triggers a React re-render?", options: ["State or prop change", "A CSS class change", "A timer outside React", "A DOM attribute edit"], answer: 0, points: 3 },
+      { id: "q7p2", text: "What does React.memo do?", options: ["Caches a callback", "Skips re-render when props are unchanged", "Keeps a ref across renders", "Creates a context"], answer: 1, points: 3 },
+      { id: "q7p3", text: "Which hook runs synchronously after DOM mutations?", options: ["useEffect", "useLayoutEffect", "useId", "useTransition"], answer: 1, points: 4 },
+    ],
+  },
+  {
+    id: "q8",
+    offeringId: "CS201-5-B",
+    sectionId: 5,
+    title: "Quiz: Graphs",
+    opened: "2026-11-19 09:00",
+    closed: "2026-11-28 23:59",
+    timeLimit: "20 min",
+    grade: 0,
+    max: 10,
+    questions: [
+      { id: "q8p1", text: "Which traversal uses a queue?", options: ["DFS", "BFS", "Preorder", "Postorder"], answer: 1, points: 3 },
+      { id: "q8p2", text: "How many edges does a tree with n nodes have?", options: ["n", "n - 1", "n + 1", "2n"], answer: 1, points: 3 },
+      { id: "q8p3", text: "Which structure detects a cycle in an undirected graph?", options: ["Stack", "Union-find", "Priority queue", "Hash map"], answer: 1, points: 4 },
+    ],
   },
 ];
 
@@ -487,9 +558,8 @@ export function findActivity(id: string | undefined): Activity | undefined {
   return allActivities().find((activity) => activity.id === id);
 }
 
-// MCQ score visibility is decided by the section's result publication state
-// (FR4), not by a per-assessment review policy. The gate lives in src/api/ so
-// student pages read the same teacher snapshot the teacher workspace writes.
+// Course-week items and their detail pages share one lookup so the same id
+// always resolves to the same offering.
 export function findOfferingForActivity(id: string | undefined): CourseOffering | undefined {
   return offerings.find((offering) =>
     offering.weeks.some((week) => week.activities.some((activity) => activity.id === id)),
