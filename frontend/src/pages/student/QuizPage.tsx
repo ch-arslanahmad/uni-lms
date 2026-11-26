@@ -23,11 +23,10 @@ import {
   type QuestionVisibility,
 } from "../../mock/student";
 import {
-  areQuizScoresPublished,
+  areQuizScoresRevealed,
   fileToSubmissionFile,
   getQuizAttempt,
   getStudentQuizzes,
-  QUIZ_SCORES_MESSAGE,
   type StoredQuizAttempt,
   type SubmissionFile,
 } from "../../api";
@@ -160,7 +159,7 @@ function QuizPage() {
   const title = quiz?.title ?? activity?.title ?? "Quiz";
   const typeLabel = quiz ? "Quiz" : activity ? activityLabel(activity) : "Quiz";
   const hasSubmission = activity ? requiresStudentUpload(activity) || requiresPhysicalActivity(activity) : false;
-  const scoresPublished = quiz ? areQuizScoresPublished(quiz) : false;
+  const scoresRevealed = quiz ? areQuizScoresRevealed(quiz) : false;
   const availability = quiz
     ? availabilityStatus(quiz.opened, quiz.closed)
     : activity
@@ -256,7 +255,7 @@ function QuizPage() {
           <div className="grid gap-4 sm:grid-cols-4">
             <Card><CardHeader><CardTitle className="text-sm">Attempt</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{attempt ? "Completed" : "Not started"}</CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">Time limit</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.timeLimit}</CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-sm">Grade</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{scoresPublished ? `${(attempt?.score ?? quiz.grade).toFixed(2)}/${quiz.max.toFixed(2)}` : `— / ${quiz.max.toFixed(2)}`}</CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm">Grade</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{scoresRevealed ? `${(attempt?.score ?? quiz.grade).toFixed(2)}/${quiz.max.toFixed(2)}` : `— / ${quiz.max.toFixed(2)}`}</CardContent></Card>
             <Card><CardHeader><CardTitle className="text-sm">Questions</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{quiz.questions.length}</CardContent></Card>
           </div>
           <Card>
@@ -264,7 +263,7 @@ function QuizPage() {
             <CardContent className="space-y-3">
               <SimpleTable
                 columns={attemptColumns}
-                data={scoresPublished ? attemptRows : attemptRows.map((row) => ({ ...row, grade: "Hidden" }))}
+                data={attemptRows}
                 searchable={false}
                 searchKeys={["status"]}
               />
@@ -278,8 +277,7 @@ function QuizPage() {
                     <Button disabled>Start attempt</Button>
                   )
                 )}
-                {attempt && !scoresPublished && <span className="text-sm text-muted-foreground">{QUIZ_SCORES_MESSAGE}</span>}
-                {attempt && scoresPublished && (
+                {attempt && (
                   <Link to={`/student/quizzes/${quiz.id}/review`}><Button variant="outline">View results</Button></Link>
                 )}
               </div>

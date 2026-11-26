@@ -56,13 +56,6 @@ function QuizAttemptPage() {
     [quiz],
   );
 
-  // Written answers are excluded from the auto-graded score passed to review.
-  const score = useMemo(
-    () => quiz?.questions.reduce((sum, q) =>
-      sum + (!isWrittenQuestion(q) && answers[q.id] === q.answer ? q.points : 0), 0) ?? 0,
-    [answers, quiz],
-  );
-
   const submitAttempt = useCallback(() => {
     if (!quiz || existingAttempt || submittedQuizRef.current === quiz.id) return;
     submittedQuizRef.current = quiz.id;
@@ -224,7 +217,7 @@ function QuizAttemptPage() {
           <DialogHeader>
             <DialogTitle>Submit this attempt?</DialogTitle>
             <DialogDescription>
-              You answered {answeredCount} of {quiz.questions.length} questions. Auto-graded MCQ score: {score.toFixed(2)}. {QUIZ_SCORES_MESSAGE}
+              You answered {answeredCount} of {quiz.questions.length} questions. {QUIZ_SCORES_MESSAGE}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

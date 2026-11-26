@@ -17,6 +17,7 @@ Scope was locked after the student UI was merged, then reopened while the teache
 - Current design: 26 tables, FR1–FR23, integrity rules I1–I21, 3NF.
 - Only 3 open items remain: Chen ERD, final forms/reports set, file storage backend.
 - Retake rule is deliberately most-recent-result, NOT the university's better-grade rule. Flag it as a project decision in the final demo.
+- MCQ scores are revealed on submission; written answers and other grades stay hidden until teacher publication. This is the chosen reading of FR4's review policy.
 - The proposal already given to the instructor is reference material only; a resubmission happened, so keep proposals current.
 - Keep proposal documents to the three agreed files. Older drafts and research are history, not scope authority.
 

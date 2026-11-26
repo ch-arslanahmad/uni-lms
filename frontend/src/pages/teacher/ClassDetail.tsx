@@ -757,7 +757,7 @@ function ClassDetail() {
                         <div className="space-y-2"><Label>Due at</Label><Input type="datetime-local" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
                         <div className="space-y-2"><Label>Close at</Label><Input type="datetime-local" value={act.closeAt} onChange={e => setAct({ ...act, closeAt: e.target.value })} /></div>
                         <p className="text-xs text-muted-foreground md:col-span-3 -mt-1">
-                          Students see the title and schedule right away. The attachment and quiz questions unlock at Open at; attempts and uploads close at Close at. Grades stay hidden until results are published.
+                          Students see the title and schedule right away. The attachment and quiz questions unlock at Open at; attempts and uploads close at Close at. MCQ scores appear after submission; other grades stay hidden until results are published.
                         </p>
                         {act.submissionMode === "physical" && <>
                           <div className="space-y-2"><Label>Room / location</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>

@@ -4,7 +4,6 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../../components/ui/empty";
 import {
-  areQuizScoresPublished,
   getQuizAttempt,
   getStudentQuizzes,
   isWrittenQuestion,
@@ -16,7 +15,6 @@ function QuizReviewPage() {
   const quiz = getStudentQuizzes().find((q) => q.id === quizId);
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
-  const scoresPublished = areQuizScoresPublished(quiz);
   const hasWritten = quiz.questions.some(isWrittenQuestion);
   const attempt = getQuizAttempt(quiz);
   const answers = attempt?.answers ?? {};
@@ -29,7 +27,7 @@ function QuizReviewPage() {
         <div>
           <h1 className="text-2xl font-bold">{quiz.title} - Results</h1>
           <p className="text-sm text-muted-foreground">
-            {scoresPublished
+            {attempt
               ? hasWritten
                 ? `Auto-graded score: ${score.toFixed(2)} / ${quiz.max.toFixed(2)} (written answers graded by teacher)`
                 : `Score: ${score.toFixed(2)} / ${quiz.max.toFixed(2)}`
@@ -46,13 +44,6 @@ function QuizReviewPage() {
             <EmptyDescription>
               No submitted answers were found for this assessment. Open the assessment to start an attempt.
             </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : !scoresPublished ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>Scores not published yet</EmptyTitle>
-            <EmptyDescription>Your answers were submitted. {QUIZ_SCORES_MESSAGE}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (

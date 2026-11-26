@@ -5,12 +5,12 @@
 import { quizzes, type Quiz, type QuizQuestion } from "../mock/student";
 import type { AssessmentQuestion } from "../mock/teacher";
 import { nowTimestamp, readSavedTeacherSnapshot } from "./client";
-import { areResultsPublished } from "./results";
 
 const QUIZ_ATTEMPT_KEY = "uni-lms.student-quiz-attempts.v1";
 
-// FR4: MCQ scores stay hidden until the section's results are published.
-export const QUIZ_SCORES_MESSAGE = "MCQ scores are available after results are published.";
+// FR4/FR22: MCQs are marked on submission and revealed on the review page.
+// Written answers still wait for teacher grading.
+export const QUIZ_SCORES_MESSAGE = "MCQ scores and answers appear on the review page after you submit.";
 
 export interface StoredQuizAttempt {
   answers: Record<string, QuizAnswerValue>;
@@ -79,10 +79,8 @@ export function saveQuizAttempt(
   return attempt;
 }
 
-export function areQuizScoresPublished(quiz: Quiz): boolean {
-  const saved = readSavedTeacherSnapshot();
-  const assessment = saved.assessments?.find((item) => item.id === quiz.sourceAssessmentId);
-  return areResultsPublished(assessment?.sectionId ?? quiz.sectionId);
+export function areQuizScoresRevealed(quiz: Quiz): boolean {
+  return getQuizAttempt(quiz) != null;
 }
 
 function toQuizQuestion(question: AssessmentQuestion): QuizQuestion {
