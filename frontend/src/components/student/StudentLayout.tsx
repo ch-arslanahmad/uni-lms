@@ -7,6 +7,7 @@ import { Badge } from "../ui/badge";
 import {
   currentStudentId,
   studentQuestions as seedQuestions,
+  type QuestionVisibility,
   type StudentQuestion,
 } from "../../mock/student";
 import { students, Role } from "../../models";
@@ -20,6 +21,7 @@ export interface StudentQuestionsContext {
     contextLabel: string;
     contextTo: string;
     question: string;
+    visibility?: QuestionVisibility;
   }) => void;
   unreadCount: number;
 }
@@ -47,6 +49,7 @@ function StudentLayout() {
     contextLabel: string;
     contextTo: string;
     question: string;
+    visibility?: QuestionVisibility;
   }) {
     const text = input.question.trim();
     if (!text) return;
@@ -58,6 +61,8 @@ function StudentLayout() {
         contextType: input.contextType,
         contextLabel: input.contextLabel,
         contextTo: input.contextTo,
+        status: "open",
+        visibility: input.visibility ?? "public",
       },
       ...prev,
     ]);

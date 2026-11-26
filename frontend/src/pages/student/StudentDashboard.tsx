@@ -11,12 +11,12 @@ import {
   activityLabel,
   activityPath,
   allActivities,
-  calculateCgpa,
   currentStudentId,
   offerings,
   type Activity,
 } from "../../mock/student";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
+import { calculatePublishedCgpa } from "../../api";
 import { students } from "../../models";
 
 const MONTH = "November 2026";
@@ -94,7 +94,7 @@ function StudentDashboard() {
           <StatMetric label="Courses Enrolled" value={offerings.length} />
         </Link>
         <Link to="/student/results">
-          <StatMetric label="CGPA" value={calculateCgpa()?.toFixed(2) ?? "—"} />
+          <StatMetric label="CGPA" value={calculatePublishedCgpa()?.toFixed(2) ?? "—"} />
         </Link>
         <StatMetric label="Activities Completed" value={done.length} />
         <StatMetric label="Activities Due" value={owned.length} highlight />

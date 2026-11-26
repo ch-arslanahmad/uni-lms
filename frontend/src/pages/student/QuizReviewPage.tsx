@@ -1,21 +1,26 @@
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../../components/ui/empty";
-import { areQuizScoresPublished, getStudentQuizzes, isWrittenQuestion, QUIZ_SCORES_MESSAGE, type QuizAnswerValue } from "../../api";
+import {
+  areQuizScoresPublished,
+  getQuizAttempt,
+  getStudentQuizzes,
+  isWrittenQuestion,
+  QUIZ_SCORES_MESSAGE,
+} from "../../api";
 
 function QuizReviewPage() {
   const { quizId } = useParams();
-  const { state } = useLocation() as { state?: { answers?: Record<string, QuizAnswerValue>; score?: number } };
   const quiz = getStudentQuizzes().find((q) => q.id === quizId);
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
   const scoresPublished = areQuizScoresPublished(quiz);
   const hasWritten = quiz.questions.some(isWrittenQuestion);
-  const submitted = state?.answers !== undefined;
-  const answers = state?.answers ?? {};
-  const score = state?.score ?? quiz.grade;
+  const attempt = getQuizAttempt(quiz);
+  const answers = attempt?.answers ?? {};
+  const score = attempt?.score ?? quiz.grade;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
@@ -34,7 +39,7 @@ function QuizReviewPage() {
         <Link to={`/student/quizzes/${quiz.id}`}><Button variant="outline" size="sm">Back to summary</Button></Link>
       </div>
 
-      {!submitted ? (
+      {!attempt ? (
         <Empty>
           <EmptyHeader>
             <EmptyTitle>No attempt to review</EmptyTitle>

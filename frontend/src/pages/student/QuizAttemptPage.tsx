@@ -5,14 +5,23 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Textarea } from "../../components/ui/textarea";
-import { getStudentQuizzes, isWrittenQuestion, QUIZ_SCORES_MESSAGE, type QuizAnswerValue } from "../../api";
+import {
+  getQuizAttempt,
+  getStudentQuizzes,
+  isWrittenQuestion,
+  QUIZ_SCORES_MESSAGE,
+  saveQuizAttempt,
+  type QuizAnswerValue,
+} from "../../api";
 import { availabilityStatus } from "../../mock/student";
 
 function QuizAttemptPage() {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const quiz = getStudentQuizzes().find((q) => q.id === quizId);
-  const blocked = !quiz || availabilityStatus(quiz.opened, quiz.closed) !== "open";
+  const existingAttempt = quiz ? getQuizAttempt(quiz) : undefined;
+  const availability = quiz ? availabilityStatus(quiz.opened, quiz.closed) : "open";
+  const blocked = !quiz || availability !== "open" || existingAttempt != null;
   const totalSeconds = (parseInt(quiz?.timeLimit ?? "30", 10) || 30) * 60;
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, QuizAnswerValue>>({});
@@ -29,10 +38,11 @@ function QuizAttemptPage() {
   );
 
   const submitAttempt = useCallback(() => {
-    if (!quiz || submittedQuizRef.current === quiz.id) return;
+    if (!quiz || existingAttempt || submittedQuizRef.current === quiz.id) return;
     submittedQuizRef.current = quiz.id;
-    navigate(`/student/quizzes/${quiz.id}/review`, { state: { answers, score }, replace: true });
-  }, [answers, navigate, quiz, score]);
+    saveQuizAttempt(quiz, answers, totalSeconds - remaining);
+    navigate(`/student/quizzes/${quiz.id}/review`, { replace: true });
+  }, [answers, existingAttempt, navigate, quiz, remaining, totalSeconds]);
 
   useEffect(() => {
     if (blocked || expired) return;
@@ -49,18 +59,18 @@ function QuizAttemptPage() {
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
   if (blocked) {
-    const status = availabilityStatus(quiz.opened, quiz.closed);
+    const reason = existingAttempt
+      ? "You have already submitted the single attempt allowed for this assessment."
+      : availability === "upcoming"
+        ? `This assessment opens on ${quiz.opened}. You cannot start an attempt yet.`
+        : `The attempt window closed on ${quiz.closed}. You cannot start a new attempt.`;
     return (
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
         <Breadcrumbs items={[{ label: "My courses", to: "/student/courses" }, { label: quiz.title, to: `/student/quizzes/${quiz.id}` }, { label: "Attempt" }]} />
         <Card>
           <CardHeader><CardTitle>Attempt not available</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              {status === "upcoming"
-                ? `This assessment opens on ${quiz.opened}. You cannot start an attempt yet.`
-                : `The attempt window closed on ${quiz.closed}. You cannot start a new attempt.`}
-            </p>
+            <p>{reason}</p>
             <Link to={`/student/quizzes/${quiz.id}`}><Button variant="outline" size="sm">Back to assessment</Button></Link>
           </CardContent>
         </Card>
@@ -89,7 +99,7 @@ function QuizAttemptPage() {
       </div>
       {expired && (
         <div className="rounded-lg border border-red-200 bg-red-500/10 px-4 py-3 text-sm text-red-700">
-          Time expired. Answers are locked. Submit your attempt. Results will be available after publication.
+          Time expired. Answers are locked. Submit your attempt. {QUIZ_SCORES_MESSAGE}
         </div>
       )}
 
@@ -157,7 +167,7 @@ function QuizAttemptPage() {
           <DialogHeader>
             <DialogTitle>Submit this attempt?</DialogTitle>
             <DialogDescription>
-              You answered {answeredCount} of {quiz.questions.length} questions. {QUIZ_SCORES_MESSAGE}
+              You answered {answeredCount} of {quiz.questions.length} questions. Auto-graded MCQ score: {score.toFixed(2)}. {QUIZ_SCORES_MESSAGE}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

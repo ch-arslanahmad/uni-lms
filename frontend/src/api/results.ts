@@ -5,6 +5,7 @@ import {
   getSectionStudents,
   mcqMarksFor,
   requiresViva,
+  sectionResultStates,
   type AssessmentAnswer,
   type AssessmentAttempt,
   type AssessmentQuestion,
@@ -12,6 +13,12 @@ import {
   type TeacherAssessment,
   type TeacherSubmission,
 } from "../mock/teacher";
+import {
+  courseResults,
+  publishedArchiveSectionIds,
+  type CourseResult,
+} from "../mock/student";
+import { readSavedTeacherSnapshot } from "./client";
 
 export interface CourseResultInput {
   sectionId: number;
@@ -31,6 +38,37 @@ export interface CourseResultRow {
   letter: string;
   gradePoints: number;
   complete: boolean;
+}
+
+// Results are published per section. Reads the teacher snapshot so a teacher
+// publishing a section is reflected immediately in every student view.
+export function areResultsPublished(sectionId: number | string | null | undefined): boolean {
+  if (sectionId == null || sectionId === "") return false;
+  const numericId = Number(sectionId);
+  if (publishedArchiveSectionIds.includes(numericId)) return true;
+  const saved = readSavedTeacherSnapshot();
+  const state = saved.resultStates?.find((item) => item.sectionId === numericId)
+    ?? sectionResultStates.find((item) => item.sectionId === numericId);
+  return state?.published ?? false;
+}
+
+export function publishedCourseResults(): CourseResult[] {
+  return courseResults.filter((result) => areResultsPublished(result.sectionId));
+}
+
+function gpaFor(rows: CourseResult[]): number | null {
+  const graded = rows.filter((row) => row.status === "completed" && row.gradePoints !== null);
+  const credits = graded.reduce((sum, row) => sum + row.credits, 0);
+  if (!credits) return null;
+  return graded.reduce((sum, row) => sum + row.credits * (row.gradePoints ?? 0), 0) / credits;
+}
+
+export function calculatePublishedSemesterGpa(semester: number): number | null {
+  return gpaFor(publishedCourseResults().filter((row) => row.semester === semester));
+}
+
+export function calculatePublishedCgpa(): number | null {
+  return gpaFor(publishedCourseResults());
 }
 
 export function gradeForPercent(percent: number): { letter: string; gradePoints: number } {

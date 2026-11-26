@@ -43,6 +43,8 @@ export interface TeacherSnapshot {
   resultStates: SectionResultState[];
 }
 
+export type SavedTeacherSnapshot = Partial<TeacherSnapshot>;
+
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -55,6 +57,22 @@ export const TEACHER_SNAPSHOT_VERSION = 3;
 export interface PersistedTeacherSnapshot {
   version: number;
   data: TeacherSnapshot;
+}
+
+// Every reader of the teacher snapshot must see the saved state, not the seeds.
+// Older flat snapshots stay readable during the Phase 1 migration.
+export function readSavedTeacherSnapshot(): SavedTeacherSnapshot {
+  try {
+    const raw = localStorage.getItem(TEACHER_SNAPSHOT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as PersistedTeacherSnapshot | SavedTeacherSnapshot;
+    if (parsed && typeof parsed === "object" && "data" in parsed && parsed.data) {
+      return parsed.data as SavedTeacherSnapshot;
+    }
+    return parsed as SavedTeacherSnapshot;
+  } catch {
+    return {};
+  }
 }
 
 // Phase 1 identity/time helpers: mutations record the signed-in teacher and the

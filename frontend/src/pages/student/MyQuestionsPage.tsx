@@ -4,14 +4,12 @@ import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent } from "../../components/ui/card";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import type { StudentQuestion } from "../../mock/student";
+import { studentQuestionStatusLabel, type StudentQuestion } from "../../mock/student";
 
-type Status = "new" | "pending" | "read";
+type Status = ReturnType<typeof studentQuestionStatusLabel>;
 
 function statusOf(q: StudentQuestion): Status {
-  if (q.answer && !q.readAt) return "new";
-  if (!q.answer) return "pending";
-  return "read";
+  return studentQuestionStatusLabel(q);
 }
 
 function sortQuestions(questions: StudentQuestion[]) {
@@ -19,18 +17,18 @@ function sortQuestions(questions: StudentQuestion[]) {
   const byAnswered = (a: StudentQuestion, b: StudentQuestion) => (b.answeredAt ?? "").localeCompare(a.answeredAt ?? "");
   const byActivity = (a: StudentQuestion, b: StudentQuestion) =>
     (b.answeredAt ?? b.askedAt).localeCompare(a.answeredAt ?? a.askedAt);
-  const unread = questions.filter((q) => statusOf(q) === "new").sort(byAnswered);
-  const pending = questions.filter((q) => statusOf(q) === "pending").sort(byAsked);
-  const read = questions.filter((q) => statusOf(q) === "read").sort(byActivity);
-  return [...unread, ...pending, ...read];
+  const answered = questions.filter((q) => statusOf(q) === "Answered (new)").sort(byAnswered);
+  const open = questions.filter((q) => statusOf(q) === "Pending").sort(byAsked);
+  const settled = questions.filter((q) => statusOf(q) !== "Answered (new)" && statusOf(q) !== "Pending").sort(byActivity);
+  return [...answered, ...open, ...settled];
 }
 
 function StatusBadge({ status }: { status: Status }) {
-  if (status === "new")
+  if (status === "Answered (new)")
     return <Badge className="rounded-full bg-blue-500 text-white hover:bg-blue-500">New</Badge>;
-  if (status === "pending")
+  if (status === "Pending")
     return <Badge variant="ghost" className="text-muted-foreground">Pending</Badge>;
-  return <Badge variant="ghost" className="text-muted-foreground">Read</Badge>;
+  return <Badge variant="ghost" className="text-muted-foreground">{status}</Badge>;
 }
 
 function MyQuestionsPage() {
@@ -73,7 +71,9 @@ function MyQuestionsPage() {
                 >
                   <div className="min-w-0 space-y-1">
                     <p className="font-medium">{q.question}</p>
-                    <p className="text-xs text-muted-foreground">{q.contextType === "event" ? "Event" : "Course"}: {q.contextLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {q.contextType === "event" ? "Event" : "Course"}: {q.contextLabel} · {q.visibility === "public" ? "Public" : "Private"}
+                    </p>
                   </div>
                   <StatusBadge status={status} />
                 </button>
@@ -90,6 +90,7 @@ function MyQuestionsPage() {
                         <>
                           <p className="mt-1">{q.answer}</p>
                           <p className="mt-1 text-xs text-muted-foreground">{q.responderName} - {q.answeredAt}</p>
+                          {q.resolvedAt && <p className="mt-1 text-xs text-muted-foreground">Resolved - {q.resolvedAt}</p>}
                         </>
                       ) : (
                         <p className="mt-1 text-muted-foreground">No reply yet.</p>
