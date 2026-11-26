@@ -97,6 +97,8 @@ export interface QuizAttempt {
   completed: string;
   duration: string;
   grade: string;
+  // Seeded answer sheets keep review marks consistent with the stored score.
+  answers?: Record<string, number | string>;
 }
 
 export interface Quiz {
@@ -208,7 +210,7 @@ export const offerings: CourseOffering[] = [
     announcements: [{ title: "Lab make-up", date: "2026-11-12", body: "Lab shifted to Friday 10:00 this week." }],
     weeks: weeks({
       2: [{ id: "a2", itemType: "assignment", title: "Assignment 2: Trees", opened: "2026-09-08", due: "2026-09-14", submitted: true, graded: true, score: 92, max: 100, submissionMode: "upload" }],
-      4: [{ id: "q4", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz: Trees", opened: "2026-09-22", due: "2026-09-22", submitted: true, graded: true, score: 8, max: 10, submissionMode: "upload" }],
+      4: [{ id: "q4", itemType: "assessment", kind: "quiz", mode: "online_mcq", title: "Quiz: Trees", opened: "2026-09-22", due: "2026-09-22", submitted: true, graded: true, score: 5, max: 10, submissionMode: "upload" }],
       8: [{ id: "p3", itemType: "assessment", kind: "project", mode: "online_attachment", title: "DSA Project Viva", opened: "2026-10-20", due: "2026-10-26", submitted: false, max: 40, submissionMode: "upload", physical: { timeWindow: "11:00 AM - 1:00 PM", room: "Lab 3" } }],
       11: [{ id: "a6", itemType: "assignment", title: "Assignment: Graphs", opened: "2026-11-10", due: "2026-11-16", submitted: false, max: 100, submissionMode: "physical", physical: { timeWindow: "10:00 AM - 12:00 PM", room: "Room E-202" } }],
       12: [
@@ -311,7 +313,7 @@ export const quizzes: Quiz[] = [
       { id: "q1p1", text: "Which hook manages local component state?", options: ["useEffect", "useState", "useMemo", "useRef"], answer: 1, points: 5 },
       { id: "q1p2", text: "What does JSX compile to?", options: ["HTML", "CSS", "React.createElement calls", "JSON"], answer: 2, points: 5 },
     ],
-    attempt: { started: "2026-09-18 10:02", completed: "2026-09-18 10:21", duration: "19 min", grade: "10.00 / 10.00" },
+    attempt: { started: "2026-09-18 10:02", completed: "2026-09-18 10:21", duration: "19 min", grade: "10.00 / 10.00", answers: { q1p1: 1, q1p2: 2 } },
   },
   {
     id: "q2",
@@ -337,13 +339,13 @@ export const quizzes: Quiz[] = [
     opened: "2026-09-22 09:00",
     closed: "2026-09-22 09:30",
     timeLimit: "30 min",
-    grade: 8,
+    grade: 5,
     max: 10,
     questions: [
       { id: "q4p1", text: "Which traversal visits root first?", options: ["Inorder", "Preorder", "Postorder", "Level order"], answer: 1, points: 5 },
       { id: "q4p2", text: "A BST with n nodes has what average search time?", options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"], answer: 1, points: 5 },
     ],
-    attempt: { started: "2026-09-22 09:00", completed: "2026-09-22 09:18", duration: "18 min", grade: "8.00 / 10.00" },
+    attempt: { started: "2026-09-22 09:00", completed: "2026-09-22 09:18", duration: "18 min", grade: "5.00 / 10.00", answers: { q4p1: 1, q4p2: 0 } },
   },
   {
     id: "q5",
@@ -360,7 +362,7 @@ export const quizzes: Quiz[] = [
       { id: "q5p2", text: "What does a Carnot cycle define?", options: ["Maximum heat-engine efficiency", "Minimum boiler pressure", "Specific heat capacity", "Rate of heat transfer"], answer: 0, points: 3 },
       { id: "q5p3", text: "What is the SI unit of specific heat capacity?", options: ["J/kg·K", "J/K", "kJ/kg", "W/m·K"], answer: 0, points: 4 },
     ],
-    attempt: { started: "2026-09-15 10:02", completed: "2026-09-15 10:14", duration: "12 min", grade: "6.00 / 10.00" },
+    attempt: { started: "2026-09-15 10:02", completed: "2026-09-15 10:14", duration: "12 min", grade: "6.00 / 10.00", answers: { q5p1: 1, q5p2: 0, q5p3: 1 } },
   },
   {
     id: "q6",
@@ -377,7 +379,7 @@ export const quizzes: Quiz[] = [
       { id: "q6p2", text: "When does a useEffect cleanup function run?", options: ["On every parent render", "Before the next effect and on unmount", "Only on first mount", "Never"], answer: 1, points: 3 },
       { id: "q6p3", text: "Which hook memoizes a callback?", options: ["useMemo", "useCallback", "useState", "useLayoutEffect"], answer: 1, points: 5 },
     ],
-    attempt: { started: "2026-10-29 16:25", completed: "2026-10-29 16:40", duration: "15 min", grade: "10.00 / 10.00" },
+    attempt: { started: "2026-10-29 16:25", completed: "2026-10-29 16:40", duration: "15 min", grade: "10.00 / 10.00", answers: { q6p1: 0, q6p2: 1, q6p3: 1 } },
   },
   {
     id: "q7",

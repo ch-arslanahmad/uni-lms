@@ -47,16 +47,18 @@ export function getQuizAttempt(quiz: Quiz): StoredQuizAttempt | undefined {
   if (saved) return saved;
   if (!quiz.attempt) return undefined;
 
-  // Seeded completed attempts have no answer sheet; reconstruct one for review.
-  const answers: Record<string, QuizAnswerValue> = {};
-  quiz.questions.forEach((question, index) => {
-    if (question.type === "written") {
-      answers[question.id] = "";
-      return;
-    }
-    const missed = quiz.grade < quiz.max && index === quiz.questions.length - 1;
-    answers[question.id] = missed ? (question.answer + 1) % question.options.length : question.answer;
-  });
+  const answers: Record<string, QuizAnswerValue> = { ...(quiz.attempt.answers ?? {}) };
+  if (!quiz.attempt.answers) {
+    // Older seeds without an answer sheet stayed readable during migration.
+    quiz.questions.forEach((question, index) => {
+      if (question.type === "written") {
+        answers[question.id] = "";
+        return;
+      }
+      const missed = quiz.grade < quiz.max && index === quiz.questions.length - 1;
+      answers[question.id] = missed ? (question.answer + 1) % question.options.length : question.answer;
+    });
+  }
   return { ...quiz.attempt, answers, score: quiz.grade };
 }
 

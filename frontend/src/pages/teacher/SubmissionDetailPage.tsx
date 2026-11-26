@@ -15,6 +15,7 @@ import {
   currentTeacherName,
   isMcqAssessment,
   isProjectAssessment,
+  latestAttemptFor,
   nowTimestamp,
   requiresViva,
   teacherSections,
@@ -42,9 +43,7 @@ function SubmissionDetailPage() {
   const section = teacherSections.find((s) => s.id === act?.sectionId);
   const student = students.find((s) => s.id === studentId);
   const questions = assessmentQuestions.filter((question) => question.assessmentId === act?.id);
-  const attempt = assessmentAttempts.find(
-    (item) => item.assessmentId === act?.id && item.studentId === sub?.studentId,
-  );
+  const attempt = latestAttemptFor(assessmentAttempts, act?.id, sub?.studentId);
   const answers = attempt ? assessmentAnswers.filter((answer) => answer.attemptId === attempt.id) : [];
 
   const [marks, setMarks] = useState(sub?.marks?.toString() ?? "");

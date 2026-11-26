@@ -27,6 +27,7 @@ import {
   currentTeacherName,
   isMcqAssessment,
   isProjectAssessment,
+  latestAttemptFor,
   nowTimestamp,
   requiresViva,
   vivaCapFor,
@@ -466,10 +467,7 @@ function GradingPage() {
     ? assessmentQuestions.filter((question) => question.assessmentId === drawerRow.assessmentId)
     : [];
   const drawerAttempt = drawerRow
-    ? assessmentAttempts.find(
-        (attempt) =>
-          attempt.assessmentId === drawerRow.assessmentId && attempt.studentId === drawerRow.studentId,
-      )
+    ? latestAttemptFor(assessmentAttempts, drawerRow.assessmentId, drawerRow.studentId)
     : undefined;
   const drawerAnswers = drawerAttempt
     ? assessmentAnswers.filter((answer) => answer.attemptId === drawerAttempt.id)

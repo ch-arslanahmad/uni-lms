@@ -96,6 +96,20 @@ export function vivaCapFor(assessment: TeacherAssessment, questions: AssessmentQ
   return Math.max(0, assessment.maxMarks - questionMarks);
 }
 
+// A retake replaces the earlier result: the latest submission wins, not the best grade.
+export function latestAttemptFor(
+  attempts: AssessmentAttempt[],
+  assessmentId: string | undefined,
+  studentId: number | undefined,
+): AssessmentAttempt | undefined {
+  return attempts
+    .filter((item) => item.assessmentId === assessmentId && item.studentId === studentId)
+    .reduce<AssessmentAttempt | undefined>(
+      (latest, item) => (!latest || item.submittedAt > latest.submittedAt ? item : latest),
+      undefined,
+    );
+}
+
 function marksFor(
   assessment: TeacherAssessment,
   studentId: number,
@@ -104,9 +118,7 @@ function marksFor(
   const submission = input.submissions.find(
     (item) => item.assessmentId === assessment.id && item.studentId === studentId,
   );
-  const attempt = input.attempts.find(
-    (item) => item.assessmentId === assessment.id && item.studentId === studentId,
-  );
+  const attempt = latestAttemptFor(input.attempts, assessment.id, studentId);
   const submissionViva = requiresViva(assessment) ? (submission?.viva?.marks ?? 0) : 0;
 
   // Project scores come from the attempt; a physical assignment has no attempt.
@@ -161,9 +173,7 @@ function isReadyToPublish(
   if (submission?.status !== "locked") return false;
   if (!requiresViva(assessment)) return true;
   if (isProjectAssessment(assessment)) {
-    const attempt = input.attempts.find(
-      (item) => item.assessmentId === assessment.id && item.studentId === studentId,
-    );
+    const attempt = latestAttemptFor(input.attempts, assessment.id, studentId);
     return attempt?.viva?.marks != null;
   }
   return submission.viva?.marks != null;
