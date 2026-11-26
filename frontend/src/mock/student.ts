@@ -25,6 +25,12 @@ export interface Activity {
   physical?: PhysicalSubmission;
 }
 
+// Viva is required only for a physical assignment submission or a project attempt.
+export function requiresViva(activity: Activity): boolean {
+  return activity.kind === "project"
+    || (activity.kind === "assignment" && activity.submissionModes.includes("physical"));
+}
+
 export interface Week {
   range: string;
   current?: boolean;

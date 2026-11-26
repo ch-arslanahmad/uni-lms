@@ -17,6 +17,8 @@ import {
   calculateAttemptTotal,
   currentTeacherName,
   nowTimestamp,
+  requiresViva,
+  vivaCapFor,
 } from "../../api";
 import {
   getSectionStudents,
@@ -29,6 +31,7 @@ import {
   type TeacherAssessment,
   type TeacherSection,
   type TeacherSubmission,
+  type VivaRecord,
 } from "../../api";
 import { programCurriculums, students, subjects } from "../../models";
 
@@ -49,6 +52,7 @@ type Row = {
   maxMarks: number;
   submissionType: SubmissionType;
   file?: SubmissionFile;
+  viva?: VivaRecord;
   locked: boolean;
 };
 
@@ -89,7 +93,7 @@ function StatusText({ status }: { status: DisplayStatus }) {
   );
 }
 
-type GradeDraft = { marks: number; feedback: string; publish: boolean };
+type GradeDraft = { marks: number; feedback: string; publish: boolean; vivaMarks?: number };
 
 type GradingDrawerProps = {
   row: Row;
@@ -104,6 +108,10 @@ type GradingDrawerProps = {
 
 function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWrittenMark, onAutoGradeMcq }: GradingDrawerProps) {
   const [marks, setMarks] = useState(row.marks != null ? String(row.marks) : "");
+  const [vivaMarks, setVivaMarks] = useState(() => {
+    const current = row.assessment.kind === "project" ? attempt?.viva?.marks : row.viva?.marks;
+    return current != null ? String(current) : "";
+  });
   const [feedback, setFeedback] = useState(row.feedback ?? "");
   const [error, setError] = useState("");
   const panelRef = useRef<HTMLElement>(null);
@@ -145,16 +153,35 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
 
   const autoTotal = useMemo(() => calculateAttemptTotal(questions, answers), [questions, answers]);
   const hasMcq = questions.some((question) => question.type === "mcq");
+  const isProject = row.assessment.kind === "project";
+  const vivaRequired = requiresViva(row.assessment);
+  const vivaCap = isProject ? vivaCapFor(row.assessment, questions) : row.maxMarks;
 
   function handleSave(publish: boolean) {
     const raw = marks.trim();
-    const autoValue = hasMcq && raw === "" ? autoTotal : Number(raw);
-    if (!Number.isFinite(autoValue) || autoValue < 0 || autoValue > row.maxMarks) {
+    const manualScore = hasMcq && raw === "" ? autoTotal : Number(raw);
+    if (!Number.isFinite(manualScore) || manualScore < 0 || manualScore > row.maxMarks) {
       setError(`Enter a number between 0 and ${row.maxMarks}.`);
       return;
     }
+    const score = isProject && questions.length > 0 ? autoTotal : manualScore;
+    let vivaValue: number | undefined;
+    if (vivaRequired) {
+      const rawViva = vivaMarks.trim();
+      vivaValue = rawViva === "" ? 0 : Number(rawViva);
+      if (!Number.isFinite(vivaValue) || vivaValue < 0 || vivaValue > vivaCap) {
+        setError(isProject
+          ? `Viva cannot exceed ${vivaCap} (max marks minus question marks).`
+          : `Enter viva marks between 0 and ${vivaCap}.`);
+        return;
+      }
+      if (score + vivaValue > row.maxMarks) {
+        setError(`Score plus viva cannot exceed ${row.maxMarks}.`);
+        return;
+      }
+    }
     onAutoGradeMcq();
-    onSave({ marks: autoValue, feedback: feedback.trim(), publish });
+    onSave({ marks: score, feedback: feedback.trim(), publish, vivaMarks: vivaValue });
   }
 
   return (
@@ -260,6 +287,35 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
                 </div>
               )}
             </div>
+            {vivaRequired && (
+              <div className="space-y-1.5">
+                <Label htmlFor="grading-viva">Viva marks</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="grading-viva"
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    min={0}
+                    max={vivaCap}
+                    value={vivaMarks}
+                    onChange={(event) => {
+                      setVivaMarks(event.target.value);
+                      setError("");
+                    }}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? "grading-marks-error" : undefined}
+                    className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                  />
+                  <span className="text-sm text-slate-400">/ {vivaCap}</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {isProject
+                    ? `Cap is max marks (${row.maxMarks}) minus question marks (${row.maxMarks - vivaCap}).`
+                    : `Marks plus viva cannot exceed ${row.maxMarks}.`}
+                </p>
+              </div>
+            )}
             {error && (
               <p id="grading-marks-error" role="alert" className="text-xs text-red-600">
                 {error}
@@ -313,6 +369,7 @@ function GradingPage() {
     setSubmissions,
     assessmentQuestions,
     assessmentAttempts,
+    setAssessmentAttempts,
     assessmentAnswers,
     setAssessmentAnswers,
   } = useOutletContext<TeacherContext>();
@@ -367,6 +424,7 @@ function GradingPage() {
           maxMarks: assessment?.maxMarks ?? 100,
           submissionType: submission.type ?? null,
           file: submission.file,
+          viva: submission.viva,
           locked: submission.status === "locked",
         };
       });
@@ -397,22 +455,57 @@ function GradingPage() {
     setDrawerRow(row);
   }
 
-  function saveGrade({ marks, feedback, publish }: GradeDraft) {
+  function saveGrade({ marks, feedback, publish, vivaMarks }: GradeDraft) {
     if (!drawerRow) return;
+    const examiner = currentTeacherName();
+    const conductedAt = nowTimestamp();
+    const isProject = drawerRow.assessment.kind === "project";
+
     setSubmissions((previous) =>
-      previous.map((submission) =>
-        submission.id === drawerRow.id
+      previous.map((submission) => {
+        if (submission.id !== drawerRow.id) return submission;
+        const viva = !isProject && vivaMarks != null
           ? {
-              ...submission,
-              marks,
-              feedback: feedback || undefined,
-              status: publish ? "locked" : "graded",
-              updatedBy: currentTeacherName(),
-              updatedAt: nowTimestamp(),
+              ...submission.viva,
+              examiner,
+              conductedAt,
+              marks: vivaMarks,
+              room: submission.viva?.room ?? drawerRow.assessment.physicalRoom,
             }
-          : submission,
-      ),
+          : submission.viva;
+        return {
+          ...submission,
+          marks,
+          feedback: feedback || undefined,
+          status: publish ? "locked" : "graded",
+          updatedBy: examiner,
+          updatedAt: conductedAt,
+          viva,
+        };
+      }),
     );
+
+    if (isProject && vivaMarks != null) {
+      setAssessmentAttempts((previous) => {
+        const match = (attempt: AssessmentAttempt) =>
+          attempt.assessmentId === drawerRow.assessmentId && attempt.studentId === drawerRow.studentId;
+        const viva = {
+          examiner,
+          conductedAt,
+          marks: vivaMarks,
+          comment: previous.find(match)?.viva?.comment,
+        };
+        return previous.some(match)
+          ? previous.map((attempt) => match(attempt) ? { ...attempt, viva } : attempt)
+          : [...previous, {
+              id: `att-${drawerRow.assessmentId}-${drawerRow.studentId}`,
+              assessmentId: drawerRow.assessmentId,
+              studentId: drawerRow.studentId,
+              submittedAt: conductedAt,
+              viva,
+            }];
+      });
+    }
     closeDrawer();
   }
 

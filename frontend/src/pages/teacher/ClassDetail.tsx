@@ -21,6 +21,7 @@ import {
   getSectionStudents,
   getTeacherSection,
   makeAssessmentReference,
+  requiresViva,
   type AssessmentQuestion,
   type RequirementType,
   type SubmissionFile,
@@ -91,10 +92,11 @@ function ClassDetail() {
     instructions: "",
     submissionModes: ["upload"] as SubmissionMode[],
     requirements: [{ type: "attachment" as RequirementType, isRequired: true }],
-    hasViva: false, documentName: "", physicalRoom: "",
+    documentName: "", physicalRoom: "",
   });
   const [act, setAct] = useState(emptyAct);
   const paperOnly = act.category === "Midterm" || act.category === "Final";
+  const vivaRequired = requiresViva({ kind: inferKind(act.category), submissionModes: act.submissionModes });
   const [actErr, setActErr] = useState(""); const [showAddForm, setShowAddForm] = useState(false);
   const [editActId, setEditActId] = useState<string | null>(null);
   const [addType, setAddType] = useState<"assessment" | "class">("assessment");
@@ -177,7 +179,6 @@ function ClassDetail() {
       instructions: assessment.instructions,
       submissionModes: assessment.submissionModes,
       requirements: assessment.requirements?.length ? assessment.requirements : [{ type: "attachment", isRequired: true }],
-      hasViva: assessment.hasViva ?? false,
       documentName: assessment.documentName ?? "",
       physicalRoom: assessment.physicalRoom ?? "",
     });
@@ -216,7 +217,6 @@ function ClassDetail() {
       category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, closeAt: act.closeAt,
       submissionModes, requirements: act.requirements,
       physicalRoom: submissionModes.includes("physical") ? act.physicalRoom.trim() : undefined,
-      hasViva: submissionModes.includes("physical") ? act.hasViva : undefined,
       hasMcq: kind === "quiz" && submissionModes.includes("online"),
       documentName,
       document: actFile ?? (documentName ? makeAssessmentReference(documentName) : undefined),
@@ -545,7 +545,7 @@ function ClassDetail() {
                               physicalRoom: isPaper ? act.physicalRoom : "",
                               requirements: v === "Project" ? [
                                 { type: "attachment" as RequirementType, isRequired: true },
-                                { type: "text" as RequirementType, isRequired: true },
+                                { type: "written_work" as RequirementType, isRequired: true },
                               ] : act.requirements,
                             });
                           }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
@@ -582,18 +582,19 @@ function ClassDetail() {
                         </p>
                         {act.submissionModes.includes("physical") && <>
                           <div className="space-y-2"><Label>Room / location</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>
-                          <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" checked={act.hasViva} onChange={e => setAct({ ...act, hasViva: e.target.checked })} />Includes viva</label>
-                          <p className="text-xs text-muted-foreground md:col-span-2 -mt-2">Physical submission means in-person assessment; enable viva if students will also be assessed orally.</p>
                         </>}
+                        <p className="text-xs text-muted-foreground md:col-span-2">
+                          {vivaRequired ? "Viva is required for physical assignments and projects." : "No viva for this item."}
+                        </p>
                         <div className="md:col-span-2 space-y-2">
-                          <div className="flex items-center justify-between"><Label>Submission requirements</Label><Button size="sm" variant="outline" onClick={() => setAct((prev) => ({ ...prev, requirements: [...prev.requirements, { type: "text", isRequired: false }] }))}><Plus className="size-4" /> Add requirement</Button></div>
+                          <div className="flex items-center justify-between"><Label>Submission requirements</Label><Button size="sm" variant="outline" onClick={() => setAct((prev) => ({ ...prev, requirements: [...prev.requirements, { type: "written_work", isRequired: false }] }))}><Plus className="size-4" /> Add requirement</Button></div>
                           {act.requirements.map((r, index) => (
                             <div key={index} className="grid items-end gap-2 sm:grid-cols-[1fr_auto_auto]">
                               <div className="space-y-1">
                                 <Label>Type</Label>
                                 <Select value={r.type} onValueChange={v => v && setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, type: v as RequirementType } : item) }))}>
                                   <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="attachment">Attachment</SelectItem></SelectContent>
+                                  <SelectContent><SelectItem value="written_work">Written work</SelectItem><SelectItem value="attachment">Attachment</SelectItem></SelectContent>
                                 </Select>
                               </div>
                               <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={r.isRequired} onChange={(e) => setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, isRequired: e.target.checked } : item) }))} /> Required</label>
@@ -655,7 +656,7 @@ function ClassDetail() {
                               <div>
                                 <p className="font-medium flex items-center gap-2">{a.title}{a.required && <Badge variant="secondary">Required</Badge>}{a.required && !a.documentName && <Badge variant="secondary" className="gap-1"><AlertCircle className="size-3" />Pending document</Badge>}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.closeAt ? ` - Closes ${a.closeAt}` : ""} - Modes: {a.submissionModes.join(", ") || "none"}{a.requirements?.length ? ` - Requires: ${a.requirements.map((r) => `${r.type}${r.isRequired ? "*" : ""}`).join(", ")}` : ""}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{a.hasViva ? " - Viva" : ""}
+                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.closeAt ? ` - Closes ${a.closeAt}` : ""} - Modes: {a.submissionModes.join(", ") || "none"}{a.requirements?.length ? ` - Requires: ${a.requirements.map((r) => `${r.type}${r.isRequired ? "*" : ""}`).join(", ")}` : ""}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{requiresViva(a) ? " - Viva required" : ""}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1">

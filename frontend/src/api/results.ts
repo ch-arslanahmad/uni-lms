@@ -1,10 +1,10 @@
 // Course result calculation for the teacher's publish view (FR15, FR21).
-// Mirrors .notes/uni-lms-proposal-locked.md §11: category averages, weights,
-// missing items = zero, Midterm/Final required before finalizing.
+// Category averages, weights, missing items = zero, Midterm/Final required before finalizing.
 
 import {
   getSectionStudents,
   mcqMarksFor,
+  requiresViva,
   type AssessmentAnswer,
   type AssessmentAttempt,
   type AssessmentQuestion,
@@ -45,6 +45,15 @@ export function gradeForPercent(percent: number): { letter: string; gradePoints:
   return { letter: "F", gradePoints: 0 };
 }
 
+// For a project the teacher splits max marks between question marks and viva.
+export function vivaCapFor(assessment: TeacherAssessment, questions: AssessmentQuestion[]): number {
+  if (assessment.kind !== "project") return assessment.maxMarks;
+  const questionMarks = questions
+    .filter((question) => question.assessmentId === assessment.id)
+    .reduce((sum, question) => sum + question.marks, 0);
+  return Math.max(0, assessment.maxMarks - questionMarks);
+}
+
 function marksFor(
   assessment: TeacherAssessment,
   studentId: number,
@@ -53,13 +62,21 @@ function marksFor(
   const submission = input.submissions.find(
     (item) => item.assessmentId === assessment.id && item.studentId === studentId,
   );
-  if (submission?.marks != null) return submission.marks;
-
   const attempt = input.attempts.find(
     (item) => item.assessmentId === assessment.id && item.studentId === studentId,
   );
+  const submissionViva = requiresViva(assessment) ? (submission?.viva?.marks ?? 0) : 0;
+
+  // Project scores come from the attempt; a physical assignment has no attempt.
+  if (assessment.kind !== "project" && submission?.marks != null) {
+    return Math.min(assessment.maxMarks, submission.marks + submissionViva);
+  }
+
   if (!attempt) return null;
 
+  const viva = assessment.kind === "project"
+    ? Math.min(attempt.viva?.marks ?? 0, vivaCapFor(assessment, input.questions))
+    : submissionViva;
   const attemptAnswers = input.answers.filter((answer) => answer.attemptId === attempt.id);
   let total = 0;
   let hasAnswer = false;
@@ -69,7 +86,7 @@ function marksFor(
     hasAnswer = true;
     total += question.type === "mcq" ? mcqMarksFor(question, answer) : (answer.marksAwarded ?? 0);
   }
-  return hasAnswer ? total : null;
+  return hasAnswer ? Math.min(assessment.maxMarks, total + viva) : null;
 }
 
 // MCQ marks are derived from the key; written marks are entered by the teacher.

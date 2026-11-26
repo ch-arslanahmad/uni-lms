@@ -11,7 +11,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
-import { activityLabel, activityPath, allActivities, availabilityStatus, findActivity, offerings, type Activity } from "../../mock/student";
+import { activityLabel, activityPath, allActivities, availabilityStatus, findActivity, offerings, requiresViva, type Activity } from "../../mock/student";
 import { fileToSubmissionFile, type SubmissionFile } from "../../api";
 
 function ActivityBar({ activity }: { activity?: Activity }) {
@@ -202,6 +202,14 @@ function AssignmentPage() {
             {isPhysical && activity.physical && (
               <p>
                 Physical submission: {activity.physical.timeWindow}, {activity.physical.room}. You can come any working day before and on the due date.
+              </p>
+            )}
+            {requiresViva(activity) && (
+              <p>
+                {activity.kind === "project"
+                  ? "Your project attempt requires a viva."
+                  : "This physical submission requires a viva."}{" "}
+                The teacher records the result before results are published.
               </p>
             )}
             {!canUpload && !isPhysical && <p>No online submission required.</p>}
