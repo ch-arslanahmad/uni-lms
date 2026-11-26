@@ -51,8 +51,6 @@ export interface TeacherContext {
   resultStates: SectionResultState[];
   setResultStates: React.Dispatch<React.SetStateAction<SectionResultState[]>>;
 }
-
-
 // Phase 1 persistence: the API returns a fresh snapshot, then local edits replay
 // on top of it. Phase 2 replaces this with real API mutations.
 const SNAPSHOT_ID_KEYS: Partial<Record<keyof TeacherSnapshot, string>> = {
@@ -91,8 +89,13 @@ function hydrate(fresh: TeacherSnapshot): TeacherSnapshot {
     const raw = localStorage.getItem(TEACHER_SNAPSHOT_KEY);
     if (!raw) return fresh;
     const parsed = JSON.parse(raw) as Partial<PersistedTeacherSnapshot> & Partial<TeacherSnapshot>;
-    const current = parsed.version === TEACHER_SNAPSHOT_VERSION && parsed.data;
-    const saved = (current ? parsed.data : parsed) as Record<string, unknown>;
+    if (parsed.version === TEACHER_SNAPSHOT_VERSION && parsed.data) {
+      return parsed.data;
+    }
+
+    // Older snapshots stored arrays directly. Merge them by id so local edits
+    // survive while newly seeded records stay visible.
+    const saved = parsed as Record<string, unknown>;
     const freshRecord = { ...fresh } as unknown as Record<string, unknown[]>;
     for (const key of Object.keys(fresh) as (keyof TeacherSnapshot)[]) {
       const savedItems = saved[key];
