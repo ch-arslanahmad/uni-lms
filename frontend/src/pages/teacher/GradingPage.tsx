@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { assessmentSlug, studentSlug } from "../../lib/slugs";
-import { BookOpen, Search, X } from "lucide-react";
+import { BookOpen, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "../../components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
@@ -114,42 +121,6 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
   });
   const [feedback, setFeedback] = useState(row.feedback ?? "");
   const [error, setError] = useState("");
-  const panelRef = useRef<HTMLElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    closeRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab" || !panelRef.current) return;
-
-      const focusable = Array.from(
-        panelRef.current.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
 
   const autoTotal = useMemo(() => calculateAttemptTotal(questions, answers), [questions, answers]);
   const hasMcq = questions.some((question) => question.type === "mcq");
@@ -185,44 +156,22 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
   }
 
   return (
-    <div className="fixed inset-0 z-[60]">
-      <div className="absolute inset-0 bg-slate-900/10" aria-hidden="true" onClick={onClose} />
-
-      <aside
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="grading-drawer-title"
-        onClick={(event) => event.stopPropagation()}
-        className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white shadow-xl sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none sm:border-l sm:border-t-0"
-      >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
-          <div>
-            <h2 id="grading-drawer-title" className="text-base font-semibold text-slate-900">
-              {row.studentName} · #{row.studentId}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">{row.assessmentTitle}</p>
-            <div className="mt-2 flex items-center gap-3 text-xs">
-              <StatusText status={row.status} />
-              <Link
-                to={`/teacher/grading/${studentSlug(row.studentId, row.studentName)}/${assessmentSlug(row.assessmentId, row.assessmentTitle)}`}
-                className="text-blue-600 hover:underline"
-                onClick={onClose}
-              >
-                Open full page
-              </Link>
-            </div>
+    <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent side="right" className="w-full max-w-md overflow-y-auto p-0">
+        <SheetHeader className="border-b border-slate-100 px-6 py-5 pr-14">
+          <SheetTitle>{row.studentName} · #{row.studentId}</SheetTitle>
+          <SheetDescription>{row.assessmentTitle}</SheetDescription>
+          <div className="mt-2 flex items-center gap-3 text-xs">
+            <StatusText status={row.status} />
+            <Link
+              to={`/teacher/grading/${studentSlug(row.studentId, row.studentName)}/${assessmentSlug(row.assessmentId, row.assessmentTitle)}`}
+              className="text-blue-600 hover:underline"
+              onClick={onClose}
+            >
+              Open full page
+            </Link>
           </div>
-          <button
-            ref={closeRef}
-            type="button"
-            aria-label="Close grading panel"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
-          >
-            <X className="size-4" />
-          </button>
-        </header>
+        </SheetHeader>
 
         <AssessmentReference assessment={row.assessment} />
 
@@ -357,8 +306,8 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
             </p>
           </div>
         </section>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

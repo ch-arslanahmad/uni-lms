@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
 
+import {
+  Tabs as TabsRoot,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+
 export interface TabItem<T extends string = string> {
   id: T;
   label: string;
@@ -15,34 +22,33 @@ export function Tabs<T extends string>({
   activeTab: T;
   onChange: (id: T) => void;
 }) {
-  const current = tabs.find((t) => t.id === activeTab) ?? tabs[0];
-
   return (
-    <div className="flex flex-col gap-4">
-      {/* Tab Navigation Header */}
-      <div className="flex gap-2 border-b">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => onChange(tab.id)}
-              className={`px-3 py-1.5 text-sm font-medium border-b-2 transition-colors ${
-                isActive
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+    <TabsRoot
+      value={activeTab}
+      onValueChange={(value) => onChange(value as T)}
+      className="gap-4"
+    >
+      <TabsList
+        variant="line"
+        className="w-full justify-start gap-1 rounded-none border-b p-0"
+      >
+        {tabs.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            className="rounded-none px-3 py-1.5"
+          >
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
 
-      {/* Active Tab Panel Content */}
-      <div>{current?.content}</div>
-    </div>
+      {tabs.map((tab) => (
+        <TabsContent key={tab.id} value={tab.id} className="mt-0">
+          {tab.content}
+        </TabsContent>
+      ))}
+    </TabsRoot>
   );
 }
 
