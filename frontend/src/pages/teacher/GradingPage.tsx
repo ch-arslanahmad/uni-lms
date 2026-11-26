@@ -3,7 +3,9 @@ import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { assessmentSlug, studentSlug } from "../../lib/slugs";
 import { BookOpen, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { Field, FieldLabel } from "../../components/ui/field";
 import { Label } from "../../components/ui/label";
+import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 import {
   Sheet,
   SheetContent,
@@ -519,23 +521,25 @@ function GradingPage() {
       </div>
 
       <div className="mt-10 flex flex-wrap items-end gap-4">
-        <div role="group" aria-label="Grading view" className="inline-flex rounded-xl bg-slate-100 p-1">
+        <RadioGroup
+          value={view}
+          onValueChange={(value) => value && setView(value as "student" | "assessment")}
+          aria-label="Grading view"
+          className="flex w-auto flex-row gap-1 rounded-xl bg-slate-100 p-1"
+        >
           {(["student", "assessment"] as const).map((mode) => (
-            <button
+            <Field
               key={mode}
-              type="button"
-              aria-pressed={view === mode}
-              onClick={() => setView(mode)}
-              className={`rounded-lg px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 ${
-                view === mode
-                  ? "bg-white font-medium text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
+              orientation="horizontal"
+              className={`gap-2 rounded-lg px-3 py-1.5 ${view === mode ? "bg-white shadow-sm" : ""}`}
             >
-              {mode === "student" ? "By Student" : "By Assessment"}
-            </button>
+              <RadioGroupItem value={mode} id={`grading-view-${mode}`} />
+              <FieldLabel htmlFor={`grading-view-${mode}`} className="font-normal">
+                {mode === "student" ? "By Student" : "By Assessment"}
+              </FieldLabel>
+            </Field>
           ))}
-        </div>
+        </RadioGroup>
 
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-slate-500">{view === "assessment" ? "Assessment" : "Student"}</span>

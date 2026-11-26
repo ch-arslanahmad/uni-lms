@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Button } from "../../components/ui/button";
+import { Field, FieldLabel } from "../../components/ui/field";
+import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { nowTimestamp, teacherSections } from "../../api";
 import { students } from "../../models";
@@ -92,26 +94,29 @@ function QuestionsPage() {
       </div>
 
       <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter questions by status">
-          {FILTERS.map((filter) => {
-            const active = status === filter.value;
-            return (
-              <button
-                key={filter.value}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setStatus(filter.value)}
-                className={`inline-flex h-9 items-center rounded-lg border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 ${
-                  active
-                    ? "border-slate-300 bg-slate-50 text-slate-900"
-                    : "border-slate-200 bg-white text-slate-500 hover:text-slate-700"
-                }`}
-              >
+        <RadioGroup
+          value={status}
+          onValueChange={(value) => value && setStatus(value as StatusFilter)}
+          aria-label="Filter questions by status"
+          className="flex w-auto flex-row flex-wrap gap-2"
+        >
+          {FILTERS.map((filter) => (
+            <Field
+              key={filter.value}
+              orientation="horizontal"
+              className={`h-9 gap-2 rounded-lg border px-3 ${
+                status === filter.value
+                  ? "border-slate-300 bg-slate-50"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <RadioGroupItem value={filter.value} id={`question-filter-${filter.value}`} />
+              <FieldLabel htmlFor={`question-filter-${filter.value}`} className="font-normal">
                 {filter.label} ({counts[filter.value]})
-              </button>
-            );
-          })}
-        </div>
+              </FieldLabel>
+            </Field>
+          ))}
+        </RadioGroup>
 
         <div className="w-full sm:max-w-xs sm:ml-auto">
           <label htmlFor="questions-search" className="sr-only">
