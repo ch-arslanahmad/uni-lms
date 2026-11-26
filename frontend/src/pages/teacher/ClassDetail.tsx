@@ -11,6 +11,7 @@ import { Label } from "../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { SimpleTable } from "../../components/SimpleTable";
 import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
@@ -86,7 +87,24 @@ function toLocalInput(value?: string) {
   return normalized.length === 10 ? `${normalized}T09:00` : normalized.slice(0, 16);
 }
 function IconBtn({ title, onClick, children, danger }: { title: string; onClick: () => void; children: React.ReactNode; danger?: boolean }) {
-  return <Button variant="ghost" size="icon" className={danger ? "text-red-600 hover:text-red-700" : "text-muted-foreground hover:text-foreground"} title={title} aria-label={title} onClick={onClick}>{children}</Button>;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className={danger ? "text-red-600 hover:text-red-700" : "text-muted-foreground hover:text-foreground"}
+            aria-label={title}
+            onClick={onClick}
+          >
+            {children}
+          </Button>
+        }
+      />
+      <TooltipContent>{title}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 type AssessmentDraft = {

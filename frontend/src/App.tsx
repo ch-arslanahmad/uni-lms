@@ -1,4 +1,5 @@
 import { Link, RouterProvider, createBrowserRouter } from "react-router-dom";
+import { TooltipProvider } from "./components/ui/tooltip";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersPage from "./pages/admin/UsersPage";
 import {
@@ -121,7 +122,11 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <TooltipProvider>
+      <RouterProvider router={router} />
+    </TooltipProvider>
+  );
 }
 
 export default App;
