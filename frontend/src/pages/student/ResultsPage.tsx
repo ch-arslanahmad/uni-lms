@@ -5,14 +5,13 @@ import { StatMetric } from "../../components/StatMetric";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
+import { courseResults, resultSemesters, offerings, type CourseResult } from "../../mock/student";
 import {
-  calculateCgpa,
-  calculateSemesterGpa,
-  courseResults,
-  offerings,
-  resultSemesters,
-  type CourseResult,
-} from "../../mock/student";
+  areResultsPublished,
+  calculatePublishedCgpa,
+  calculatePublishedSemesterGpa,
+  publishedCourseResults,
+} from "../../api";
 
 const columns: Column<CourseResult>[] = [
   {
@@ -29,22 +28,22 @@ const columns: Column<CourseResult>[] = [
   {
     key: "percentage",
     label: "Total",
-    render: (r) => (r.percentage === null ? "—" : `${r.percentage}%`),
+    render: (r) => (!areResultsPublished(r.sectionId) || r.percentage === null ? "—" : `${r.percentage}%`),
   },
-  { key: "letter", label: "Grade" },
+  { key: "letter", label: "Grade", render: (r) => (areResultsPublished(r.sectionId) ? r.letter : "—") },
   {
     key: "gradePoints",
     label: "Grade points",
-    render: (r) => (r.gradePoints === null ? "—" : r.gradePoints.toFixed(2)),
+    render: (r) => (!areResultsPublished(r.sectionId) || r.gradePoints === null ? "—" : r.gradePoints.toFixed(2)),
   },
   {
     key: "status",
     label: "Status",
-    render: (r) => (
-      <span className={r.status === "completed" ? "text-emerald-600" : "text-amber-600"}>
-        {r.status === "completed" ? "Completed" : "In progress"}
-      </span>
-    ),
+    render: (r) => {
+      if (r.status === "in-progress") return <span className="text-amber-600">In progress</span>;
+      if (!areResultsPublished(r.sectionId)) return <span className="text-amber-600">Awaiting publication</span>;
+      return <span className="text-emerald-600">Completed</span>;
+    },
   },
   {
     key: "offeringId",
@@ -63,10 +62,11 @@ const columns: Column<CourseResult>[] = [
 function ResultsPage() {
   const semesters = useMemo(() => resultSemesters(), []);
   const [selected, setSelected] = useState<number>(semesters[semesters.length - 1] ?? 1);
-  const cgpa = calculateCgpa();
-  const semesterGpa = calculateSemesterGpa(selected);
+  const cgpa = calculatePublishedCgpa();
+  const semesterGpa = calculatePublishedSemesterGpa(selected);
   const rows = courseResults.filter((r) => r.semester === selected);
-  const completedCredits = courseResults
+  const published = publishedCourseResults();
+  const completedCredits = published
     .filter((r) => r.status === "completed")
     .reduce((sum, r) => sum + r.credits, 0);
 
@@ -81,7 +81,7 @@ function ResultsPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatMetric label="CGPA" value={cgpa === null ? "—" : cgpa.toFixed(2)} highlight />
         <StatMetric label="Semester GPA" value={semesterGpa === null ? "In progress" : semesterGpa.toFixed(2)} />
-        <StatMetric label="Completed courses" value={courseResults.filter((r) => r.status === "completed").length} />
+        <StatMetric label="Completed courses" value={published.filter((r) => r.status === "completed").length} />
         <StatMetric label="Credits earned" value={completedCredits} />
       </div>
 

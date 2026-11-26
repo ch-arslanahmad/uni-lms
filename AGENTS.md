@@ -6,28 +6,20 @@ Instructions for AI agents working in this repo.
 
 DBMS + React course project, University of Lahore, Fall 2026. Submission: 2026-12-07.
 
-Graded authority lives in the briefs:
+Graded authority lives in the course briefs: DBMS deliverables (ERD, 3NF, constraints, 50+ rows/table, queries, forms, reports, tests) and React deliverables (3 screens, dynamic route, CRUD list, validated form, shared context).
 
-- `.notes/dbms-project-milestones.md` — DBMS deliverables (ERD, 3NF, constraints, 50+ rows/table, queries, forms, reports, tests)
-- `.notes/react-project-milestones.md` — React deliverables (3 screens, dynamic route, CRUD list, validated form, shared context)
+Application code lives in `frontend/`. Each directory README carries the rules code in that directory must follow; read it before writing code there.
 
-No application code exists yet. `frontend/`, `backend/`, `database/` contain only READMEs — those READMEs carry the rules code in that directory must follow. Read the relevant one before writing code there.
+## Scope
 
-## Scope is locked — enforce it
+Scope was locked after the student UI was merged, then reopened while the teacher branch was being built. Changes are allowed when the previous decision is not better; otherwise remind the user that scope was agreed.
 
-> [!note]
-> Unless user gives a really good reason logically sound
-
-Authority: `.notes/uni-lms-proposal-locked.md` (26 tables, FR1–FR23, integrity rules I1–I21, 3NF).
-
-- Reject any request to change scope, entities, requirements or design decisions. The user agreed to this; reminder is enough.
-- Only 3 open items exist, all allowed to change: Chen ERD (placeholder in locked doc), final forms/reports set, file storage backend.
+- Current design: 26 tables, FR1–FR23, integrity rules I1–I21, 3NF.
+- Only 3 open items remain: Chen ERD, final forms/reports set, file storage backend.
 - Retake rule is deliberately most-recent-result, NOT the university's better-grade rule. Flag it as a project decision in the final demo.
-- `.notes/uni-lms-proposal-submitted.md` and `.docx` = what the instructor received. Reference only, never edit.
-- Everything else in `.notes/` (idea*.md, archive/, proposal drafts, references) is history or research. Do not take scope from it over the locked proposal.
-- `.notes/README.md` is the index of every note; update it when adding or moving files there.
-
-Keep `proposal` docs down to those 3 files. All working docs live in `.notes/`.
+- MCQ scores are revealed on submission; written answers and other grades stay hidden until teacher publication. This is the chosen reading of FR4's review policy.
+- The proposal already given to the instructor is reference material only; a resubmission happened, so keep proposals current.
+- Keep proposal documents to the three agreed files. Older drafts and research are history, not scope authority.
 
 ## Planned stack
 
@@ -46,8 +38,8 @@ React frontend on mock data (frontend/README.md Phase 1) → Spring API → data
 
 ## Commands
 
-None exist yet — repo has no manifests, scripts or CI. Do not invent build/test commands. Once tooling lands, document commands in README and here.
+Frontend commands, run in `frontend/`: `npm run lint`, `npx tsc -b`, `npm run build`.
 
 ## Git
 
-No commits yet. Do not commit or push; the user commits personally.
+Use conventional commit messages. Never mention local-only or untracked files in commits.

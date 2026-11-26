@@ -4,11 +4,11 @@ import { Link, useOutletContext, useParams, useSearchParams } from "react-router
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Label } from "../../components/ui/label";
-import { Textarea } from "../../components/ui/textarea";
 import { SimpleTable, type Column } from "../../components/SimpleTable";
+import { QuestionThreadCard } from "../../components/student/QuestionThreadCard";
 import type { StudentQuestionsContext } from "../../components/student/StudentLayout";
 import { activityLabel, activityPath, findOffering, grades, type GradeRow } from "../../mock/student";
+import { areResultsPublished } from "../../api";
 import { students } from "../../models";
 
 const gradeColumns: Column<GradeRow>[] = [
@@ -28,7 +28,6 @@ function CoursePage() {
   const view = params.get("view") ?? "course";
   const [askOpen, setAskOpen] = useState(params.get("ask") === "1");
   const [courseNote, setCourseNote] = useState("");
-  const [courseNoteSaved, setCourseNoteSaved] = useState("");
 
   if (!offering) {
     return (
@@ -44,9 +43,10 @@ function CoursePage() {
     { label: "Grades", value: "grades", to: `/student/courses/${offering.offeringId}?view=grades` },
   ];
 
-  const gradeRows = grades.filter((g) => g.course === offering.code);
+  const gradeRows = grades.filter((g) => g.offeringId === offering.offeringId);
   const total = gradeRows.reduce((sum, r) => sum + (r.raw / r.max) * r.weight, 0);
   const gpa = (total / 100) * 4;
+  const gradesPublished = areResultsPublished(offering.sectionId);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
@@ -64,54 +64,24 @@ function CoursePage() {
         </Button>
       </div>
 
-      {askOpen && (
-        <Card>
-          <CardHeader><CardTitle>Ask instructor</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <Label htmlFor="course-note">Your question</Label>
-            <Textarea id="course-note" value={courseNote} onChange={(e) => setCourseNote(e.target.value)} placeholder="Ask one clear question, if needed" />
-            <p className="text-xs text-muted-foreground">Tip: batch your questions into one message. Include context, what you tried, and what you need clarified.</p>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => {
-                const text = courseNote.trim();
-                if (!text) return;
-                saveQuestion({ contextType: "course", contextLabel: `${offering.code}-${offering.section} - ${offering.title}`, contextTo: `/student/courses/${offering.offeringId}`, question: text });
-                setCourseNoteSaved(text);
-                setCourseNote("");
-              }}>Send question</Button>
-              {courseNoteSaved && <span className="self-center text-xs text-muted-foreground">Question sent. Check My questions for replies.</span>}
-            </div>
-            {(() => {
-              const courseQuestions = questions.filter((q) => q.contextTo === `/student/courses/${offering.offeringId}`);
-              if (courseQuestions.length === 0) return null;
-              return (
-                <div className="space-y-2 border-t pt-3">
-                  <p className="text-xs font-medium text-muted-foreground">Your questions for this course</p>
-                  {courseQuestions.map((q) => {
-                    const status = q.answer && !q.readAt ? "Answered (new)" : q.answer ? "Read" : "Pending";
-                    return (
-                      <div key={q.id} className="rounded border px-3 py-2 text-sm">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium">{q.question}</p>
-                          <span className={`shrink-0 text-xs ${status === "Answered (new)" ? "text-blue-600 font-medium" : "text-muted-foreground"}`}>{status}</span>
-                        </div>
-                        {q.answer ? (
-                          <div className="mt-2 text-muted-foreground">
-                            <p><span className="font-medium text-foreground">{q.responderName}:</span> {q.answer}</p>
-                            <p className="mt-1 text-xs">{q.answeredAt}</p>
-                          </div>
-                        ) : (
-                          <p className="mt-1 text-xs text-muted-foreground">No reply yet.</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+      <QuestionThreadCard
+        open={askOpen}
+        title="Ask instructor"
+        note={courseNote}
+        onNoteChange={setCourseNote}
+        onCancel={() => setAskOpen(false)}
+        onSend={(text, visibility) => {
+          saveQuestion({
+            contextType: "course",
+            contextLabel: `${offering.code}-${offering.section} - ${offering.title}`,
+            contextTo: `/student/courses/${offering.offeringId}`,
+            question: text,
+            visibility,
+          });
+          setCourseNote("");
+        }}
+        questions={questions.filter((q) => q.contextTo === `/student/courses/${offering.offeringId}`)}
+      />
 
       <nav className="flex flex-wrap gap-1 border-b">
         {tabs.map((tab) => (
@@ -140,22 +110,31 @@ function CoursePage() {
           </CardContent>
         </Card>
       ) : view === "grades" ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card><CardHeader><CardTitle className="text-sm">Weighted total</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{total.toFixed(2)}%</CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-sm">GPA contribution</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{gpa.toFixed(2)}</CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-sm">Credit hours</CardTitle></CardHeader><CardContent className="text-2xl font-bold">4</CardContent></Card>
-          </div>
+        !gradesPublished ? (
           <Card>
-            <CardHeader><CardTitle>Assessment breakdown</CardTitle></CardHeader>
-            <CardContent>
-              <SimpleTable columns={gradeColumns} data={gradeRows} searchable={false} searchKeys={["title"]} />
-              <p className="mt-3 text-xs text-muted-foreground">
-                Weighted marks = (obtained / max) x weightage. GPA contribution = weighted total / 25.
-              </p>
+            <CardHeader><CardTitle>Grades not published</CardTitle></CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Your marks and feedback appear here after the teacher publishes results for this section.
             </CardContent>
           </Card>
-        </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Card><CardHeader><CardTitle className="text-sm">Weighted total</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{total.toFixed(2)}%</CardContent></Card>
+              <Card><CardHeader><CardTitle className="text-sm">GPA contribution</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{gpa.toFixed(2)}</CardContent></Card>
+              <Card><CardHeader><CardTitle className="text-sm">Credit hours</CardTitle></CardHeader><CardContent className="text-2xl font-bold">4</CardContent></Card>
+            </div>
+            <Card>
+              <CardHeader><CardTitle>Assessment breakdown</CardTitle></CardHeader>
+              <CardContent>
+                <SimpleTable columns={gradeColumns} data={gradeRows} searchable={false} searchKeys={["title"]} />
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Weighted marks = (obtained / max) x weightage. GPA contribution = weighted total / 25.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">

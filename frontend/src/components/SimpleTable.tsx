@@ -6,6 +6,14 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { SearchInput } from "./SearchInput";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "./ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import {
   Table,
@@ -208,47 +216,44 @@ export function SimpleTable<T>({
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(0)}
-              disabled={safePage === 0}
-              aria-label="First page"
-            >
-              «
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((current) => Math.max(0, current - 1))}
-              disabled={safePage === 0}
-              aria-label="Previous page"
-            >
-              ‹
-            </Button>
             <span className="text-muted-foreground">
               Page {safePage + 1} of {pageCount}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setPage((current) => Math.min(pageCount - 1, current + 1))
-              }
-              disabled={safePage >= pageCount - 1}
-              aria-label="Next page"
-            >
-              ›
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(pageCount - 1)}
-              disabled={safePage >= pageCount - 1}
-              aria-label="Last page"
-            >
-              »
-            </Button>
+            <Pagination className="mx-0 w-auto">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    aria-disabled={safePage === 0}
+                    className={safePage === 0 ? "pointer-events-none opacity-50" : undefined}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setPage((current) => Math.max(0, current - 1));
+                    }}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationLink
+                    href="#"
+                    isActive
+                    onClick={(event) => event.preventDefault()}
+                  >
+                    {safePage + 1}
+                  </PaginationLink>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    aria-disabled={safePage >= pageCount - 1}
+                    className={safePage >= pageCount - 1 ? "pointer-events-none opacity-50" : undefined}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setPage((current) => Math.min(pageCount - 1, current + 1));
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         </div>
       )}

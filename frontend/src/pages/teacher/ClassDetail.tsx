@@ -5,15 +5,18 @@ import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { Textarea } from "../../components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { SimpleTable } from "../../components/SimpleTable";
 import { SubmissionFileUpload } from "../../components/student/SubmissionFileUpload";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { useAdminStore } from "../../lib/adminStore";
+import { examTypeLabel } from "../../mock/calendar";
 import {
   calculateCourseResults,
   fileToSubmissionFile,
@@ -21,7 +24,11 @@ import {
   getSectionStudents,
   getTeacherSection,
   makeAssessmentReference,
+  requiresViva,
+  type AssessmentKind,
+  type AssessmentMode,
   type AssessmentQuestion,
+  type AssessmentItemType,
   type RequirementType,
   type SubmissionFile,
   type SubmissionMode,
@@ -29,11 +36,40 @@ import {
 } from "../../api";
 
 const CATEGORY_OPTIONS = ["Assignments", "Quizzes", "Project", "Midterm", "Final", "Lab"] as const;
-function inferKind(category: string): TeacherAssessment["kind"] {
+const KIND_OPTIONS: { value: AssessmentKind; label: string }[] = [
+  { value: "quiz", label: "Quiz" },
+  { value: "midterm", label: "Midterm" },
+  { value: "final", label: "Final" },
+  { value: "project", label: "Project" },
+];
+
+function kindForCategory(category: string): AssessmentKind | undefined {
   if (category === "Quizzes") return "quiz";
-  if (category === "Midterm" || category === "Final") return "exam";
+  if (category === "Midterm") return "midterm";
+  if (category === "Final") return "final";
   if (category === "Project") return "project";
-  return "assignment";
+  return undefined;
+}
+
+function categoryForKind(kind: AssessmentKind): string {
+  if (kind === "quiz") return "Quizzes";
+  if (kind === "project") return "Project";
+  return kind === "midterm" ? "Midterm" : "Final";
+}
+
+function assessmentLabel(assessment: TeacherAssessment): string {
+  if (assessment.itemType === "assignment") return "Assignment";
+  return assessment.kind ?? "Assessment";
+}
+
+function defaultModeForKind(kind: AssessmentKind, current?: AssessmentMode): AssessmentMode {
+  if (kind === "midterm" || kind === "final") return "paper";
+  if (kind === "project") return "online_attachment";
+  return current === "online_attachment" ? current : "online_mcq";
+}
+
+function submissionModeFor(mode: AssessmentMode | undefined, fallback: SubmissionMode): SubmissionMode {
+  return mode === "paper" ? "physical" : fallback;
 }
 const WEEK_RANGES = [
   "25 August - 31 August", "1 September - 7 September", "8 September - 14 September", "15 September - 21 September",
@@ -51,7 +87,113 @@ function toLocalInput(value?: string) {
   return normalized.length === 10 ? `${normalized}T09:00` : normalized.slice(0, 16);
 }
 function IconBtn({ title, onClick, children, danger }: { title: string; onClick: () => void; children: React.ReactNode; danger?: boolean }) {
-  return <Button variant="ghost" size="icon" className={danger ? "text-red-600 hover:text-red-700" : "text-muted-foreground hover:text-foreground"} title={title} aria-label={title} onClick={onClick}>{children}</Button>;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className={danger ? "text-red-600 hover:text-red-700" : "text-muted-foreground hover:text-foreground"}
+            aria-label={title}
+            onClick={onClick}
+          >
+            {children}
+          </Button>
+        }
+      />
+      <TooltipContent>{title}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+type AssessmentDraft = {
+  itemType: AssessmentItemType;
+  kind: AssessmentKind;
+  mode: AssessmentMode;
+  category: string;
+  maxMarks: string;
+  openAt: string;
+  dueAt: string;
+  closeAt: string;
+  instructions: string;
+  submissionMode: SubmissionMode;
+  requirements: { type: RequirementType; isRequired: boolean }[];
+  documentName: string;
+  physicalRoom: string;
+};
+
+function draftForKind(current: AssessmentDraft, kind: AssessmentKind): AssessmentDraft {
+  const mode = defaultModeForKind(kind, current.mode);
+  return {
+    ...current,
+    itemType: "assessment",
+    kind,
+    mode,
+    category: categoryForKind(kind),
+    submissionMode: submissionModeFor(mode, current.submissionMode),
+    physicalRoom: mode === "paper" ? current.physicalRoom : "",
+    requirements: kind === "project"
+      ? [
+          { type: "attachment", isRequired: true },
+          { type: "written_work", isRequired: true },
+        ]
+      : current.requirements,
+  };
+}
+
+function draftForItemType(current: AssessmentDraft, itemType: AssessmentItemType): AssessmentDraft {
+  if (itemType === "assessment") return draftForKind(current, current.kind);
+  return {
+    ...current,
+    itemType: "assignment",
+    category: "Assignments",
+    mode: "online_mcq",
+    submissionMode: "upload",
+    physicalRoom: "",
+  };
+}
+
+function draftFromAssessment(assessment: TeacherAssessment): AssessmentDraft {
+  const legacy = assessment as TeacherAssessment & { hasMcq?: boolean; submissionModes?: SubmissionMode[] };
+  const rawItemType = String(assessment.itemType ?? "");
+  const itemType: AssessmentItemType = rawItemType === "assignment" || rawItemType === "assessment"
+    ? rawItemType
+    : (String(assessment.kind ?? "") === "assignment" || assessment.category === "Assignments" || assessment.category === "Lab")
+      ? "assignment"
+      : "assessment";
+  const rawKind = String(assessment.kind ?? "");
+  const kind: AssessmentKind = rawKind === "quiz" || rawKind === "midterm" || rawKind === "final" || rawKind === "project"
+    ? rawKind
+    : kindForCategory(assessment.category) ?? "quiz";
+  const rawMode = String(assessment.mode ?? "");
+  const mode: AssessmentMode = rawMode === "online_mcq" || rawMode === "online_attachment" || rawMode === "paper"
+    ? rawMode
+    : (legacy.submissionModes as string[] | undefined)?.includes("online") || legacy.hasMcq
+      ? "online_mcq"
+      : defaultModeForKind(kind);
+  const rawSubmissionMode = String(assessment.submissionMode ?? "");
+  const submissionMode: SubmissionMode = rawSubmissionMode === "upload" || rawSubmissionMode === "physical"
+    ? rawSubmissionMode
+    : legacy.submissionModes?.includes("physical") ? "physical" : "upload";
+
+  return {
+    itemType,
+    kind,
+    mode,
+    category: assessment.category,
+    maxMarks: String(assessment.maxMarks),
+    openAt: toLocalInput(assessment.openAt),
+    dueAt: toLocalInput(assessment.dueAt),
+    closeAt: toLocalInput(assessment.closeAt),
+    instructions: assessment.instructions,
+    submissionMode: itemType === "assessment" ? submissionModeFor(mode, submissionMode) : submissionMode,
+    requirements: assessment.requirements?.length
+      ? assessment.requirements
+      : [{ type: "attachment" as RequirementType, isRequired: true }],
+    documentName: assessment.documentName ?? "",
+    physicalRoom: assessment.physicalRoom ?? "",
+  };
 }
 
 function ClassDetail() {
@@ -86,15 +228,21 @@ function ClassDetail() {
   const [matName, setMatName] = useState(""); const [matUrl, setMatUrl] = useState(""); const [matSize, setMatSize] = useState(""); const [matErr, setMatErr] = useState("");
   const [matFile, setMatFile] = useState<SubmissionFile | null>(null);
   const [actFile, setActFile] = useState<SubmissionFile | null>(null);
-  const emptyAct = () => ({
+  const emptyAct = (): AssessmentDraft => ({
+    itemType: "assignment", kind: "quiz", mode: "online_mcq",
     category: "Assignments", maxMarks: "100", openAt: "", dueAt: "", closeAt: "",
     instructions: "",
-    submissionModes: ["upload"] as SubmissionMode[],
+    submissionMode: "upload",
     requirements: [{ type: "attachment" as RequirementType, isRequired: true }],
-    hasViva: false, documentName: "", physicalRoom: "",
+    documentName: "", physicalRoom: "",
   });
   const [act, setAct] = useState(emptyAct);
-  const paperOnly = act.category === "Midterm" || act.category === "Final";
+  const paperOnly = act.itemType === "assessment" && act.mode === "paper";
+  const vivaRequired = requiresViva({
+    itemType: act.itemType,
+    kind: act.itemType === "assessment" ? act.kind : undefined,
+    submissionMode: act.submissionMode,
+  });
   const [actErr, setActErr] = useState(""); const [showAddForm, setShowAddForm] = useState(false);
   const [editActId, setEditActId] = useState<string | null>(null);
   const [addType, setAddType] = useState<"assessment" | "class">("assessment");
@@ -151,7 +299,7 @@ function ClassDetail() {
     if (e) { setEvtErr(e); return; }
     if (evt.endAt < evt.startAt) { setEvtErr("End must be after or equal to start."); return; }
     const day = evt.startAt.slice(0, 10);
-    const examConflict = assessments.find((a) => a.sectionId === section!.id && (a.category === "Midterm" || a.category === "Final" || a.kind === "exam") && (a.dueAt || a.openAt).slice(0, 10) === day);
+    const examConflict = assessments.find((a) => a.sectionId === section!.id && (a.kind === "midterm" || a.kind === "final") && (a.dueAt || a.openAt).slice(0, 10) === day);
     if (examConflict) { setEvtErr(`Cannot schedule a class session on exam day (${examConflict.title}, ${examConflict.dueAt || examConflict.openAt}).`); return; }
     const norm = (v: string) => v.replace("T", " ");
     const payload = { title: evt.title.trim(), startAt: norm(evt.startAt), endAt: norm(evt.endAt), room: evt.room.trim() || undefined };
@@ -168,19 +316,7 @@ function ClassDetail() {
     setEditActId(assessment.id);
     setShowAddForm(true);
     setActErr("");
-    setAct({
-      category: assessment.category,
-      maxMarks: String(assessment.maxMarks),
-      openAt: toLocalInput(assessment.openAt),
-      dueAt: toLocalInput(assessment.dueAt),
-      closeAt: toLocalInput(assessment.closeAt),
-      instructions: assessment.instructions,
-      submissionModes: assessment.submissionModes,
-      requirements: assessment.requirements?.length ? assessment.requirements : [{ type: "attachment", isRequired: true }],
-      hasViva: assessment.hasViva ?? false,
-      documentName: assessment.documentName ?? "",
-      physicalRoom: assessment.physicalRoom ?? "",
-    });
+    setAct(draftFromAssessment(assessment));
     setActFile(assessment.document ?? null);
     requestAnimationFrame(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
@@ -194,16 +330,18 @@ function ClassDetail() {
   }
 
   function saveAssessment() {
-    const kind = inferKind(act.category);
-    const submissionModes: SubmissionMode[] = paperOnly ? ["physical"] : act.submissionModes;
+    const itemType = act.itemType;
+    const kind = itemType === "assessment" ? act.kind : undefined;
+    const mode = itemType === "assessment" ? act.mode : undefined;
+    const submissionMode = mode === "paper" ? "physical" : act.submissionMode;
+    const category = itemType === "assessment" && kind ? categoryForKind(kind) : act.category;
+    const documentRequired = !(itemType === "assessment" && kind === "quiz");
     const e = err(act.openAt, "Open date/time is required.") || err(act.dueAt, "Due date/time is required.")
       || err(act.closeAt, "Close date/time is required.")
       || err(act.instructions, "Instructions are required.")
-      || (kind !== "quiz" ? err(act.documentName || (actFile?.name ?? ""), "A relevant document is required.") : "")
+      || (documentRequired ? err(act.documentName || (actFile?.name ?? ""), "A relevant document is required.") : "")
       || ((!Number(act.maxMarks) || Number(act.maxMarks) <= 0) ? "Max marks must be > 0." : "")
-      || (!submissionModes.length ? "Select at least one submission mode." : "")
-      || (paperOnly && act.submissionModes.some((m) => m !== "physical") ? "Midterm and Final are paper-based: only Physical submission is allowed." : "")
-      || (submissionModes.includes("physical") ? err(act.physicalRoom, "Room/location is required for physical assessments.") : "")
+      || (submissionMode === "physical" ? err(act.physicalRoom, "Room/location is required for physical items.") : "")
       || (!act.requirements.length ? "Add at least one submission requirement." : "")
       || (!act.requirements.some((r) => r.isRequired) ? "At least one requirement must be marked required." : "")
       || (act.closeAt && act.dueAt && act.closeAt < act.dueAt ? "Close time must be after the due time." : "")
@@ -212,26 +350,24 @@ function ClassDetail() {
 
     const documentName = act.documentName.trim() || actFile?.name || undefined;
     const patch = {
-      kind, instructions: act.instructions.trim(),
-      category: act.category, maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, closeAt: act.closeAt,
-      submissionModes, requirements: act.requirements,
-      physicalRoom: submissionModes.includes("physical") ? act.physicalRoom.trim() : undefined,
-      hasViva: submissionModes.includes("physical") ? act.hasViva : undefined,
-      hasMcq: kind === "quiz" && submissionModes.includes("online"),
+      itemType, kind, mode, instructions: act.instructions.trim(), category,
+      maxMarks: Number(act.maxMarks), openAt: act.openAt, dueAt: act.dueAt, closeAt: act.closeAt,
+      submissionMode, requirements: act.requirements,
+      physicalRoom: submissionMode === "physical" ? act.physicalRoom.trim() : undefined,
       documentName,
       document: actFile ?? (documentName ? makeAssessmentReference(documentName) : undefined),
-      required: paperOnly,
+      required: mode === "paper",
     };
     if (editActId) {
       ctx.setAssessments((prev) => prev.map((item) => item.id === editActId ? { ...item, ...patch } : item));
-      if (kind === "quiz" || kind === "exam") setQActId(editActId);
+      if (kind) setQActId(editActId);
     } else {
       const newAct: TeacherAssessment = {
         id: `act-${crypto.randomUUID()}`, sectionId: section!.id,
-        title: suggestTitle(act.category), published: true, ...patch,
+        title: suggestTitle(category), published: true, ...patch,
       };
       ctx.setAssessments((prev) => [newAct, ...prev]);
-      if (newAct.kind === "quiz" || newAct.kind === "exam") setQActId(newAct.id);
+      if (newAct.kind) setQActId(newAct.id);
     }
     closeAssessmentForm();
   }
@@ -254,7 +390,7 @@ function ClassDetail() {
   function publishResults() {
     const total = categories.reduce((s, c) => s + c.weight, 0);
     if (total !== 100) { setPublishErr("Category weights must total 100% before publishing."); return; }
-    if (!assessments.some((a) => a.category === "Midterm") || !assessments.some((a) => a.category === "Final")) {
+    if (!assessments.some((a) => a.kind === "midterm") || !assessments.some((a) => a.kind === "final")) {
       setPublishErr("Midterm and Final assessments must exist before publishing."); return;
     }
     if (results.length === 0 || results.some((r) => !r.complete)) {
@@ -429,13 +565,13 @@ function ClassDetail() {
                     <p className="text-xs font-medium text-muted-foreground">Admin datesheet for your section</p>
                     {!admin.datesheetPublished ? (
                       <p className="rounded border p-2 text-sm text-muted-foreground">Not published yet.</p>
-                    ) : admin.examDatesheet.filter((e) => e.classSection.endsWith(section?.section.code ?? "__none")).length === 0 ? (
+                    ) : admin.examDatesheet.filter((e) => e.sectionId === section.section.id).length === 0 ? (
                       <p className="rounded border p-2 text-sm text-muted-foreground">No midterm or final papers scheduled for this section.</p>
                     ) : admin.examDatesheet
-                        .filter((e) => e.classSection.endsWith(section?.section.code ?? "__none"))
+                        .filter((e) => e.sectionId === section.section.id)
                         .map((entry) => (
                           <div key={entry.id} className="rounded border border-amber-200 bg-amber-50/50 p-2 text-sm">
-                            <p className="font-medium">{entry.examType} · {entry.subjectCode} {entry.subjectTitle}</p>
+                            <p className="font-medium">{examTypeLabel(entry.examType)} · {entry.subjectCode} {entry.subjectTitle}</p>
                             <p className="text-xs text-muted-foreground">
                               {entry.examDate} ({entry.dayOfWeek}) · {entry.timeSlot}
                             </p>
@@ -443,7 +579,7 @@ function ClassDetail() {
                         ))}
                   </div>
                   {(() => {
-                    const mandatory = assessments.filter((a) => a.category === "Midterm" || a.category === "Final");
+                    const mandatory = assessments.filter((a) => a.kind === "midterm" || a.kind === "final");
                     return mandatory.length > 0 ? (
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-muted-foreground">Mandatory assessments (dates set by admin)</p>
@@ -534,69 +670,116 @@ function ClassDetail() {
                     {addType === "assessment" ? (
                       <>
                         <div className="space-y-2">
-                          <Label>Category</Label>
-                          <Select value={act.category} onValueChange={v => {
-                            if (!v) return;
-                            const isPaper = v === "Midterm" || v === "Final";
-                            setAct({
-                              ...act,
-                              category: v,
-                              submissionModes: isPaper ? ["physical"] : (v === "Quizzes" ? ["online"] : ["upload"]),
-                              physicalRoom: isPaper ? act.physicalRoom : "",
-                              requirements: v === "Project" ? [
-                                { type: "attachment" as RequirementType, isRequired: true },
-                                { type: "text" as RequirementType, isRequired: true },
-                              ] : act.requirements,
-                            });
-                          }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
-                          <p className="text-xs text-muted-foreground">Category determines grading bucket and assessment behavior. Title is auto-numbered (e.g. {suggestTitle(act.category)}).</p>
+                          <Label>Item type</Label>
+                          <Select
+                            value={act.itemType}
+                            onValueChange={(v) => {
+                              if (v === "assignment" || v === "assessment") setAct((prev) => draftForItemType(prev, v));
+                            }}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="assignment">Assignment</SelectItem>
+                              <SelectItem value="assessment">Assessment</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
+                        {act.itemType === "assessment" ? (
+                          <>
+                            <div className="space-y-2">
+                              <Label>Assessment kind</Label>
+                              <Select
+                                value={act.kind}
+                                onValueChange={(v) => {
+                                  const kind = KIND_OPTIONS.find((option) => option.value === v)?.value;
+                                  if (kind) setAct((prev) => draftForKind(prev, kind));
+                                }}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {KIND_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Mode</Label>
+                              <Select
+                                value={act.mode}
+                                disabled={act.kind !== "quiz"}
+                                onValueChange={(v) => {
+                                  if (v === "online_mcq" || v === "online_attachment") setAct((prev) => ({ ...prev, mode: v }));
+                                }}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="online_mcq">Online MCQ</SelectItem>
+                                  <SelectItem value="online_attachment">Online attachment</SelectItem>
+                                  <SelectItem value="paper">Paper</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                {paperOnly
+                                  ? "Midterm and Final are paper-based and submitted physically."
+                                  : act.mode === "online_mcq"
+                                    ? "Students answer MCQs in the app; no upload is required."
+                                    : "Students upload an attachment for grading."}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="space-y-2">
+                              <Label>Category</Label>
+                              <Select value={act.category} onValueChange={(v) => { if (v === "Assignments" || v === "Lab") setAct((prev) => ({ ...prev, category: v })); }}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Assignments">Assignments</SelectItem>
+                                  <SelectItem value="Lab">Lab</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Submission mode</Label>
+                              <Select value={act.submissionMode} onValueChange={(v) => {
+                                if (v === "upload" || v === "physical") setAct((prev) => ({ ...prev, submissionMode: v, physicalRoom: v === "physical" ? prev.physicalRoom : "" }));
+                              }}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="upload">Upload (attachment)</SelectItem>
+                                  <SelectItem value="physical">Physical</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </>
+                        )}
                         <div className="space-y-2"><Label>Max marks</Label><Input type="number" value={act.maxMarks} onChange={e => setAct({ ...act, maxMarks: e.target.value })} /></div>
-                        <div className="space-y-2 md:col-span-2">
-                          <Label>Submission modes</Label>
-                          <div className="flex flex-wrap gap-4">
-                            {([["online", "Online (in-app)"], ["upload", "Upload (attachment)"], ["physical", "Physical (paper)"]] as const).map(([value, label]) => (
-                              <label key={value} className="flex items-center gap-2 text-sm">
-                                <input
-                                  type="checkbox"
-                                  disabled={paperOnly && value !== "physical"}
-                                  checked={act.submissionModes.includes(value)}
-                                  onChange={(e) => setAct((prev) => ({
-                                    ...prev,
-                                    submissionModes: e.target.checked
-                                      ? [...prev.submissionModes, value]
-                                      : prev.submissionModes.filter((m) => m !== value),
-                                  }))}
-                                />
-                                {label}
-                              </label>
-                            ))}
-                          </div>
-                          <p className="text-xs text-muted-foreground">{paperOnly ? "Midterm and Final are paper-based: only Physical is allowed." : "Attachment-based quiz: choose Upload. In-app MCQ quiz: choose Online."}</p>
-                        </div>
                         <div className="space-y-2"><Label>Open at</Label><Input type="datetime-local" value={act.openAt} onChange={e => setAct({ ...act, openAt: e.target.value })} /></div>
                         <div className="space-y-2"><Label>Due at</Label><Input type="datetime-local" value={act.dueAt} onChange={e => setAct({ ...act, dueAt: e.target.value })} /></div>
                         <div className="space-y-2"><Label>Close at</Label><Input type="datetime-local" value={act.closeAt} onChange={e => setAct({ ...act, closeAt: e.target.value })} /></div>
                         <p className="text-xs text-muted-foreground md:col-span-3 -mt-1">
-                          Students see the title and schedule right away. The attachment and quiz questions unlock at Open at; attempts and uploads close at Close at. Grades stay hidden until results are published.
+                          Students see the title and schedule right away. The attachment and quiz questions unlock at Open at; attempts and uploads close at Close at. MCQ scores appear after submission; other grades stay hidden until results are published.
                         </p>
-                        {act.submissionModes.includes("physical") && <>
+                        {act.submissionMode === "physical" && <>
                           <div className="space-y-2"><Label>Room / location</Label><Input value={act.physicalRoom} onChange={e => setAct({ ...act, physicalRoom: e.target.value })} placeholder="e.g. Exam Hall A" /></div>
-                          <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" checked={act.hasViva} onChange={e => setAct({ ...act, hasViva: e.target.checked })} />Includes viva</label>
-                          <p className="text-xs text-muted-foreground md:col-span-2 -mt-2">Physical submission means in-person assessment; enable viva if students will also be assessed orally.</p>
                         </>}
+                        <p className="text-xs text-muted-foreground md:col-span-2">
+                          {vivaRequired ? "Viva is required for physical assignments and projects." : "No viva for this item."}
+                        </p>
                         <div className="md:col-span-2 space-y-2">
-                          <div className="flex items-center justify-between"><Label>Submission requirements</Label><Button size="sm" variant="outline" onClick={() => setAct((prev) => ({ ...prev, requirements: [...prev.requirements, { type: "text", isRequired: false }] }))}><Plus className="size-4" /> Add requirement</Button></div>
+                          <div className="flex items-center justify-between"><Label>Submission requirements</Label><Button size="sm" variant="outline" onClick={() => setAct((prev) => ({ ...prev, requirements: [...prev.requirements, { type: "written_work", isRequired: false }] }))}><Plus className="size-4" /> Add requirement</Button></div>
                           {act.requirements.map((r, index) => (
                             <div key={index} className="grid items-end gap-2 sm:grid-cols-[1fr_auto_auto]">
                               <div className="space-y-1">
                                 <Label>Type</Label>
                                 <Select value={r.type} onValueChange={v => v && setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, type: v as RequirementType } : item) }))}>
                                   <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="attachment">Attachment</SelectItem></SelectContent>
+                                  <SelectContent><SelectItem value="written_work">Written work</SelectItem><SelectItem value="attachment">Attachment</SelectItem></SelectContent>
                                 </Select>
                               </div>
-                              <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={r.isRequired} onChange={(e) => setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, isRequired: e.target.checked } : item) }))} /> Required</label>
+                              <label className="flex items-center gap-2 pb-2 text-sm">
+                                <Checkbox checked={r.isRequired} onCheckedChange={(checked) => setAct((prev) => ({ ...prev, requirements: prev.requirements.map((item, i) => i === index ? { ...item, isRequired: checked } : item) }))} />
+                                Required
+                              </label>
                               <IconBtn title="Remove requirement" danger onClick={() => setAct((prev) => ({ ...prev, requirements: prev.requirements.filter((_, i) => i !== index) }))}><Trash2 className="size-4" /></IconBtn>
                             </div>
                           ))}
@@ -647,7 +830,7 @@ function ClassDetail() {
                         <p className="text-sm text-muted-foreground">No assessments this week.</p>
                       )}
                       {weekActs.map((a) => {
-                        const isQuizExam = a.kind === "quiz" || a.kind === "exam";
+                        const supportsQuestions = a.itemType === "assessment";
                         const actQuestions = ctx.assessmentQuestions.filter(q => q.assessmentId === a.id);
                         return (
                           <div key={a.id} className="space-y-2">
@@ -655,17 +838,17 @@ function ClassDetail() {
                               <div>
                                 <p className="font-medium flex items-center gap-2">{a.title}{a.required && <Badge variant="secondary">Required</Badge>}{a.required && !a.documentName && <Badge variant="secondary" className="gap-1"><AlertCircle className="size-3" />Pending document</Badge>}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {a.kind} - Opened {a.openAt} - Due {a.dueAt}{a.closeAt ? ` - Closes ${a.closeAt}` : ""} - Modes: {a.submissionModes.join(", ") || "none"}{a.requirements?.length ? ` - Requires: ${a.requirements.map((r) => `${r.type}${r.isRequired ? "*" : ""}`).join(", ")}` : ""}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{a.hasViva ? " - Viva" : ""}
+                                  {assessmentLabel(a)} - Opened {a.openAt} - Due {a.dueAt}{a.closeAt ? ` - Closes ${a.closeAt}` : ""}{a.mode ? ` - Mode: ${a.mode}` : ""} - Submission: {a.submissionMode}{a.requirements?.length ? ` - Requires: ${a.requirements.map((r) => `${r.type}${r.isRequired ? "*" : ""}`).join(", ")}` : ""}{a.documentName ? ` - ${a.documentName}` : ""}{a.physicalRoom ? ` - ${a.physicalRoom}` : ""}{requiresViva(a) ? " - Viva required" : ""}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1">
                                 <Link to={`/teacher/grading?assessment=${a.id}`} title="Open grading queue" aria-label="Open grading queue" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><ExternalLink className="size-4" /></Link>
-                                {isQuizExam && <IconBtn title="Manage assessment questions" onClick={() => setQActId(qActId === a.id ? "" : a.id)}><HelpCircle className="size-4" /></IconBtn>}
+                                {supportsQuestions && <IconBtn title="Manage assessment questions" onClick={() => setQActId(qActId === a.id ? "" : a.id)}><HelpCircle className="size-4" /></IconBtn>}
                                 <IconBtn title="Edit assessment" onClick={() => openEditAssessment(a)}><Pencil className="size-4" /></IconBtn>
                                 <IconBtn title="Delete assessment" danger onClick={() => ctx.setAssessments((prev) => prev.filter((x) => x.id !== a.id))}><Trash2 className="size-4" /></IconBtn>
                               </div>
                             </div>
-                            {qActId === a.id && isQuizExam && (
+                            {qActId === a.id && supportsQuestions && (
                               <div className="space-y-3 rounded border p-3 text-sm">
                                 <p className="font-medium">Assessment questions</p>
                                 <div className="space-y-2">{actQuestions.map(q => (

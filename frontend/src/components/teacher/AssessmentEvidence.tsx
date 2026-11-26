@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import { buttonVariants } from "../ui/button";
-import { mcqMarksFor } from "../../api";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { isMcqAssessment, mcqMarksFor } from "../../api";
 import type {
   AssessmentAnswer,
   AssessmentQuestion,
@@ -49,7 +50,7 @@ export function AttachmentCard({ file }: { file: SubmissionFile }) {
 }
 
 export function AssessmentReference({ assessment }: { assessment: TeacherAssessment }) {
-  const isMcq = assessment.hasMcq || assessment.kind === "quiz";
+  const isMcq = isMcqAssessment(assessment);
   if (isMcq && !assessment.document && !assessment.documentName) {
     return (
       <section className="px-6 py-6">
@@ -115,9 +116,12 @@ export function AssessmentAnswers({ questions, answers, submittedAt, onWrittenMa
             <div key={question.id} className="space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <p className="font-medium text-slate-900">{question.text}</p>
-                <span className="shrink-0 text-xs tabular-nums text-slate-500" title="Calculated from the answer key">
-                  {mcqMarksFor(question, answer)} / {question.marks} (auto)
-                </span>
+                <Tooltip>
+                  <TooltipTrigger render={<span className="shrink-0 text-xs tabular-nums text-slate-500" />}>
+                    {mcqMarksFor(question, answer)} / {question.marks} (auto)
+                  </TooltipTrigger>
+                  <TooltipContent>Calculated from the answer key</TooltipContent>
+                </Tooltip>
               </div>
               <div className="space-y-1.5">
                 {(question.options ?? []).map((option, index) => {

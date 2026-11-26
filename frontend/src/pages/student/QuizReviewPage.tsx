@@ -1,20 +1,24 @@
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { areQuizScoresPublished, getStudentQuizzes, isWrittenQuestion, QUIZ_SCORES_MESSAGE, type QuizAnswerValue } from "../../api";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../../components/ui/empty";
+import {
+  getQuizAttempt,
+  getStudentQuizzes,
+  isWrittenQuestion,
+  QUIZ_SCORES_MESSAGE,
+} from "../../api";
 
 function QuizReviewPage() {
   const { quizId } = useParams();
-  const { state } = useLocation() as { state?: { answers?: Record<string, QuizAnswerValue>; score?: number } };
   const quiz = getStudentQuizzes().find((q) => q.id === quizId);
   if (!quiz) return <div className="mx-auto max-w-5xl px-4 py-8">Quiz not found.</div>;
 
-  const scoresPublished = areQuizScoresPublished(quiz);
   const hasWritten = quiz.questions.some(isWrittenQuestion);
-  const submitted = state?.answers !== undefined;
-  const answers = state?.answers ?? {};
-  const score = state?.score ?? quiz.grade;
+  const attempt = getQuizAttempt(quiz);
+  const answers = attempt?.answers ?? {};
+  const score = attempt?.score ?? quiz.grade;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
@@ -23,7 +27,7 @@ function QuizReviewPage() {
         <div>
           <h1 className="text-2xl font-bold">{quiz.title} - Results</h1>
           <p className="text-sm text-muted-foreground">
-            {scoresPublished
+            {attempt
               ? hasWritten
                 ? `Auto-graded score: ${score.toFixed(2)} / ${quiz.max.toFixed(2)} (written answers graded by teacher)`
                 : `Score: ${score.toFixed(2)} / ${quiz.max.toFixed(2)}`
@@ -33,20 +37,15 @@ function QuizReviewPage() {
         <Link to={`/student/quizzes/${quiz.id}`}><Button variant="outline" size="sm">Back to summary</Button></Link>
       </div>
 
-      {!submitted ? (
-        <Card>
-          <CardHeader><CardTitle>No attempt to review</CardTitle></CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            No submitted answers were found for this assessment. Open the assessment to start an attempt.
-          </CardContent>
-        </Card>
-      ) : !scoresPublished ? (
-        <Card>
-          <CardHeader><CardTitle>Scores not published yet</CardTitle></CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Your answers were submitted. {QUIZ_SCORES_MESSAGE}
-          </CardContent>
-        </Card>
+      {!attempt ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>No attempt to review</EmptyTitle>
+            <EmptyDescription>
+              No submitted answers were found for this assessment. Open the assessment to start an attempt.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         quiz.questions.map((q, index) => {
           const written = isWrittenQuestion(q);

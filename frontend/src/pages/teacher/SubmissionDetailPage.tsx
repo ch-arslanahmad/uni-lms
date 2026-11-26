@@ -13,8 +13,14 @@ import {
   autoGradeMcqAnswers,
   calculateAttemptTotal,
   currentTeacherName,
+  isMcqAssessment,
+  isProjectAssessment,
+  latestAttemptFor,
   nowTimestamp,
+  requiresViva,
   teacherSections,
+  vivaCapFor,
+  type AssessmentAttempt,
 } from "../../api";
 import { students } from "../../models";
 
@@ -28,6 +34,7 @@ function SubmissionDetailPage() {
     assessments,
     assessmentQuestions,
     assessmentAttempts,
+    setAssessmentAttempts,
     assessmentAnswers,
     setAssessmentAnswers,
   } = useOutletContext<TeacherContext>();
@@ -36,12 +43,14 @@ function SubmissionDetailPage() {
   const section = teacherSections.find((s) => s.id === act?.sectionId);
   const student = students.find((s) => s.id === studentId);
   const questions = assessmentQuestions.filter((question) => question.assessmentId === act?.id);
-  const attempt = assessmentAttempts.find(
-    (item) => item.assessmentId === act?.id && item.studentId === sub?.studentId,
-  );
+  const attempt = latestAttemptFor(assessmentAttempts, act?.id, sub?.studentId);
   const answers = attempt ? assessmentAnswers.filter((answer) => answer.attemptId === attempt.id) : [];
 
   const [marks, setMarks] = useState(sub?.marks?.toString() ?? "");
+  const [vivaMarks, setVivaMarks] = useState(() => {
+    const current = sub && act && isProjectAssessment(act) ? attempt?.viva?.marks : sub?.viva?.marks;
+    return current != null ? String(current) : "";
+  });
   const [feedback, setFeedback] = useState(sub?.feedback ?? "");
   const [extDate, setExtDate] = useState(sub?.extensionDueAt ?? "");
   const [extReason, setExtReason] = useState(sub?.extensionReason ?? "");
@@ -69,19 +78,94 @@ function SubmissionDetailPage() {
   const canGrade = useMemo(() => sub && sub.status !== "not-submitted", [sub]);
   if (!sub || !act) return <div className="mx-auto max-w-5xl px-4 py-8">Submission not found.</div>;
 
-  function saveGrade(publish: boolean) {
-    const m = hasMcq && marks.trim() === "" ? autoTotal : Number(marks);
-    if (!Number.isFinite(m) || m < 0 || m > act!.maxMarks) { setErr(`Marks must be between 0 and ${act!.maxMarks}.`); return; }
+  const activeAct = act;
+  const activeSub = sub;
+  const isProject = isProjectAssessment(activeAct);
+  const vivaRequired = requiresViva(activeAct);
+  const vivaCap = isProject ? vivaCapFor(activeAct, assessmentQuestions) : activeAct.maxMarks;
+
+  function readGrade(): { score: number; viva?: number } | null {
+    const raw = marks.trim();
+    const manualScore = hasMcq && raw === "" ? autoTotal : Number(raw);
+    if (!Number.isFinite(manualScore) || manualScore < 0 || manualScore > activeAct.maxMarks) {
+      setErr(`Marks must be between 0 and ${activeAct.maxMarks}.`);
+      return null;
+    }
+    const score = isProject && assessmentQuestions.length > 0 ? autoTotal : manualScore;
+    let vivaValue: number | undefined;
+    if (vivaRequired) {
+      const rawViva = vivaMarks.trim();
+      vivaValue = rawViva === "" ? 0 : Number(rawViva);
+      if (!Number.isFinite(vivaValue) || vivaValue < 0 || vivaValue > vivaCap) {
+        setErr(isProject
+          ? `Viva cannot exceed ${vivaCap} (max marks minus question marks).`
+          : `Viva marks must be between 0 and ${vivaCap}.`);
+        return null;
+      }
+      if (score + vivaValue > activeAct.maxMarks) {
+        setErr(`Marks plus viva cannot exceed ${activeAct.maxMarks}.`);
+        return null;
+      }
+    }
+    setErr("");
+    return { score, viva: vivaValue };
+  }
+
+  function persistGrade(publish: boolean, correction: boolean) {
+    const values = readGrade();
+    if (!values) return;
+    const examiner = currentTeacherName();
+    const conductedAt = nowTimestamp();
     autoGradeMcq();
-    setErr(""); setMsg(publish ? "Grade published and submission locked." : "Draft grade saved.");
-    setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, marks: m, feedback: feedback.trim(), status: publish ? "locked" : "graded", updatedBy: currentTeacherName(), updatedAt: nowTimestamp() } : x));
+    setMsg(correction
+      ? "Grade corrected. Current grade updated; latest updater/timestamp stored (no history)."
+      : publish ? "Grade published and submission locked." : "Draft grade saved.");
+    setSubmissions((prev) => prev.map((x) => x.id === activeSub.id ? {
+      ...x,
+      marks: values.score,
+      feedback: feedback.trim(),
+      status: publish ? "locked" : "graded",
+      updatedBy: examiner,
+      updatedAt: conductedAt,
+      viva: !isProject && values.viva != null
+        ? {
+            ...x.viva,
+            examiner,
+            conductedAt,
+            marks: values.viva,
+            room: x.viva?.room ?? activeAct.physicalRoom,
+          }
+        : x.viva,
+    } : x));
+
+    if (isProject && values.viva != null) {
+      setAssessmentAttempts((previous) => {
+        const match = (attempt: AssessmentAttempt) =>
+          attempt.assessmentId === activeAct.id && attempt.studentId === activeSub.studentId;
+        const viva = {
+          examiner,
+          conductedAt,
+          marks: values.viva!,
+          comment: previous.find(match)?.viva?.comment,
+        };
+        return previous.some(match)
+          ? previous.map((attempt) => match(attempt) ? { ...attempt, viva } : attempt)
+          : [...previous, {
+              id: `att-${activeAct.id}-${activeSub.studentId}`,
+              assessmentId: activeAct.id,
+              studentId: activeSub.studentId,
+              submittedAt: conductedAt,
+              viva,
+            }];
+      });
+    }
+  }
+
+  function saveGrade(publish: boolean) {
+    persistGrade(publish, false);
   }
   function saveCorrection() {
-    const m = hasMcq && marks.trim() === "" ? autoTotal : Number(marks);
-    if (!Number.isFinite(m) || m < 0 || m > act!.maxMarks) { setErr(`Marks must be between 0 and ${act!.maxMarks}.`); return; }
-    autoGradeMcq();
-    setErr(""); setMsg("Grade corrected. Current grade updated; latest updater/timestamp stored (no history).");
-    setSubmissions((prev) => prev.map((x) => x.id === sub!.id ? { ...x, marks: m, feedback: feedback.trim(), status: "locked", updatedBy: currentTeacherName(), updatedAt: nowTimestamp() } : x));
+    persistGrade(true, true);
   }
   function grantExtension() {
     if (!extDate) { setErr("Extension date is required."); return; }
@@ -98,7 +182,7 @@ function SubmissionDetailPage() {
 
       <div className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <AssessmentReference assessment={act} />
-        {(questions.length > 0 || act.hasMcq || act.kind === "quiz") && (
+        {(questions.length > 0 || isMcqAssessment(act)) && (
           <AssessmentAnswers questions={questions} answers={answers} submittedAt={attempt?.submittedAt} onWrittenMark={setWrittenMark} />
         )}
       </div>
@@ -111,7 +195,7 @@ function SubmissionDetailPage() {
           <p><span className="font-medium">File:</span> {sub.fileName ?? "—"}</p>
           {sub.file ? (
             <AttachmentCard file={sub.file} />
-          ) : act.hasMcq || act.kind === "quiz" ? (
+          ) : isMcqAssessment(act) ? (
             <p className="text-xs text-slate-500">Answered in-app. See assessment answers above.</p>
           ) : sub.type === "physical" ? (
             <p className="text-xs text-slate-500">Physical submission. No document attached.</p>
@@ -121,9 +205,20 @@ function SubmissionDetailPage() {
         </CardContent></Card>
 
         <Card><CardHeader><CardTitle className="text-base">Grade / Feedback</CardTitle></CardHeader><CardContent className="space-y-3">
-          <div className="space-y-1"><Label>Marks (out of {act.maxMarks})</Label><Input type="number" value={marks} onChange={e=>setMarks(e.target.value)} disabled={!canGrade} /></div>
+          <div className="space-y-1"><Label htmlFor="detail-marks">Marks (out of {act.maxMarks})</Label><Input id="detail-marks" type="number" value={marks} onChange={e=>{setMarks(e.target.value); setErr("");}} disabled={!canGrade} /></div>
           {hasMcq && <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>MCQ auto-marked: {autoTotal} / {act.maxMarks}</span><Button size="sm" variant="ghost" onClick={() => setMarks(String(autoTotal))}>Apply auto mark</Button></div>}
-          <div className="space-y-1"><Label>Feedback</Label><Textarea value={feedback} onChange={e=>setFeedback(e.target.value)} disabled={!canGrade} /></div>
+          {vivaRequired && (
+            <div className="space-y-1">
+              <Label htmlFor="detail-viva">Viva marks (out of {vivaCap})</Label>
+              <Input id="detail-viva" type="number" value={vivaMarks} onChange={e=>{setVivaMarks(e.target.value); setErr("");}} disabled={!canGrade} />
+              <p className="text-xs text-muted-foreground">
+                {isProject
+                  ? `Cap is max marks (${act.maxMarks}) minus question marks (${act.maxMarks - vivaCap}).`
+                  : `Marks plus viva cannot exceed ${act.maxMarks}.`}
+              </p>
+            </div>
+          )}
+          <div className="space-y-1"><Label htmlFor="detail-feedback">Feedback</Label><Textarea id="detail-feedback" value={feedback} onChange={e=>setFeedback(e.target.value)} disabled={!canGrade} /></div>
           {err && <p className="text-xs text-red-600">{err}</p>}
           {msg && <p className="text-xs text-emerald-600">{msg}</p>}
           <div className="flex flex-wrap gap-2">

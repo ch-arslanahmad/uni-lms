@@ -6,6 +6,7 @@ import { SearchInput } from "../../components/SearchInput";
 import FilterSelect from "../../components/FilterSelect";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../../components/ui/empty";
 import { teacherSections } from "../../api";
 
 function MyClasses() {
@@ -30,7 +31,14 @@ function MyClasses() {
         <FilterSelect filters={terms} value={term} onChange={setTerm} />
         <SearchInput value={query} onChange={setQuery} placeholder="Search classes" />
       </div>
-      {filtered.length === 0 ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No assigned classes found.</CardContent></Card> : (
+      {filtered.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>No assigned classes</EmptyTitle>
+            <EmptyDescription>Try a different term or search term.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c) => (
             <Card key={c.id} className="h-full">

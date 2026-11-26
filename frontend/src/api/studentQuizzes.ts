@@ -1,39 +1,88 @@
 // Phase 1 bridge: student quizzes show the questions their teacher created in
-// the teacher workspace. Questions are read from the same localStorage snapshot
-// the teacher edits, so a reload after editing reflects immediately on quizzes.
+// the teacher workspace. Questions and the single attempt per assessment are
+// read from localStorage, so a reload reflects edits on both sides immediately.
 
 import { quizzes, type Quiz, type QuizQuestion } from "../mock/student";
-import type { AssessmentQuestion, SectionResultState, TeacherAssessment } from "../mock/teacher";
-import { TEACHER_SNAPSHOT_KEY } from "./client";
+import type { AssessmentQuestion } from "../mock/teacher";
+import { nowTimestamp, readSavedTeacherSnapshot } from "./client";
 
-interface TeacherSnapshotForQuizzes {
-  assessmentQuestions?: AssessmentQuestion[];
-  assessments?: TeacherAssessment[];
-  resultStates?: SectionResultState[];
+const QUIZ_ATTEMPT_KEY = "uni-lms.student-quiz-attempts.v1";
+
+// FR4/FR22: MCQs are marked on submission and revealed on the review page.
+// Written answers still wait for teacher grading.
+export const QUIZ_SCORES_MESSAGE = "MCQ scores and answers appear on the review page after you submit.";
+
+export interface StoredQuizAttempt {
+  answers: Record<string, QuizAnswerValue>;
+  score: number;
+  started: string;
+  completed: string;
+  duration: string;
+  grade: string;
 }
 
-function readTeacherSnapshot(): TeacherSnapshotForQuizzes {
+type QuizAttemptMap = Record<string, StoredQuizAttempt>;
+
+function readStoredAttempts(): QuizAttemptMap {
   try {
-    const raw = localStorage.getItem(TEACHER_SNAPSHOT_KEY);
-    return raw ? JSON.parse(raw) as TeacherSnapshotForQuizzes : {};
+    const raw = localStorage.getItem(QUIZ_ATTEMPT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as QuizAttemptMap;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
     return {};
   }
 }
 
-function readTeacherQuestions(): AssessmentQuestion[] {
-  const saved = readTeacherSnapshot();
-  return Array.isArray(saved.assessmentQuestions) ? saved.assessmentQuestions : [];
+function writeStoredAttempts(attempts: QuizAttemptMap): void {
+  try {
+    localStorage.setItem(QUIZ_ATTEMPT_KEY, JSON.stringify(attempts));
+  } catch {
+    // Storage quota can be reached by large demo uploads; keep this attempt in memory.
+  }
 }
 
-// FR4: MCQ scores stay hidden until the section's results are published.
-export const QUIZ_SCORES_MESSAGE = "MCQ scores are available after results are published.";
+export function getQuizAttempt(quiz: Quiz): StoredQuizAttempt | undefined {
+  const saved = readStoredAttempts()[quiz.id];
+  if (saved) return saved;
+  if (!quiz.attempt) return undefined;
 
-export function areQuizScoresPublished(quiz: Quiz): boolean {
-  const saved = readTeacherSnapshot();
-  const assessment = saved.assessments?.find((a) => a.id === quiz.sourceAssessmentId);
-  if (!assessment) return false;
-  return saved.resultStates?.some((r) => r.sectionId === assessment.sectionId && r.published) ?? false;
+  const answers: Record<string, QuizAnswerValue> = { ...(quiz.attempt.answers ?? {}) };
+  if (!quiz.attempt.answers) {
+    // Older seeds without an answer sheet stayed readable during migration.
+    quiz.questions.forEach((question, index) => {
+      if (question.type === "written") {
+        answers[question.id] = "";
+        return;
+      }
+      const missed = quiz.grade < quiz.max && index === quiz.questions.length - 1;
+      answers[question.id] = missed ? (question.answer + 1) % question.options.length : question.answer;
+    });
+  }
+  return { ...quiz.attempt, answers, score: quiz.grade };
+}
+
+export function saveQuizAttempt(
+  quiz: Quiz,
+  answers: Record<string, QuizAnswerValue>,
+  elapsedSeconds: number,
+): StoredQuizAttempt {
+  const score = quiz.questions.reduce((sum, question) =>
+    sum + (question.type !== "written" && answers[question.id] === question.answer ? question.points : 0), 0);
+  const attempt: StoredQuizAttempt = {
+    answers,
+    score,
+    started: nowTimestamp(),
+    completed: nowTimestamp(),
+    duration: `${Math.max(1, Math.round(elapsedSeconds / 60))} min`,
+    grade: `${score.toFixed(2)} / ${quiz.max.toFixed(2)}`,
+  };
+  writeStoredAttempts({ ...readStoredAttempts(), [quiz.id]: attempt });
+  return attempt;
+}
+
+export function areQuizScoresRevealed(quiz: Quiz): boolean {
+  return getQuizAttempt(quiz) != null;
 }
 
 function toQuizQuestion(question: AssessmentQuestion): QuizQuestion {
@@ -49,7 +98,7 @@ function toQuizQuestion(question: AssessmentQuestion): QuizQuestion {
 }
 
 export function getStudentQuizzes(): Quiz[] {
-  const teacherQuestions = readTeacherQuestions();
+  const teacherQuestions = readSavedTeacherSnapshot().assessmentQuestions ?? [];
   if (teacherQuestions.length === 0) return quizzes;
 
   return quizzes.map((quiz) => {

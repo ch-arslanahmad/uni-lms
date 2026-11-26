@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
 import { getTeacherProfile, teacherSections } from "../../api";
 import { useAdminStore } from "../../lib/adminStore";
+import { datesheetClassLabel, examTypeLabel } from "../../mock/calendar";
 
 function TeacherDashboard() {
   const { submissions, questions, assessments } = useOutletContext<TeacherContext>();
@@ -13,7 +14,7 @@ function TeacherDashboard() {
   const admin = useAdminStore();
   const teacher = getTeacherProfile();
   const pendingGrading = submissions.filter((s) => s.status === "submitted").length;
-  const unanswered = questions.filter((q) => q.status === "pending").length;
+  const unanswered = questions.filter((q) => q.status === "open" && !q.answer).length;
   const upcoming = assessments
     .filter((a) => a.dueAt >= "2026-11-22" || (a.required && !a.documentName))
     .sort((a, b) => a.dueAt.localeCompare(b.dueAt))
@@ -50,9 +51,9 @@ function TeacherDashboard() {
                 <p className="text-sm text-muted-foreground">No exam dates have been scheduled.</p>
               ) : admin.examDatesheet.map((entry) => (
                 <div key={entry.id} className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-sm">
-                  <p className="font-medium">{entry.examType} · {entry.subjectCode} {entry.subjectTitle}</p>
+                  <p className="font-medium">{examTypeLabel(entry.examType)} · {entry.subjectCode} {entry.subjectTitle}</p>
                   <p className="text-xs text-muted-foreground">
-                    {entry.examDate} ({entry.dayOfWeek}) · {entry.timeSlot} · {entry.classSection}
+                    {entry.examDate} ({entry.dayOfWeek}) · {entry.timeSlot} · {datesheetClassLabel(entry)}
                   </p>
                   <p className="text-xs text-muted-foreground">Prepare and post required material before this date.</p>
                 </div>

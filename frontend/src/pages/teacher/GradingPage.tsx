@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { assessmentSlug, studentSlug } from "../../lib/slugs";
-import { BookOpen, Search, X } from "lucide-react";
+import { BookOpen, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { Field, FieldLabel } from "../../components/ui/field";
 import { Label } from "../../components/ui/label";
+import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "../../components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
 import type { TeacherContext } from "../../components/teacher/TeacherLayout";
@@ -16,7 +25,12 @@ import {
   autoGradeMcqAnswers,
   calculateAttemptTotal,
   currentTeacherName,
+  isMcqAssessment,
+  isProjectAssessment,
+  latestAttemptFor,
   nowTimestamp,
+  requiresViva,
+  vivaCapFor,
 } from "../../api";
 import {
   getSectionStudents,
@@ -29,6 +43,7 @@ import {
   type TeacherAssessment,
   type TeacherSection,
   type TeacherSubmission,
+  type VivaRecord,
 } from "../../api";
 import { programCurriculums, students, subjects } from "../../models";
 
@@ -49,6 +64,7 @@ type Row = {
   maxMarks: number;
   submissionType: SubmissionType;
   file?: SubmissionFile;
+  viva?: VivaRecord;
   locked: boolean;
 };
 
@@ -89,7 +105,7 @@ function StatusText({ status }: { status: DisplayStatus }) {
   );
 }
 
-type GradeDraft = { marks: number; feedback: string; publish: boolean };
+type GradeDraft = { marks: number; feedback: string; publish: boolean; vivaMarks?: number };
 
 type GradingDrawerProps = {
   row: Row;
@@ -104,102 +120,67 @@ type GradingDrawerProps = {
 
 function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWrittenMark, onAutoGradeMcq }: GradingDrawerProps) {
   const [marks, setMarks] = useState(row.marks != null ? String(row.marks) : "");
+  const [vivaMarks, setVivaMarks] = useState(() => {
+    const current = isProjectAssessment(row.assessment) ? attempt?.viva?.marks : row.viva?.marks;
+    return current != null ? String(current) : "";
+  });
   const [feedback, setFeedback] = useState(row.feedback ?? "");
   const [error, setError] = useState("");
-  const panelRef = useRef<HTMLElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    closeRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab" || !panelRef.current) return;
-
-      const focusable = Array.from(
-        panelRef.current.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
 
   const autoTotal = useMemo(() => calculateAttemptTotal(questions, answers), [questions, answers]);
   const hasMcq = questions.some((question) => question.type === "mcq");
+  const isProject = isProjectAssessment(row.assessment);
+  const vivaRequired = requiresViva(row.assessment);
+  const vivaCap = isProject ? vivaCapFor(row.assessment, questions) : row.maxMarks;
 
   function handleSave(publish: boolean) {
     const raw = marks.trim();
-    const autoValue = hasMcq && raw === "" ? autoTotal : Number(raw);
-    if (!Number.isFinite(autoValue) || autoValue < 0 || autoValue > row.maxMarks) {
+    const manualScore = hasMcq && raw === "" ? autoTotal : Number(raw);
+    if (!Number.isFinite(manualScore) || manualScore < 0 || manualScore > row.maxMarks) {
       setError(`Enter a number between 0 and ${row.maxMarks}.`);
       return;
     }
+    const score = isProject && questions.length > 0 ? autoTotal : manualScore;
+    let vivaValue: number | undefined;
+    if (vivaRequired) {
+      const rawViva = vivaMarks.trim();
+      vivaValue = rawViva === "" ? 0 : Number(rawViva);
+      if (!Number.isFinite(vivaValue) || vivaValue < 0 || vivaValue > vivaCap) {
+        setError(isProject
+          ? `Viva cannot exceed ${vivaCap} (max marks minus question marks).`
+          : `Enter viva marks between 0 and ${vivaCap}.`);
+        return;
+      }
+      if (score + vivaValue > row.maxMarks) {
+        setError(`Score plus viva cannot exceed ${row.maxMarks}.`);
+        return;
+      }
+    }
     onAutoGradeMcq();
-    onSave({ marks: autoValue, feedback: feedback.trim(), publish });
+    onSave({ marks: score, feedback: feedback.trim(), publish, vivaMarks: vivaValue });
   }
 
   return (
-    <div className="fixed inset-0 z-[60]">
-      <div className="absolute inset-0 bg-slate-900/10" aria-hidden="true" onClick={onClose} />
-
-      <aside
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="grading-drawer-title"
-        onClick={(event) => event.stopPropagation()}
-        className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white shadow-xl sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none sm:border-l sm:border-t-0"
-      >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
-          <div>
-            <h2 id="grading-drawer-title" className="text-base font-semibold text-slate-900">
-              {row.studentName} · #{row.studentId}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">{row.assessmentTitle}</p>
-            <div className="mt-2 flex items-center gap-3 text-xs">
-              <StatusText status={row.status} />
-              <Link
-                to={`/teacher/grading/${studentSlug(row.studentId, row.studentName)}/${assessmentSlug(row.assessmentId, row.assessmentTitle)}`}
-                className="text-blue-600 hover:underline"
-                onClick={onClose}
-              >
-                Open full page
-              </Link>
-            </div>
+    <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent side="right" className="w-full max-w-md overflow-y-auto p-0">
+        <SheetHeader className="border-b border-slate-100 px-6 py-5 pr-14">
+          <SheetTitle>{row.studentName} · #{row.studentId}</SheetTitle>
+          <SheetDescription>{row.assessmentTitle}</SheetDescription>
+          <div className="mt-2 flex items-center gap-3 text-xs">
+            <StatusText status={row.status} />
+            <Link
+              to={`/teacher/grading/${studentSlug(row.studentId, row.studentName)}/${assessmentSlug(row.assessmentId, row.assessmentTitle)}`}
+              className="text-blue-600 hover:underline"
+              onClick={onClose}
+            >
+              Open full page
+            </Link>
           </div>
-          <button
-            ref={closeRef}
-            type="button"
-            aria-label="Close grading panel"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
-          >
-            <X className="size-4" />
-          </button>
-        </header>
+        </SheetHeader>
 
         <AssessmentReference assessment={row.assessment} />
 
-        {(questions.length > 0 || row.assessment.hasMcq || row.assessment.kind === "quiz") && (
+        {(questions.length > 0 || isMcqAssessment(row.assessment)) && (
           <AssessmentAnswers
             questions={questions}
             answers={answers}
@@ -211,7 +192,7 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
         <section className="px-6 py-6">
           <h3 className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Student submission</h3>
           <div className="mt-3 border-t border-slate-100 pt-4 text-sm">
-            {row.assessment.hasMcq || row.assessment.kind === "quiz" ? (
+            {isMcqAssessment(row.assessment) ? (
               <p className="text-slate-500">Answered in-app. See assessment answers above.</p>
             ) : row.submissionType === "digital" ? (
               row.file ? (
@@ -260,6 +241,35 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
                 </div>
               )}
             </div>
+            {vivaRequired && (
+              <div className="space-y-1.5">
+                <Label htmlFor="grading-viva">Viva marks</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="grading-viva"
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    min={0}
+                    max={vivaCap}
+                    value={vivaMarks}
+                    onChange={(event) => {
+                      setVivaMarks(event.target.value);
+                      setError("");
+                    }}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? "grading-marks-error" : undefined}
+                    className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                  />
+                  <span className="text-sm text-slate-400">/ {vivaCap}</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {isProject
+                    ? `Cap is max marks (${row.maxMarks}) minus question marks (${row.maxMarks - vivaCap}).`
+                    : `Marks plus viva cannot exceed ${row.maxMarks}.`}
+                </p>
+              </div>
+            )}
             {error && (
               <p id="grading-marks-error" role="alert" className="text-xs text-red-600">
                 {error}
@@ -301,8 +311,8 @@ function GradingDrawer({ row, questions, attempt, answers, onClose, onSave, onWr
             </p>
           </div>
         </section>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -313,6 +323,7 @@ function GradingPage() {
     setSubmissions,
     assessmentQuestions,
     assessmentAttempts,
+    setAssessmentAttempts,
     assessmentAnswers,
     setAssessmentAnswers,
   } = useOutletContext<TeacherContext>();
@@ -367,6 +378,7 @@ function GradingPage() {
           maxMarks: assessment?.maxMarks ?? 100,
           submissionType: submission.type ?? null,
           file: submission.file,
+          viva: submission.viva,
           locked: submission.status === "locked",
         };
       });
@@ -397,22 +409,57 @@ function GradingPage() {
     setDrawerRow(row);
   }
 
-  function saveGrade({ marks, feedback, publish }: GradeDraft) {
+  function saveGrade({ marks, feedback, publish, vivaMarks }: GradeDraft) {
     if (!drawerRow) return;
+    const examiner = currentTeacherName();
+    const conductedAt = nowTimestamp();
+    const isProject = drawerRow.assessment.kind === "project";
+
     setSubmissions((previous) =>
-      previous.map((submission) =>
-        submission.id === drawerRow.id
+      previous.map((submission) => {
+        if (submission.id !== drawerRow.id) return submission;
+        const viva = !isProject && vivaMarks != null
           ? {
-              ...submission,
-              marks,
-              feedback: feedback || undefined,
-              status: publish ? "locked" : "graded",
-              updatedBy: currentTeacherName(),
-              updatedAt: nowTimestamp(),
+              ...submission.viva,
+              examiner,
+              conductedAt,
+              marks: vivaMarks,
+              room: submission.viva?.room ?? drawerRow.assessment.physicalRoom,
             }
-          : submission,
-      ),
+          : submission.viva;
+        return {
+          ...submission,
+          marks,
+          feedback: feedback || undefined,
+          status: publish ? "locked" : "graded",
+          updatedBy: examiner,
+          updatedAt: conductedAt,
+          viva,
+        };
+      }),
     );
+
+    if (isProject && vivaMarks != null) {
+      setAssessmentAttempts((previous) => {
+        const match = (attempt: AssessmentAttempt) =>
+          attempt.assessmentId === drawerRow.assessmentId && attempt.studentId === drawerRow.studentId;
+        const viva = {
+          examiner,
+          conductedAt,
+          marks: vivaMarks,
+          comment: previous.find(match)?.viva?.comment,
+        };
+        return previous.some(match)
+          ? previous.map((attempt) => match(attempt) ? { ...attempt, viva } : attempt)
+          : [...previous, {
+              id: `att-${drawerRow.assessmentId}-${drawerRow.studentId}`,
+              assessmentId: drawerRow.assessmentId,
+              studentId: drawerRow.studentId,
+              submittedAt: conductedAt,
+              viva,
+            }];
+      });
+    }
     closeDrawer();
   }
 
@@ -420,10 +467,7 @@ function GradingPage() {
     ? assessmentQuestions.filter((question) => question.assessmentId === drawerRow.assessmentId)
     : [];
   const drawerAttempt = drawerRow
-    ? assessmentAttempts.find(
-        (attempt) =>
-          attempt.assessmentId === drawerRow.assessmentId && attempt.studentId === drawerRow.studentId,
-      )
+    ? latestAttemptFor(assessmentAttempts, drawerRow.assessmentId, drawerRow.studentId)
     : undefined;
   const drawerAnswers = drawerAttempt
     ? assessmentAnswers.filter((answer) => answer.attemptId === drawerAttempt.id)
@@ -475,23 +519,25 @@ function GradingPage() {
       </div>
 
       <div className="mt-10 flex flex-wrap items-end gap-4">
-        <div role="group" aria-label="Grading view" className="inline-flex rounded-xl bg-slate-100 p-1">
+        <RadioGroup
+          value={view}
+          onValueChange={(value) => value && setView(value as "student" | "assessment")}
+          aria-label="Grading view"
+          className="flex w-auto flex-row gap-1 rounded-xl bg-slate-100 p-1"
+        >
           {(["student", "assessment"] as const).map((mode) => (
-            <button
+            <Field
               key={mode}
-              type="button"
-              aria-pressed={view === mode}
-              onClick={() => setView(mode)}
-              className={`rounded-lg px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 ${
-                view === mode
-                  ? "bg-white font-medium text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
+              orientation="horizontal"
+              className={`gap-2 rounded-lg px-3 py-1.5 ${view === mode ? "bg-white shadow-sm" : ""}`}
             >
-              {mode === "student" ? "By Student" : "By Assessment"}
-            </button>
+              <RadioGroupItem value={mode} id={`grading-view-${mode}`} />
+              <FieldLabel htmlFor={`grading-view-${mode}`} className="font-normal">
+                {mode === "student" ? "By Student" : "By Assessment"}
+              </FieldLabel>
+            </Field>
           ))}
-        </div>
+        </RadioGroup>
 
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-slate-500">{view === "assessment" ? "Assessment" : "Student"}</span>
