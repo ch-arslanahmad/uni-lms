@@ -2,6 +2,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import Breadcrumbs from "../../components/student/Breadcrumbs";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../../components/ui/empty";
 import { areQuizScoresPublished, getStudentQuizzes, isWrittenQuestion, QUIZ_SCORES_MESSAGE, type QuizAnswerValue } from "../../api";
 
 function QuizReviewPage() {
@@ -34,19 +35,21 @@ function QuizReviewPage() {
       </div>
 
       {!submitted ? (
-        <Card>
-          <CardHeader><CardTitle>No attempt to review</CardTitle></CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            No submitted answers were found for this assessment. Open the assessment to start an attempt.
-          </CardContent>
-        </Card>
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>No attempt to review</EmptyTitle>
+            <EmptyDescription>
+              No submitted answers were found for this assessment. Open the assessment to start an attempt.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : !scoresPublished ? (
-        <Card>
-          <CardHeader><CardTitle>Scores not published yet</CardTitle></CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Your answers were submitted. {QUIZ_SCORES_MESSAGE}
-          </CardContent>
-        </Card>
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>Scores not published yet</EmptyTitle>
+            <EmptyDescription>Your answers were submitted. {QUIZ_SCORES_MESSAGE}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         quiz.questions.map((q, index) => {
           const written = isWrittenQuestion(q);
