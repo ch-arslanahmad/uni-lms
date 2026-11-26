@@ -12,20 +12,24 @@ function statusOf(q: StudentQuestion): Status {
   return studentQuestionStatusLabel(q);
 }
 
+function isUnread(q: StudentQuestion) {
+  return Boolean(q.answer && !q.readAt);
+}
+
 function sortQuestions(questions: StudentQuestion[]) {
   const byAsked = (a: StudentQuestion, b: StudentQuestion) => b.askedAt.localeCompare(a.askedAt);
   const byAnswered = (a: StudentQuestion, b: StudentQuestion) => (b.answeredAt ?? "").localeCompare(a.answeredAt ?? "");
   const byActivity = (a: StudentQuestion, b: StudentQuestion) =>
     (b.answeredAt ?? b.askedAt).localeCompare(a.answeredAt ?? a.askedAt);
-  const answered = questions.filter((q) => statusOf(q) === "Answered (new)").sort(byAnswered);
-  const open = questions.filter((q) => statusOf(q) === "Pending").sort(byAsked);
-  const settled = questions.filter((q) => statusOf(q) !== "Answered (new)" && statusOf(q) !== "Pending").sort(byActivity);
-  return [...answered, ...open, ...settled];
+  const unread = questions.filter(isUnread).sort(byAnswered);
+  const open = questions.filter((q) => !isUnread(q) && statusOf(q) === "Pending").sort(byAsked);
+  const settled = questions.filter((q) => !isUnread(q) && statusOf(q) !== "Pending").sort(byActivity);
+  return [...unread, ...open, ...settled];
 }
 
-function StatusBadge({ status }: { status: Status }) {
-  if (status === "Answered (new)")
-    return <Badge className="rounded-full bg-blue-500 text-white hover:bg-blue-500">New</Badge>;
+function StatusBadge({ status, unread }: { status: Status; unread: boolean }) {
+  if (unread)
+    return <Badge className="rounded-full bg-blue-500 text-white hover:bg-blue-500">New reply</Badge>;
   if (status === "Pending")
     return <Badge variant="ghost" className="text-muted-foreground">Pending</Badge>;
   return <Badge variant="ghost" className="text-muted-foreground">{status}</Badge>;
@@ -35,7 +39,7 @@ function MyQuestionsPage() {
   const { questions, unreadCount, markRead } = useOutletContext<StudentQuestionsContext>();
   const [openId, setOpenId] = useState<string | null>(null);
   const marked = useRef<Set<string>>(new Set());
-  const sortKey = questions.map((q) => `${q.id}:${q.answer ? 1 : 0}:${q.askedAt}:${q.answeredAt ?? ""}`).join("|");
+  const sortKey = questions.map((q) => `${q.id}:${q.answer ? 1 : 0}:${q.readAt ?? ""}:${q.askedAt}:${q.answeredAt ?? ""}`).join("|");
   const rows = useMemo(() => sortQuestions(questions), [sortKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function openQuestion(q: StudentQuestion) {
@@ -62,20 +66,24 @@ function MyQuestionsPage() {
           {rows.map((q) => {
             const status = statusOf(q);
             const open = openId === q.id;
+            const unread = isUnread(q);
             return (
-              <div key={q.id} className="rounded-lg border">
+              <div key={q.id} className={`rounded-lg border ${unread ? "border-blue-300 bg-blue-50/70" : ""}`}>
                 <button
                   type="button"
                   className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50"
                   onClick={() => void openQuestion(q)}
                 >
                   <div className="min-w-0 space-y-1">
-                    <p className="font-medium">{q.question}</p>
+                    <p className="font-medium">
+                      {unread && <span className="mr-2 inline-block size-2 rounded-full bg-blue-500 align-middle" aria-hidden="true" />}
+                      {q.question}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {q.contextType === "event" ? "Event" : "Course"}: {q.contextLabel} · {q.visibility === "public" ? "Public" : "Private"}
                     </p>
                   </div>
-                  <StatusBadge status={status} />
+                  <StatusBadge status={status} unread={unread} />
                 </button>
                 {open && (
                   <div className="space-y-3 border-t px-4 py-3 text-sm">
